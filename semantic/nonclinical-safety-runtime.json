@@ -1,0 +1,327 @@
+{
+  "apiVersion": "contextobjects.dev/runtime-bundle/v1",
+  "kind": "SemanticRuntimeBundle",
+  "release": {
+    "releaseId": "org.contextobjects.nonclinical-safety@0.1.0",
+    "packageId": "org.contextobjects.nonclinical-safety",
+    "version": "0.1.0",
+    "title": "Nonclinical Safety Semantic Runtime",
+    "maturity": "preview",
+    "compiledBy": "Context Studio",
+    "sourceStandard": "CDISC SENDIG 3.0",
+    "description": "Portable semantic, resolver, authorization, and presentation contract for evidence-led nonclinical safety review."
+  },
+  "objects": [
+    {
+      "id": "Compound",
+      "label": "Compound",
+      "kind": "business",
+      "description": "Investigational material anchor. It may carry identifiers and normalized structure references without making SMILES the business model.",
+      "collection": "compounds",
+      "documentPath": "compound",
+      "sourceDomains": ["TS"],
+      "retrieval": ["exact", "text", "chemical-fingerprint"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
+      "position": { "x": 0, "y": 0 }
+    },
+    {
+      "id": "Study",
+      "label": "Study",
+      "kind": "business",
+      "description": "Immutable, versioned study snapshot and its protocol-level context.",
+      "collection": "study_evidence",
+      "documentPath": "study",
+      "sourceDomains": ["TS"],
+      "retrieval": ["exact", "text"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
+      "position": { "x": 230, "y": 0 }
+    },
+    {
+      "id": "TreatmentGroup",
+      "label": "Treatment group",
+      "kind": "business",
+      "description": "Dose assignment and exposure context for a cohort of study subjects.",
+      "collection": "study_evidence",
+      "documentPath": "doseGroups[]",
+      "sourceDomains": ["TX"],
+      "retrieval": ["exact", "range"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
+      "position": { "x": 470, "y": 0 }
+    },
+    {
+      "id": "Subject",
+      "label": "Animal subject",
+      "kind": "business",
+      "description": "Governed subject identity, group assignment, sex, species, and strain.",
+      "collection": "subjects",
+      "documentPath": "subject",
+      "sourceDomains": ["DM"],
+      "retrieval": ["exact", "graph"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "external-reviewer"],
+      "position": { "x": 700, "y": 0 }
+    },
+    {
+      "id": "Finding",
+      "label": "Microscopic finding",
+      "kind": "evidence",
+      "description": "An observed tissue finding with normalized organ, morphology, severity, subject, and source lineage.",
+      "collection": "study_evidence",
+      "documentPath": "signals[]",
+      "sourceDomains": ["MI"],
+      "terminology": ["SEND controlled terminology", "solution concept dictionary"],
+      "retrieval": ["exact", "text", "vector", "graph", "rerank"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
+      "position": { "x": 470, "y": 180 }
+    },
+    {
+      "id": "LabMeasurement",
+      "label": "Laboratory measurement",
+      "kind": "evidence",
+      "description": "Longitudinal result with analyte, unit, study day, group, and subject context.",
+      "collection": "study_evidence",
+      "documentPath": "labSeries",
+      "sourceDomains": ["LB"],
+      "retrieval": ["exact", "range", "vector"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
+      "position": { "x": 700, "y": 180 }
+    },
+    {
+      "id": "SourceArtifact",
+      "label": "Source artifact",
+      "kind": "governance",
+      "description": "Checksum-verified XPT, Define-XML, or transformation artifact used to reproduce an assertion.",
+      "collection": "source_artifacts",
+      "documentPath": "provenance",
+      "sourceDomains": ["XPT", "Define-XML"],
+      "retrieval": ["exact", "graph"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "external-reviewer"],
+      "position": { "x": 930, "y": 180 }
+    },
+    {
+      "id": "EvidenceAssertion",
+      "label": "Evidence assertion",
+      "kind": "intelligence",
+      "description": "A snapshot-bound, cited hypothesis assembled by deterministic and AI-assisted retrieval.",
+      "collection": "investigations",
+      "documentPath": "result",
+      "retrieval": ["text", "vector", "graph"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
+      "position": { "x": 470, "y": 360 }
+    },
+    {
+      "id": "ReviewDecision",
+      "label": "Review decision",
+      "kind": "workflow",
+      "description": "Solution-owned annotation, classification, follow-up, approval, or rejection. It never mutates published SEND evidence.",
+      "collection": "review_actions",
+      "documentPath": "decision",
+      "retrieval": ["exact", "text", "graph"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward"],
+      "position": { "x": 700, "y": 360 }
+    }
+  ],
+  "edges": [
+    { "id": "compound-study", "from": "Compound", "to": "Study", "label": "evaluated in", "predicate": "safety:evaluatedIn" },
+    { "id": "study-group", "from": "Study", "to": "TreatmentGroup", "label": "defines", "predicate": "safety:definesGroup" },
+    { "id": "group-subject", "from": "TreatmentGroup", "to": "Subject", "label": "assigns", "predicate": "safety:assignsSubject" },
+    { "id": "subject-finding", "from": "Subject", "to": "Finding", "label": "has finding", "predicate": "safety:hasFinding" },
+    { "id": "subject-lab", "from": "Subject", "to": "LabMeasurement", "label": "has result", "predicate": "safety:hasLabResult" },
+    { "id": "finding-lab", "from": "Finding", "to": "LabMeasurement", "label": "contextualized by", "predicate": "safety:contextualizedBy" },
+    { "id": "finding-source", "from": "Finding", "to": "SourceArtifact", "label": "traces to", "predicate": "prov:wasDerivedFrom" },
+    { "id": "lab-source", "from": "LabMeasurement", "to": "SourceArtifact", "label": "traces to", "predicate": "prov:wasDerivedFrom" },
+    { "id": "finding-assertion", "from": "Finding", "to": "EvidenceAssertion", "label": "supports", "predicate": "safety:supportsAssertion" },
+    { "id": "assertion-decision", "from": "EvidenceAssertion", "to": "ReviewDecision", "label": "reviewed as", "predicate": "safety:reviewedAs" }
+  ],
+  "profiles": [
+    {
+      "id": "toxicologist",
+      "label": "Toxicologist",
+      "description": "Investigates findings, adds interpretation, classifies relevance, and requests follow-up.",
+      "grants": ["query:*", "action:annotate", "action:classify", "action:request-follow-up", "action:submit"],
+      "maskedFields": []
+    },
+    {
+      "id": "study-director",
+      "label": "Study director",
+      "description": "Reviews the complete evidence chain and approves or rejects submitted assessments.",
+      "grants": ["query:*", "action:annotate", "action:classify", "action:request-follow-up", "action:submit", "action:approve", "action:reject"],
+      "maskedFields": []
+    },
+    {
+      "id": "data-steward",
+      "label": "Data steward",
+      "description": "Examines semantics, lineage, terminology, mappings, and data-quality discrepancies.",
+      "grants": ["query:lineage", "query:model", "query:exact", "action:create-discrepancy"],
+      "maskedFields": ["reviewerNarrative"]
+    },
+    {
+      "id": "portfolio-lead",
+      "label": "Portfolio lead",
+      "description": "Reads aggregated signals and cross-study similarity without subject-level detail.",
+      "grants": ["query:portfolio", "query:similarity", "query:model"],
+      "hiddenObjects": ["Subject", "SourceArtifact", "ReviewDecision"],
+      "maskedFields": ["subjectId", "sourcePath", "reviewerIdentity"]
+    },
+    {
+      "id": "external-reviewer",
+      "label": "External reviewer",
+      "description": "Read-only access to published evidence, lineage, and submitted briefs.",
+      "grants": ["query:published", "query:lineage", "query:model"],
+      "maskedFields": ["internalNotes", "reviewerIdentity"]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "rank-findings",
+      "label": "Rank findings for review",
+      "mode": "read",
+      "description": "Structured incidence and severity aggregation bound to one immutable snapshot.",
+      "engines": ["aggregation"],
+      "reads": ["Study", "TreatmentGroup", "Finding"],
+      "indexes": ["study_snapshot_signal"],
+      "allowedProfiles": ["toxicologist", "study-director", "portfolio-lead", "external-reviewer"]
+    },
+    {
+      "id": "expand-evidence-neighborhood",
+      "label": "Expand evidence neighborhood",
+      "mode": "read",
+      "description": "Graph traversal from a finding to subjects, groups, labs, assertions, and lineage.",
+      "engines": ["graph-lookup"],
+      "reads": ["Finding", "Subject", "TreatmentGroup", "LabMeasurement", "SourceArtifact", "EvidenceAssertion"],
+      "indexes": ["semantic_edge_from_to", "study_subject_domain"],
+      "allowedProfiles": ["toxicologist", "study-director", "data-steward", "external-reviewer"]
+    },
+    {
+      "id": "retrieve-similar-findings",
+      "label": "Retrieve similar findings",
+      "mode": "read",
+      "description": "Hybrid lexical and vector retrieval over finding meaning, study context, and evidence summaries, followed by reranking.",
+      "engines": ["atlas-search", "vector-search", "rerank"],
+      "reads": ["Finding", "Study", "Compound"],
+      "indexes": ["finding_text", "finding_embedding"],
+      "allowedProfiles": ["toxicologist", "study-director", "portfolio-lead"]
+    },
+    {
+      "id": "assemble-evidence-brief",
+      "label": "Assemble evidence brief",
+      "mode": "read",
+      "description": "Cited synthesis over authorized exact, graph, vector, and lineage results.",
+      "engines": ["aggregation", "atlas-search", "vector-search", "graph-lookup", "agent-synthesis"],
+      "reads": ["Finding", "LabMeasurement", "SourceArtifact", "EvidenceAssertion", "ReviewDecision"],
+      "indexes": ["finding_text", "finding_embedding", "semantic_edge_from_to", "review_history"],
+      "allowedProfiles": ["toxicologist", "study-director", "external-reviewer"]
+    },
+    {
+      "id": "inspect-semantic-model",
+      "label": "Inspect semantic model",
+      "mode": "read",
+      "description": "Explains how business objects bind to concepts, graph edges, resolvers, collections, and indexes.",
+      "engines": ["semantic-registry"],
+      "reads": ["Compound", "Study", "TreatmentGroup", "Subject", "Finding", "LabMeasurement", "SourceArtifact", "EvidenceAssertion", "ReviewDecision"],
+      "indexes": ["semantic_object_id"],
+      "allowedProfiles": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"]
+    }
+  ],
+  "resolvers": [
+    {
+      "id": "resolver.rank-findings.v1",
+      "capability": "rank-findings",
+      "input": { "studyId": "string", "snapshotId": "string" },
+      "output": "RankedFinding[]",
+      "executor": "mongodb-aggregation",
+      "policy": ["snapshot-bound", "read-only"],
+      "stages": ["matchStudySnapshot", "unwindSignals", "scoreIncidenceSeverity", "sortReviewPriority"]
+    },
+    {
+      "id": "resolver.evidence-neighborhood.v1",
+      "capability": "expand-evidence-neighborhood",
+      "input": { "studyId": "string", "snapshotId": "string", "findingId": "string" },
+      "output": "EvidenceSubgraph",
+      "executor": "mongodb-graph-lookup",
+      "policy": ["snapshot-bound", "profile-filtered", "read-only"],
+      "stages": ["authorizeProfile", "seedFinding", "graphLookup", "applyFieldMask", "attachLineage"]
+    },
+    {
+      "id": "resolver.similar-findings.v1",
+      "capability": "retrieve-similar-findings",
+      "input": { "findingId": "string", "query": "string", "limit": "number" },
+      "output": "SimilarFinding[]",
+      "executor": "mongodb-hybrid-search",
+      "policy": ["profile-filtered", "citations-required", "read-only"],
+      "stages": ["lexicalSearch", "vectorSearch", "reciprocalRankFusion", "domainRerank", "authorizeResults"]
+    },
+    {
+      "id": "resolver.evidence-brief.v1",
+      "capability": "assemble-evidence-brief",
+      "input": { "investigationId": "string" },
+      "output": "EvidenceBrief",
+      "executor": "magenta-agent-graph",
+      "policy": ["citations-required", "no-regulatory-conclusion", "human-review"],
+      "stages": ["plan", "executeAuthorizedTools", "rerankEvidence", "synthesize", "verifyCitations"]
+    }
+  ],
+  "actions": [
+    { "id": "annotate", "label": "Add expert annotation", "allowedProfiles": ["toxicologist", "study-director"], "writesCollection": "review_actions", "approval": "none", "immutableEvidence": true },
+    { "id": "classify", "label": "Classify biological relevance", "allowedProfiles": ["toxicologist", "study-director"], "writesCollection": "review_actions", "approval": "none", "immutableEvidence": true },
+    { "id": "request-follow-up", "label": "Request follow-up", "allowedProfiles": ["toxicologist", "study-director"], "writesCollection": "review_actions", "approval": "none", "immutableEvidence": true },
+    { "id": "submit", "label": "Submit assessment", "allowedProfiles": ["toxicologist", "study-director"], "writesCollection": "review_actions", "approval": "study-director", "immutableEvidence": true },
+    { "id": "approve", "label": "Approve evidence brief", "allowedProfiles": ["study-director"], "writesCollection": "review_actions", "approval": "four-eyes", "immutableEvidence": true },
+    { "id": "reject", "label": "Return for revision", "allowedProfiles": ["study-director"], "writesCollection": "review_actions", "approval": "none", "immutableEvidence": true },
+    { "id": "create-discrepancy", "label": "Create data discrepancy", "allowedProfiles": ["data-steward"], "writesCollection": "review_actions", "approval": "none", "immutableEvidence": true }
+  ],
+  "surfaces": [
+    { "id": "business-documents", "label": "Business documents", "description": "Domain objects and the document fragments that keep a safety question local." },
+    { "id": "semantic-graph", "label": "Semantic graph", "description": "Concepts, terminology bindings, predicates, and profile-filtered relationships." },
+    { "id": "retrieval-projections", "label": "Search, graph & vectors", "description": "Resolver contracts and the exact indexes used by hybrid retrieval and the agent." },
+    { "id": "physical-mongodb", "label": "MongoDB deployment", "description": "Collections, document paths, indexes, and protected write boundaries." }
+  ],
+  "valueSets": [
+    {
+      "id": "finding-morphology",
+      "label": "Microscopic finding morphology",
+      "binding": "Finding.finding",
+      "authority": "source-asserted + steward-reviewed",
+      "version": "2026.09",
+      "values": ["Decreased lymphocytes", "Mononuclear cell infiltration", "Inflammatory finding", "Increased fibroblasts"]
+    },
+    {
+      "id": "anatomic-site",
+      "label": "Nonclinical anatomic site",
+      "binding": "Finding.organ",
+      "authority": "SEND terminology projection",
+      "version": "2026.09",
+      "values": ["THYMUS", "LUNG", "HEART", "KIDNEY", "LIVER", "SITE, INJECTION"]
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "semantic-runtime-live",
+      "transport": "server-sent-events",
+      "source": "mongodb-change-stream",
+      "endpoint": "/api/semantics/stream",
+      "resume": "mongodb-resume-token",
+      "snapshot": "/api/semantics",
+      "events": [
+        "semantic.release.activated",
+        "semantic.object.changed",
+        "terminology.value.observed",
+        "terminology.valueset.compiled",
+        "profile.projection.changed",
+        "review.action.committed"
+      ],
+      "policy": ["profile-filtered", "tenant-bound", "resume-safe", "snapshot-on-invalid-cursor"]
+    }
+  ],
+  "governance": {
+    "evidenceCollections": ["study_evidence", "subjects", "source_artifacts"],
+    "solutionWriteCollections": ["investigations", "review_actions"],
+    "writeWorkflow": ["propose", "simulate", "diff", "validate", "approve", "commit", "audit"],
+    "rules": [
+      "Published SEND evidence is immutable.",
+      "Every answer is bound to one study snapshot and profile.",
+      "Every synthesized assertion must expose source citations.",
+      "Profile authorization is enforced by the API, not only by the UI."
+    ]
+  },
+  "contentDigest": "sha256:ff110b736041e2589851a9f3d55f25f32fe2c84acdf27d5f3c93ef319a2ebafb"
+}

@@ -14,7 +14,10 @@ It then progressively reveals the data model, governed queries, hybrid retrieval
 - Dose-response and longitudinal laboratory charts.
 - Cross-domain links between SEND DM, TX, MI, and LB records.
 - A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
-- A read-only AI investigator that exposes its retrieval plan and citations.
+- A full-screen Investigation Room where the AI investigator conducts typed graph, dose, laboratory, and resolver widgets while exposing citations.
+- A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses.
+- Governed review actions stored separately from immutable SEND evidence.
+- A live semantic change lab that shows a newly observed terminology value flowing through Change Streams, validation, compilation, profile projection, and map refresh.
 - A technical view explaining the boundary between the deployed solution and upstream HDL/Kehrnel enablement.
 
 The included demonstration uses deterministic aggregates from the public [PhUSE SENDConform FFU contribution](https://github.com/phuse-org/SENDConform), pinned to revision `eb438ce3f7cbd74eea77677f43b916dd46c802cd`. No large XPT files are committed.
@@ -42,6 +45,14 @@ The default local command uses the deterministic cited investigator. `docker com
 
 Set `MONGODB_URI` to persist study evidence, search chunks, and investigation sessions in the solution database. The application owns these deployed collections and APIs.
 
+Import the checked-in Context Studio runtime release into that database with:
+
+```bash
+npm run import:semantics
+```
+
+The application remains runnable from the checked-in bundle when MongoDB is unavailable.
+
 ## Architecture
 
 ```mermaid
@@ -49,6 +60,9 @@ flowchart LR
   A[Public or sponsor SEND<br/>XPT + Define-XML] --> B[Healthcare Data Lab<br/>intake + data factory]
   B --> C[Versioned solution import<br/>CDISC-derived contract]
   C --> D[(Solution MongoDB Atlas<br/>evidence + review state)]
+  J[Context Studio<br/>author + resolve + compile] --> K[Portable semantic runtime<br/>map + resolvers + profiles]
+  K --> D
+  D -. Change Streams .-> K
   D --> E[Search + Vector Search<br/>hybrid retrieval]
   C --> F[Safety evidence graph]
   E --> G[Magenta<br/>investigation agent]
@@ -62,11 +76,24 @@ flowchart LR
 | Component | Responsibility |
 |---|---|
 | Healthcare Data Lab + Kehrnel | Upstream learning and enablement: create/ingest data, validate the model, test query patterns, and export a versioned solution input. They are not runtime dependencies. |
+| Context Studio | Author, resolve, test, and compile the semantic map into a portable runtime package. It is a build-time dependency, not a production service dependency. |
 | MongoDB Atlas | The deployed solution database: evidence documents, search/vector projections, investigation history, and reviewer state. |
 | Bundled Magenta service | Orchestrate solution-owned read-only tools, memory, traces, reranking, and human review within the same deployment. |
 | This repository | Deliver the business workflow, visual explanation, evidence assembly, and expert experience. |
 
-The solution never makes canonical CDISC records or agent memory competing sources of truth.
+The solution never makes canonical CDISC records, semantic projections, or agent memory competing sources of truth. Published evidence is immutable; semantic releases are versioned; expert decisions are append-only solution state.
+
+## Portable Semantic Runtime
+
+[`semantic/nonclinical-safety-runtime.json`](semantic/nonclinical-safety-runtime.json) is the deployable output of Context Studio. It contains:
+
+- business and evidence objects plus typed relationships;
+- profile-filtered visibility, field masks, capabilities, and actions;
+- resolver contracts for aggregation, graph lookup, hybrid vector search, reranking, and Magenta synthesis;
+- terminology value sets and four synchronized UI surface definitions;
+- a snapshot + cursor + event subscription contract backed by MongoDB Change Streams.
+
+The application imports that artifact; it never imports Context Studio internals. A production identity provider must supply the profile—this demonstrator exposes a profile picker so the authorization projections are visible.
 
 ## Data Modes
 
@@ -113,6 +140,8 @@ lib/analysis/         Deterministic review-priority calculations
 lib/ai/               Magenta adapter and deterministic fallback
 lib/data/             MongoDB repositories and fixture bootstrap
 lib/data/review-store Optional solution-owned MongoDB investigation history
+lib/semantics/        Portable semantic runtime loader and profile projection
+semantic/             Context Studio-compiled runtime release
 services/agent/       Bundled Magenta investigation service
 docs/                 Architecture and delivery guidance
 tests/                Contract and analysis tests
