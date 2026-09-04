@@ -1,16 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, Bot, CheckCircle2, Download, GitBranch, Network, Save, ShieldCheck, X } from 'lucide-react';
-import type { ReviewActionRecord, SafetySignal, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
+import { Activity, BookOpen, Bot, CheckCircle2, Download, GitBranch, Network, Save, ShieldCheck, X } from 'lucide-react';
+import type { LiteratureDocument, ReviewActionRecord, SafetySignal, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import AgentPanel from '@/components/AgentPanel';
 import DoseResponseChart from '@/components/DoseResponseChart';
 import EvidenceGraph from '@/components/EvidenceGraph';
 import LabTrajectoryChart from '@/components/LabTrajectoryChart';
+import LiteratureEvidencePanel from '@/components/LiteratureEvidencePanel';
 
-type Canvas = 'evidence' | 'dose' | 'semantics';
+type Canvas = 'evidence' | 'dose' | 'literature' | 'semantics';
 
-export default function InvestigationRoom({ evidence, signal, runtime, onClose }: { evidence: StudyEvidence; signal: SafetySignal; runtime: SemanticRuntimeView; onClose: () => void }) {
+export default function InvestigationRoom({ evidence, signal, runtime, literature, onClose }: { evidence: StudyEvidence; signal: SafetySignal; runtime: SemanticRuntimeView; literature: LiteratureDocument[]; onClose: () => void }) {
   const [canvas, setCanvas] = useState<Canvas>('evidence');
   const [action, setAction] = useState(runtime.actions[0]?.id || 'annotate');
   const [note, setNote] = useState('');
@@ -51,10 +52,11 @@ export default function InvestigationRoom({ evidence, signal, runtime, onClose }
         <div className="live-contract"><Activity size={13} /><span><b>Change Stream ready</b><small>Snapshot + cursor + typed events</small></span></div>
       </aside>
       <main className="room-stage">
-        <nav className="room-tabs"><button className={canvas === 'evidence' ? 'active' : ''} onClick={() => setCanvas('evidence')}><GitBranch size={14} /> Evidence network</button><button className={canvas === 'dose' ? 'active' : ''} onClick={() => setCanvas('dose')}><Activity size={14} /> Dose & lab response</button><button className={canvas === 'semantics' ? 'active' : ''} onClick={() => setCanvas('semantics')}><Network size={14} /> Agent retrieval plan</button></nav>
+        <nav className="room-tabs"><button className={canvas === 'evidence' ? 'active' : ''} onClick={() => setCanvas('evidence')}><GitBranch size={14} /> Evidence network</button><button className={canvas === 'dose' ? 'active' : ''} onClick={() => setCanvas('dose')}><Activity size={14} /> Dose & lab response</button><button className={canvas === 'literature' ? 'active' : ''} onClick={() => setCanvas('literature')}><BookOpen size={14} /> Literature evidence <em>{literature.length}</em></button><button className={canvas === 'semantics' ? 'active' : ''} onClick={() => setCanvas('semantics')}><Network size={14} /> Agent retrieval plan</button></nav>
         <section className="room-widget">
           {canvas === 'evidence' && <EvidenceGraph evidence={evidence} signal={signal} immersive />}
           {canvas === 'dose' && <div className="room-charts"><div><span className="panel-kicker">Finding incidence</span><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div><div><span className="panel-kicker">{lab.label} trajectory</span><LabTrajectoryChart series={lab} /></div></div>}
+          {canvas === 'literature' && <LiteratureEvidencePanel signal={signal} documents={literature} />}
           {canvas === 'semantics' && <div className="resolver-board"><header><span className="panel-kicker">Compiled resolver graph</span><h2>Authorized tools for {runtime.activeProfile.label}</h2></header>{runtime.capabilities.map((capability, index) => <article key={capability.id}><i>{index + 1}</i><div><b>{capability.label}</b><p>{capability.description}</p><span>{capability.engines.join(' + ')}</span></div></article>)}</div>}
         </section>
         <section className="review-console">

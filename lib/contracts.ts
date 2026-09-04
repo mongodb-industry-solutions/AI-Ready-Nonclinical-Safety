@@ -86,8 +86,6 @@ export interface SemanticObject {
   label: string;
   kind: 'business' | 'evidence' | 'governance' | 'intelligence' | 'workflow';
   description: string;
-  collection: string;
-  documentPath: string;
   sourceDomains?: string[];
   terminology?: string[];
   retrieval: string[];
@@ -131,6 +129,27 @@ export interface SemanticResolver {
   executor: string;
   policy: string[];
   stages: string[];
+  containmentPlan?: {
+    language: 'contextobjects-containment-v1';
+    semantics: 'AQL-CONTAINS';
+    rootArchetype: string;
+    contains: string[];
+    compileTargets: string[];
+  };
+}
+
+export interface HybridQueryPlan {
+  resolverId: string;
+  semanticScope: {
+    language: 'contextobjects-containment-v1';
+    semantics: 'AQL-CONTAINS';
+    rootArchetype: string;
+    contains: string[];
+  };
+  physicalTarget: 'mongodb';
+  stages: Array<{ id: string; engine: string; purpose: string }>;
+  fusion: 'reciprocal-rank-fusion';
+  finalRanking: 'domain-reranker';
 }
 
 export interface SemanticAction {
@@ -168,6 +187,43 @@ export interface SemanticSubscription {
   policy: string[];
 }
 
+export interface SemanticSourceAdapter {
+  id: string;
+  kind: 'database' | 'api' | 'object-storage' | 'document-corpus';
+  role: string;
+  changeFeed: string;
+}
+
+export interface SemanticConcept {
+  id: string;
+  label: string;
+  kind: 'concept' | 'taxonomy' | 'terminology';
+  broader?: string;
+  synonyms?: string[];
+  valueSet?: string;
+  externalMappings?: string[];
+  semanticObjects: string[];
+}
+
+export interface SemanticArchetype {
+  id: string;
+  label: string;
+  description: string;
+  extends?: string;
+  members: Array<{ role: string; semanticObject: string; cardinality: string }>;
+}
+
+export interface SemanticStorageBinding {
+  id: string;
+  semanticObject: string;
+  archetype: string;
+  adapter: string;
+  representation: 'document' | 'embedded-fragment' | 'object' | 'api-resource';
+  location: string;
+  path: string;
+  authority: 'source' | 'projection' | 'solution-state';
+}
+
 export interface SemanticRuntimeBundle {
   apiVersion: 'contextobjects.dev/runtime-bundle/v1';
   kind: 'SemanticRuntimeBundle';
@@ -189,6 +245,10 @@ export interface SemanticRuntimeBundle {
   actions: SemanticAction[];
   surfaces: SemanticSurface[];
   valueSets: SemanticValueSet[];
+  taxonomy: { concepts: SemanticConcept[] };
+  archetypes: SemanticArchetype[];
+  storageBindings: SemanticStorageBinding[];
+  sourceAdapters: SemanticSourceAdapter[];
   subscriptions: SemanticSubscription[];
   governance: {
     evidenceCollections: string[];
@@ -217,4 +277,30 @@ export interface ReviewActionRecord {
   note: string;
   status: 'committed' | 'pending-approval';
   createdAt: string;
+}
+
+export interface LiteratureDocument {
+  id: string;
+  pmid: string;
+  doi: string;
+  title: string;
+  authors: string[];
+  journal: string;
+  year: number;
+  publicationType: string;
+  url: string;
+  evidenceRole: 'pathology-reference' | 'analogous-pattern' | 'alternative-explanation';
+  relevance: string;
+  concepts: string[];
+  matchedSignalIds: string[];
+}
+
+export interface LiteratureEvidence {
+  source: {
+    provider: string;
+    retrievedAt: string;
+    usage: string;
+    fullTextPolicy: string;
+  };
+  documents: LiteratureDocument[];
 }

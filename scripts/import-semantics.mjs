@@ -8,9 +8,10 @@ const bundle = JSON.parse(await readFile(source, 'utf8'));
 if (bundle.apiVersion !== 'contextobjects.dev/runtime-bundle/v1' || bundle.kind !== 'SemanticRuntimeBundle') {
   throw new Error('Unsupported semantic runtime bundle');
 }
-for (const field of ['objects', 'edges', 'profiles', 'capabilities', 'resolvers', 'actions', 'surfaces', 'valueSets', 'subscriptions']) {
+for (const field of ['objects', 'edges', 'profiles', 'capabilities', 'resolvers', 'actions', 'surfaces', 'valueSets', 'archetypes', 'storageBindings', 'sourceAdapters', 'subscriptions']) {
   if (!Array.isArray(bundle[field])) throw new Error(`Semantic bundle is missing ${field}`);
 }
+if (!bundle.taxonomy || !Array.isArray(bundle.taxonomy.concepts)) throw new Error('Semantic bundle is missing taxonomy concepts');
 
 function stable(value) {
   if (Array.isArray(value)) return value.map(stable);
@@ -40,6 +41,10 @@ try {
     ['semantic_resolvers', bundle.resolvers, 'id'],
     ['semantic_actions', bundle.actions, 'id'],
     ['semantic_value_sets', bundle.valueSets, 'id'],
+    ['semantic_concepts', bundle.taxonomy.concepts, 'id'],
+    ['semantic_archetypes', bundle.archetypes, 'id'],
+    ['semantic_storage_bindings', bundle.storageBindings, 'id'],
+    ['semantic_source_adapters', bundle.sourceAdapters, 'id'],
   ];
   for (const [collectionName, records, idField] of resources) {
     const collection = database.collection(collectionName);

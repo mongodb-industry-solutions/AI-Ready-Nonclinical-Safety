@@ -15,6 +15,7 @@ It then progressively reveals the data model, governed queries, hybrid retrieval
 - Cross-domain links between SEND DM, TX, MI, and LB records.
 - A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
 - A full-screen Investigation Room where the AI investigator conducts typed graph, dose, laboratory, and resolver widgets while exposing citations.
+- A literature-evidence workspace that grounds SEND findings to attributed PubMed records, separates supporting context from alternative explanations, and exposes the hybrid retrieval path.
 - A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses.
 - Governed review actions stored separately from immutable SEND evidence.
 - A live semantic change lab that shows a newly observed terminology value flowing through Change Streams, validation, compilation, profile projection, and map refresh.
@@ -60,6 +61,9 @@ flowchart LR
   A[Public or sponsor SEND<br/>XPT + Define-XML] --> B[Healthcare Data Lab<br/>intake + data factory]
   B --> C[Versioned solution import<br/>CDISC-derived contract]
   C --> D[(Solution MongoDB Atlas<br/>evidence + review state)]
+  L[PubMed / PMC OA / licensed PDFs<br/>metadata + permitted content] --> M[Solution document intake<br/>parse + chunk + provenance]
+  M --> D
+  N[(S3-compatible object storage<br/>licensed source artifacts)] --> M
   J[Context Studio<br/>author + resolve + compile] --> K[Portable semantic runtime<br/>map + resolvers + profiles]
   K --> D
   D -. Change Streams .-> K
@@ -77,7 +81,8 @@ flowchart LR
 |---|---|
 | Healthcare Data Lab + Kehrnel | Upstream learning and enablement: create/ingest data, validate the model, test query patterns, and export a versioned solution input. They are not runtime dependencies. |
 | Context Studio | Author, resolve, test, and compile the semantic map into a portable runtime package. It is a build-time dependency, not a production service dependency. |
-| MongoDB Atlas | The deployed solution database: evidence documents, search/vector projections, investigation history, and reviewer state. |
+| MongoDB Atlas | The deployed solution database: study and literature evidence documents, search/vector projections, semantic links, investigation history, and reviewer state. |
+| PubMed, PMC and object storage | PubMed contributes bibliographic identity and abstracts; PMC Open Access or sponsor-licensed storage contributes permitted full text. Source artifacts remain separately governed and attributable. |
 | Bundled Magenta service | Orchestrate solution-owned read-only tools, memory, traces, reranking, and human review within the same deployment. |
 | This repository | Deliver the business workflow, visual explanation, evidence assembly, and expert experience. |
 
@@ -88,14 +93,20 @@ The solution never makes canonical CDISC records, semantic projections, or agent
 [`semantic/nonclinical-safety-runtime.json`](semantic/nonclinical-safety-runtime.json) is the deployable output of Context Studio. It contains:
 
 - business and evidence objects plus typed relationships;
+- taxonomy concepts, terminology/value-set bindings, synonyms, and broader/narrower hierarchy;
+- reusable archetypes with roles and cardinalities, separate from physical persistence;
+- explicit storage bindings showing every MongoDB, API, or object-store representation and its authority;
 - profile-filtered visibility, field masks, capabilities, and actions;
 - resolver contracts for aggregation, graph lookup, hybrid vector search, reranking, and Magenta synthesis;
 - terminology value sets and four synchronized UI surface definitions;
 - a snapshot + cursor + event subscription contract backed by MongoDB Change Streams.
+- portable source-adapter declarations for MongoDB, PubMed, PMC Open Access, and S3-compatible document storage.
 
 With MongoDB configured, the semantic API resolves the active release from `semantic_runtime_pointer`. The change lab creates a candidate event, compiles a new immutable bundle, activates its pointer, and lets connected clients refresh from the emitted resume-safe event. Fixture mode performs the identical visual workflow against the bundled release without pretending to persist it.
 
 The application imports that artifact; it never imports Context Studio internals. A production identity provider must supply the profile—this demonstrator exposes a profile picker so the authorization projections are visible.
+
+The source package also contains a portable Context Studio workspace blueprint. It defines four independent layers—semantics, archetypes, placements, and interfaces—so the same meaning can be bound to multiple physical representations without treating storage as ontology. A live Context Studio installation can install the package into a governed workspace, compile an immutable release, and export this runtime bundle; the application does not require that workspace at runtime.
 
 ## Data Modes
 
@@ -111,6 +122,7 @@ Import another solution-ready snapshot with:
 
 ```bash
 npm run import:study -- ./path/to/study-evidence.json
+npm run import:literature
 npm run setup:indexes
 ```
 
@@ -129,6 +141,14 @@ The investigator is deliberately hybrid:
 5. Fuse candidates using reciprocal-rank fusion.
 6. Apply a second-stage reranker.
 7. Generate a review hypothesis with record-level citations.
+
+### External literature evidence
+
+Literature is a separate contextual-evidence lane. The demonstration includes three verified PubMed records linked to the thymus finding by organ, morphology, species, study design, and explanatory role. It stores bibliographic metadata and application-authored relevance summaries only—never unlicensed article text.
+
+For a production corpus, source PDFs live in governed S3-compatible object storage. The solution stores parsed, section-aware chunks, embeddings, semantic links, page or passage locators, content hashes, and access policy in MongoDB. Full text is ingested only from PMC Open Access or material for which the deployer has permission. PubMed identifiers and source links remain attached to every retrieved passage.
+
+The literature resolver performs concept grounding, license filtering, lexical search, vector search, graph expansion, and domain reranking. Its output is labeled as pathology reference, analogous pattern, or alternative explanation. It cannot turn literature similarity into a compound-specific or causal conclusion.
 
 The agent is read-only. It cannot publish snapshots, create validation waivers, supersede evidence, or claim regulatory compliance.
 

@@ -8,8 +8,33 @@ The target agent is an evidence coordinator, not a toxicologist replacement.
 - **Lexical:** exact finding names, controlled terminology, variables, and source metadata.
 - **Vector:** semantic similarity across normalized finding descriptions, study narratives, and prior reviewed signals.
 - **Graph:** compound → study → group → animal → specimen → finding → measurement → source artifact.
+- **Literature:** finding → publication → licensed passage → contextual assertion, grounded by terminology and filtered by content rights.
 
 Candidate evidence is fused with reciprocal-rank fusion, then reranked against the investigation question and current study context. Structured facts keep their exact values and are never replaced by generated text.
+
+### AQL containment and hybrid retrieval
+
+AQL is an openEHR query language; MongoDB does not execute it natively. Context Studio therefore compiles the useful semantic part—`CONTAINS` relationships between archetypes—into a portable `contextobjects-containment-v1` plan. An openEHR binding may render native AQL. This solution renders the same scope as MongoDB aggregation and graph traversal, then applies Atlas Search and Vector Search in parallel, reciprocal-rank fusion, and a domain reranker. This preserves archetype meaning without coupling the semantic model to one physical query language.
+
+## Document evidence plane
+
+Context Studio compiles source-adapter and resolver contracts; it does not become the production content gateway. The deployed solution connects those contracts to its own adapters:
+
+```mermaid
+flowchart LR
+  A[PubMed API<br/>identity + abstract + MeSH] --> D[Document intake]
+  B[PMC Open Access<br/>permitted full text] --> D
+  C[S3-compatible storage<br/>licensed PDFs] --> D
+  D --> E[(MongoDB literature_documents<br/>identity + policy + provenance)]
+  D --> F[(MongoDB literature_chunks<br/>text + locator + concepts + embeddings)]
+  F --> G[Atlas Search + Vector Search]
+  E --> H[Semantic evidence graph]
+  G --> I[Hybrid fusion + domain reranker]
+  H --> I
+  I --> J[Agent citation bundle]
+```
+
+Every passage carries its parent publication, source locator, content-rights status, checksum, and semantic concept bindings. Retrieval rejects content outside the active user profile and permitted corpus before scoring. Study observations and external literature are never collapsed into the same evidence class: the former is observed study evidence; the latter is contextual support, analogy, or an alternative explanation.
 
 ## Agent graph
 

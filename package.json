@@ -11,6 +11,7 @@
     "start": "next start",
     "import:study": "node --env-file=.env.local scripts/import-study.mjs",
     "import:semantics": "node --env-file=.env.local scripts/import-semantics.mjs",
+    "import:literature": "node --env-file=.env.local scripts/import-literature.mjs",
     "setup:indexes": "node --env-file=.env.local scripts/setup-atlas-indexes.mjs",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "vitest run",

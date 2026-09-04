@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Activity, Beaker, Bot, Braces, ChevronDown, CircleHelp, Database, Dna, Expand, FileCheck2, FlaskConical, GitBranch, Layers3, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
-import type { SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
+import type { LiteratureDocument, SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import { reviewScore } from '@/lib/analysis/signal-engine';
 import AgentPanel from '@/components/AgentPanel';
 import DoseResponseChart from '@/components/DoseResponseChart';
@@ -24,7 +24,7 @@ function PriorityPill({ value }: { value: SafetySignal['reviewPriority'] }) {
   return <span className={`priority-pill priority-${value}`}>{value === 'high' ? 'review first' : value}</span>;
 }
 
-export default function SafetyIntelligenceApp({ evidence, initialSemantics }: { evidence: StudyEvidence; initialSemantics: SemanticRuntimeView }) {
+export default function SafetyIntelligenceApp({ evidence, initialSemantics, literature }: { evidence: StudyEvidence; initialSemantics: SemanticRuntimeView; literature: LiteratureDocument[] }) {
   const [section, setSection] = useState('signals');
   const [selectedId, setSelectedId] = useState(evidence.signals[0].id);
   const [graphOpen, setGraphOpen] = useState(false);
@@ -114,7 +114,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics }: { 
         </section>
         <footer className="study-footer"><span>{evidence.provenance.method}</span><a href={evidence.study.source} target="_blank" rel="noreferrer">PhUSE SENDConform · {evidence.study.sourceRevision.slice(0, 9)}</a><span>{evidence.provenance.disclaimer}</span></footer>
         {graphOpen && <div className="graph-modal-backdrop" role="presentation" onMouseDown={() => setGraphOpen(false)}><section className="graph-modal" role="dialog" aria-modal="true" aria-label={`Evidence network for ${signal.organ}`} onMouseDown={(event) => event.stopPropagation()}><header><div><span className="panel-kicker">Immersive evidence network</span><h2>{signal.organ} · {signal.finding}</h2></div><button className="icon-button" onClick={() => setGraphOpen(false)} aria-label="Close evidence graph"><X size={18} /></button></header><EvidenceGraph evidence={evidence} signal={signal} immersive /></section></div>}
-        {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} onClose={() => setRoomOpen(false)} />}
+        {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} onClose={() => setRoomOpen(false)} />}
       </>}
     </main>
   </div>;

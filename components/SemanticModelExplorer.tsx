@@ -7,19 +7,12 @@ import '@xyflow/react/dist/style.css';
 import type { SemanticObject, SemanticRuntimeView } from '@/lib/contracts';
 
 type Lens = 'business-documents' | 'semantic-graph' | 'retrieval-projections' | 'physical-mongodb';
-type ModelNodeData = SemanticObject & { lens: Lens; updated: boolean; [key: string]: unknown };
+type ModelNodeData = SemanticObject & { lens: Lens; updated: boolean; meta: string; [key: string]: unknown };
 
 function ModelNode({ data }: NodeProps<Node<ModelNodeData>>) {
-  const meta = data.lens === 'physical-mongodb'
-    ? `${data.collection} · ${data.documentPath}`
-    : data.lens === 'retrieval-projections'
-      ? data.retrieval.join(' + ')
-      : data.lens === 'semantic-graph'
-        ? `${data.kind} concept`
-        : data.sourceDomains?.join(' + ') || data.kind;
   return <div className={`model-node model-${data.kind} ${data.updated ? 'model-updated' : ''}`}>
     <Handle type="target" position={Position.Left} />
-    <span>{data.kind}</span><strong>{data.label}</strong><small>{meta}</small>
+    <span>{data.kind}</span><strong>{data.label}</strong><small>{data.meta}</small>
     <Handle type="source" position={Position.Right} />
   </div>;
 }
@@ -55,12 +48,26 @@ export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { ru
   const demoValueActive = valueSet?.values.includes(newValue) || false;
   const relatedCapabilities = runtime.capabilities.filter((capability) => capability.reads.includes(selected?.id));
   const relatedResolvers = runtime.resolvers.filter((resolver) => relatedCapabilities.some((capability) => capability.id === resolver.capability));
+  const selectedConcepts = runtime.taxonomy.concepts.filter((concept) => concept.semanticObjects.includes(selected?.id));
+  const selectedArchetypes = runtime.archetypes.filter((archetype) => archetype.members.some((member) => member.semanticObject === selected?.id));
+  const selectedStorage = runtime.storageBindings.filter((binding) => binding.semanticObject === selected?.id);
   const nodes = useMemo<Array<Node<ModelNodeData>>>(() => runtime.objects.map((object) => ({
     id: object.id,
     type: 'model',
     position: object.position,
-    data: { ...object, lens, updated: object.id === 'Finding' && changeStep === 4 },
-  })), [runtime.objects, lens, changeStep]);
+    data: {
+      ...object,
+      lens,
+      updated: object.id === 'Finding' && changeStep === 4,
+      meta: lens === 'physical-mongodb'
+        ? runtime.storageBindings.filter((binding) => binding.semanticObject === object.id).map((binding) => `${binding.adapter}:${binding.location}`).join(' + ') || 'unbound'
+        : lens === 'retrieval-projections'
+          ? object.retrieval.join(' + ')
+          : lens === 'semantic-graph'
+            ? runtime.taxonomy.concepts.filter((concept) => concept.semanticObjects.includes(object.id)).map((concept) => concept.label).join(' · ') || `${object.kind} concept`
+            : runtime.archetypes.filter((archetype) => archetype.members.some((member) => member.semanticObject === object.id)).map((archetype) => archetype.label).join(' · ') || object.kind,
+    },
+  })), [runtime.objects, runtime.storageBindings, runtime.taxonomy.concepts, runtime.archetypes, lens, changeStep]);
   const edges = useMemo<Array<Edge>>(() => {
     const visible = new Set(runtime.objects.map((object) => object.id));
     return runtime.edges.filter((edge) => visible.has(edge.from) && visible.has(edge.to)).map((edge) => ({
@@ -96,7 +103,7 @@ export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { ru
 
   return <section className="model-explorer">
     <header className="model-hero">
-      <div><span className="panel-kicker">Compiled by Context Studio · portable runtime {runtime.release.version}</span><h1>The model is part of the product</h1><p>Explore the same governed meaning through business documents, semantic relationships, retrieval projections, and the deployed MongoDB shape.</p></div>
+      <div><span className="panel-kicker">Compiled by Context Studio · portable runtime {runtime.release.version}</span><h1>Meaning is portable. Placement is explicit.</h1><p>Explore taxonomy and terminology, archetype composition, retrieval projections, and every physical representation without confusing storage with semantics.</p></div>
       <div className="release-live"><Radio size={14} /><span><b>LIVE SEMANTICS · {streamState}</b><small>{runtime.release.releaseId}</small></span></div>
     </header>
     <div className="profile-banner"><ShieldCheck size={15} /><span><b>{runtime.activeProfile.label} projection</b>{runtime.activeProfile.description}</span><em>{runtime.objects.length} visible objects · {runtime.capabilities.length} agent capabilities · {runtime.actions.length} governed actions</em></div>
@@ -115,9 +122,11 @@ export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { ru
       </div>
       {selected && <aside className="model-inspector">
         <div className="inspector-type">{selected.kind} object</div><h2>{selected.label}</h2><p>{selected.description}</p>
-        <div className="inspector-block"><span>DOCUMENT BINDING</span><code>{selected.collection}.{selected.documentPath}</code></div>
+        {lens === 'business-documents' && <div className="inspector-block"><span>ARCHETYPE COMPOSITION</span>{selectedArchetypes.map((archetype) => { const member = archetype.members.find((item) => item.semanticObject === selected.id); return <div className="resolver-card" key={archetype.id}><b>{archetype.label}</b><small>{member?.role} · {member?.cardinality}</small><em>{archetype.extends ? `extends ${archetype.extends}` : 'root archetype'}</em></div>; })}</div>}
+        {lens === 'semantic-graph' && <div className="inspector-block"><span>CONCEPTS &amp; TERMINOLOGY</span>{selectedConcepts.map((concept) => <div className="resolver-card" key={concept.id}><b>{concept.label}</b><small>{concept.kind}{concept.broader ? ` · broader: ${concept.broader}` : ''}</small><em>{[...(concept.externalMappings || []), ...(concept.valueSet ? [`value set: ${concept.valueSet}`] : [])].join(' · ')}</em></div>)}</div>}
+        {lens === 'physical-mongodb' && <div className="inspector-block"><span>PHYSICAL PLACEMENTS</span>{selectedStorage.map((binding) => <div className="resolver-card" key={binding.id}><b>{binding.adapter} · {binding.location}</b><small>{binding.representation} · {binding.authority}</small><em>{binding.path}</em></div>)}</div>}
+        {lens === 'retrieval-projections' && <div className="inspector-block"><span>RETRIEVAL PROJECTIONS</span><div className="tag-row">{selected.retrieval.map((item) => <i key={item}>{item}</i>)}</div></div>}
         <div className="inspector-block"><span>STANDARD SOURCE</span><div className="tag-row">{(selected.sourceDomains || ['solution']).map((item) => <i key={item}>{item}</i>)}</div></div>
-        <div className="inspector-block"><span>RETRIEVAL PROJECTIONS</span><div className="tag-row">{selected.retrieval.map((item) => <i key={item}>{item}</i>)}</div></div>
         <div className="inspector-block"><span>AUTHORIZED RESOLVERS</span>{relatedResolvers.length ? relatedResolvers.map((resolver) => <div className="resolver-card" key={resolver.id}><b>{resolver.id}</b><small>{resolver.executor}</small><em>{resolver.stages.join(' → ')}</em></div>) : <small>No direct resolver in this profile.</small>}</div>
       </aside>}
     </div>

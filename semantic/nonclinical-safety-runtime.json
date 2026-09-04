@@ -17,8 +17,6 @@
       "label": "Compound",
       "kind": "business",
       "description": "Investigational material anchor. It may carry identifiers and normalized structure references without making SMILES the business model.",
-      "collection": "compounds",
-      "documentPath": "compound",
       "sourceDomains": ["TS"],
       "retrieval": ["exact", "text", "chemical-fingerprint"],
       "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
@@ -29,8 +27,6 @@
       "label": "Study",
       "kind": "business",
       "description": "Immutable, versioned study snapshot and its protocol-level context.",
-      "collection": "study_evidence",
-      "documentPath": "study",
       "sourceDomains": ["TS"],
       "retrieval": ["exact", "text"],
       "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
@@ -41,8 +37,6 @@
       "label": "Treatment group",
       "kind": "business",
       "description": "Dose assignment and exposure context for a cohort of study subjects.",
-      "collection": "study_evidence",
-      "documentPath": "doseGroups[]",
       "sourceDomains": ["TX"],
       "retrieval": ["exact", "range"],
       "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
@@ -53,8 +47,6 @@
       "label": "Animal subject",
       "kind": "business",
       "description": "Governed subject identity, group assignment, sex, species, and strain.",
-      "collection": "subjects",
-      "documentPath": "subject",
       "sourceDomains": ["DM"],
       "retrieval": ["exact", "graph"],
       "visibleTo": ["toxicologist", "study-director", "data-steward", "external-reviewer"],
@@ -65,8 +57,6 @@
       "label": "Microscopic finding",
       "kind": "evidence",
       "description": "An observed tissue finding with normalized organ, morphology, severity, subject, and source lineage.",
-      "collection": "study_evidence",
-      "documentPath": "signals[]",
       "sourceDomains": ["MI"],
       "terminology": ["SEND controlled terminology", "solution concept dictionary"],
       "retrieval": ["exact", "text", "vector", "graph", "rerank"],
@@ -78,8 +68,6 @@
       "label": "Laboratory measurement",
       "kind": "evidence",
       "description": "Longitudinal result with analyte, unit, study day, group, and subject context.",
-      "collection": "study_evidence",
-      "documentPath": "labSeries",
       "sourceDomains": ["LB"],
       "retrieval": ["exact", "range", "vector"],
       "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
@@ -90,20 +78,37 @@
       "label": "Source artifact",
       "kind": "governance",
       "description": "Checksum-verified XPT, Define-XML, or transformation artifact used to reproduce an assertion.",
-      "collection": "source_artifacts",
-      "documentPath": "provenance",
       "sourceDomains": ["XPT", "Define-XML"],
       "retrieval": ["exact", "graph"],
       "visibleTo": ["toxicologist", "study-director", "data-steward", "external-reviewer"],
       "position": { "x": 930, "y": 180 }
     },
     {
+      "id": "Publication",
+      "label": "Scientific publication",
+      "kind": "evidence",
+      "description": "External contextual evidence with bibliographic identity, licensing, retrieval provenance, and explicit relevance to a study concept.",
+      "sourceDomains": ["PubMed", "PMC OA"],
+      "terminology": ["MeSH", "solution concept dictionary"],
+      "retrieval": ["exact", "text", "vector", "graph", "rerank"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
+      "position": { "x": 930, "y": 360 }
+    },
+    {
+      "id": "DocumentChunk",
+      "label": "Evidence passage",
+      "kind": "evidence",
+      "description": "Licensed, section-aware text fragment with page or passage locator, embedding, and parent-document provenance.",
+      "sourceDomains": ["S3 document", "PubMed abstract", "PMC OA full text"],
+      "retrieval": ["text", "vector", "rerank"],
+      "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
+      "position": { "x": 1160, "y": 360 }
+    },
+    {
       "id": "EvidenceAssertion",
       "label": "Evidence assertion",
       "kind": "intelligence",
       "description": "A snapshot-bound, cited hypothesis assembled by deterministic and AI-assisted retrieval.",
-      "collection": "investigations",
-      "documentPath": "result",
       "retrieval": ["text", "vector", "graph"],
       "visibleTo": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"],
       "position": { "x": 470, "y": 360 }
@@ -113,8 +118,6 @@
       "label": "Review decision",
       "kind": "workflow",
       "description": "Solution-owned annotation, classification, follow-up, approval, or rejection. It never mutates published SEND evidence.",
-      "collection": "review_actions",
-      "documentPath": "decision",
       "retrieval": ["exact", "text", "graph"],
       "visibleTo": ["toxicologist", "study-director", "data-steward"],
       "position": { "x": 700, "y": 360 }
@@ -129,6 +132,9 @@
     { "id": "finding-lab", "from": "Finding", "to": "LabMeasurement", "label": "contextualized by", "predicate": "safety:contextualizedBy" },
     { "id": "finding-source", "from": "Finding", "to": "SourceArtifact", "label": "traces to", "predicate": "prov:wasDerivedFrom" },
     { "id": "lab-source", "from": "LabMeasurement", "to": "SourceArtifact", "label": "traces to", "predicate": "prov:wasDerivedFrom" },
+    { "id": "finding-publication", "from": "Finding", "to": "Publication", "label": "contextualized by", "predicate": "safety:contextualizedByLiterature" },
+    { "id": "publication-chunk", "from": "Publication", "to": "DocumentChunk", "label": "chunked into", "predicate": "safety:hasEvidencePassage" },
+    { "id": "chunk-assertion", "from": "DocumentChunk", "to": "EvidenceAssertion", "label": "supports context", "predicate": "safety:contextForAssertion" },
     { "id": "finding-assertion", "from": "Finding", "to": "EvidenceAssertion", "label": "supports", "predicate": "safety:supportsAssertion" },
     { "id": "assertion-decision", "from": "EvidenceAssertion", "to": "ReviewDecision", "label": "reviewed as", "predicate": "safety:reviewedAs" }
   ],
@@ -212,6 +218,16 @@
       "allowedProfiles": ["toxicologist", "study-director", "external-reviewer"]
     },
     {
+      "id": "retrieve-literature-evidence",
+      "label": "Retrieve literature evidence",
+      "mode": "read",
+      "description": "Ground study concepts to PubMed or licensed full text, perform hybrid retrieval, and rerank by species, organ, morphology, and study design.",
+      "engines": ["atlas-search", "vector-search", "graph-lookup", "rerank"],
+      "reads": ["Finding", "Publication", "DocumentChunk", "Compound"],
+      "indexes": ["literature_text", "literature_embedding", "literature_concepts"],
+      "allowedProfiles": ["toxicologist", "study-director", "data-steward", "portfolio-lead", "external-reviewer"]
+    },
+    {
       "id": "inspect-semantic-model",
       "label": "Inspect semantic model",
       "mode": "read",
@@ -248,6 +264,7 @@
       "output": "SimilarFinding[]",
       "executor": "mongodb-hybrid-search",
       "policy": ["profile-filtered", "citations-required", "read-only"],
+      "containmentPlan": { "language": "contextobjects-containment-v1", "semantics": "AQL-CONTAINS", "rootArchetype": "archetype.study-evidence-aggregate.v1", "contains": ["Study", "TreatmentGroup", "Finding"], "compileTargets": ["mongodb-aggregation", "openehr-aql"] },
       "stages": ["lexicalSearch", "vectorSearch", "reciprocalRankFusion", "domainRerank", "authorizeResults"]
     },
     {
@@ -258,6 +275,16 @@
       "executor": "magenta-agent-graph",
       "policy": ["citations-required", "no-regulatory-conclusion", "human-review"],
       "stages": ["plan", "executeAuthorizedTools", "rerankEvidence", "synthesize", "verifyCitations"]
+    },
+    {
+      "id": "resolver.literature-evidence.v1",
+      "capability": "retrieve-literature-evidence",
+      "input": { "findingId": "string", "species": "string", "query": "string", "limit": "number" },
+      "output": "LiteratureEvidence[]",
+      "executor": "mongodb-hybrid-search",
+      "policy": ["license-aware", "profile-filtered", "citations-required", "context-not-causality"],
+      "containmentPlan": { "language": "contextobjects-containment-v1", "semantics": "AQL-CONTAINS", "rootArchetype": "archetype.contextual-literature-evidence.v1", "contains": ["Finding", "Publication", "DocumentChunk"], "compileTargets": ["mongodb-aggregation", "openehr-aql"] },
+      "stages": ["groundConcepts", "filterLicensedCorpus", "lexicalSearch", "vectorSearch", "graphExpand", "domainRerank", "attachPassageCitations"]
     }
   ],
   "actions": [
@@ -273,7 +300,7 @@
     { "id": "business-documents", "label": "Business documents", "description": "Domain objects and the document fragments that keep a safety question local." },
     { "id": "semantic-graph", "label": "Semantic graph", "description": "Concepts, terminology bindings, predicates, and profile-filtered relationships." },
     { "id": "retrieval-projections", "label": "Search, graph & vectors", "description": "Resolver contracts and the exact indexes used by hybrid retrieval and the agent." },
-    { "id": "physical-mongodb", "label": "MongoDB deployment", "description": "Collections, document paths, indexes, and protected write boundaries." }
+    { "id": "physical-mongodb", "label": "Physical placements", "description": "MongoDB collections, API resources, object storage, paths, authority, and protected write boundaries." }
   ],
   "valueSets": [
     {
@@ -292,6 +319,75 @@
       "version": "2026.09",
       "values": ["THYMUS", "LUNG", "HEART", "KIDNEY", "LIVER", "SITE, INJECTION"]
     }
+  ],
+  "taxonomy": {
+    "concepts": [
+      { "id": "evidence", "label": "Evidence", "kind": "taxonomy", "semanticObjects": ["Finding", "LabMeasurement", "Publication", "DocumentChunk"] },
+      { "id": "observed-study-evidence", "label": "Observed study evidence", "kind": "concept", "broader": "evidence", "semanticObjects": ["Finding", "LabMeasurement"] },
+      { "id": "external-contextual-evidence", "label": "External contextual evidence", "kind": "concept", "broader": "evidence", "semanticObjects": ["Publication", "DocumentChunk"] },
+      { "id": "microscopic-finding", "label": "Microscopic finding", "kind": "concept", "broader": "observed-study-evidence", "synonyms": ["histopathology finding"], "valueSet": "finding-morphology", "externalMappings": ["SEND MI", "MeSH:Pathology"], "semanticObjects": ["Finding"] },
+      { "id": "anatomic-site", "label": "Anatomic site", "kind": "terminology", "valueSet": "anatomic-site", "externalMappings": ["SEND controlled terminology", "MeSH Anatomy"], "semanticObjects": ["Finding", "Publication"] },
+      { "id": "scientific-publication", "label": "Scientific publication", "kind": "concept", "broader": "external-contextual-evidence", "externalMappings": ["schema:ScholarlyArticle", "PubMed Publication"], "semanticObjects": ["Publication"] },
+      { "id": "evidence-passage", "label": "Evidence passage", "kind": "concept", "broader": "external-contextual-evidence", "semanticObjects": ["DocumentChunk"] },
+      { "id": "review-assertion", "label": "Review assertion", "kind": "concept", "semanticObjects": ["EvidenceAssertion", "ReviewDecision"] }
+    ]
+  },
+  "archetypes": [
+    {
+      "id": "archetype.study-evidence-aggregate.v1",
+      "label": "Study evidence aggregate",
+      "description": "Snapshot-bound study root composed from protocol, treatment, finding, laboratory, and lineage roles.",
+      "members": [
+        { "role": "root", "semanticObject": "Study", "cardinality": "1" },
+        { "role": "intervention", "semanticObject": "TreatmentGroup", "cardinality": "1..*" },
+        { "role": "participant", "semanticObject": "Subject", "cardinality": "1..*" },
+        { "role": "observation", "semanticObject": "Finding", "cardinality": "0..*" },
+        { "role": "measurement", "semanticObject": "LabMeasurement", "cardinality": "0..*" },
+        { "role": "lineage", "semanticObject": "SourceArtifact", "cardinality": "1..*" }
+      ]
+    },
+    {
+      "id": "archetype.contextual-literature-evidence.v1",
+      "label": "Contextual literature evidence",
+      "description": "Bibliographic identity plus permitted passages, semantic bindings, rights, and source locators.",
+      "members": [
+        { "role": "publication", "semanticObject": "Publication", "cardinality": "1" },
+        { "role": "passage", "semanticObject": "DocumentChunk", "cardinality": "0..*" },
+        { "role": "contextualizes", "semanticObject": "Finding", "cardinality": "1..*" }
+      ]
+    },
+    {
+      "id": "archetype.governed-evidence-brief.v1",
+      "label": "Governed evidence brief",
+      "description": "Cited agent hypothesis and append-only expert disposition over immutable evidence.",
+      "members": [
+        { "role": "assertion", "semanticObject": "EvidenceAssertion", "cardinality": "1" },
+        { "role": "decision", "semanticObject": "ReviewDecision", "cardinality": "0..*" },
+        { "role": "studyEvidence", "semanticObject": "Finding", "cardinality": "1..*" },
+        { "role": "literatureContext", "semanticObject": "Publication", "cardinality": "0..*" }
+      ]
+    }
+  ],
+  "storageBindings": [
+    { "id": "binding.compound.mongodb", "semanticObject": "Compound", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "compounds", "path": "compound", "authority": "projection" },
+    { "id": "binding.study.mongodb", "semanticObject": "Study", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "study", "authority": "source" },
+    { "id": "binding.group.mongodb", "semanticObject": "TreatmentGroup", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "doseGroups[]", "authority": "source" },
+    { "id": "binding.subject.mongodb", "semanticObject": "Subject", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "subjects", "path": "subject", "authority": "source" },
+    { "id": "binding.finding.mongodb", "semanticObject": "Finding", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "signals[]", "authority": "source" },
+    { "id": "binding.lab.mongodb", "semanticObject": "LabMeasurement", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "labSeries", "authority": "source" },
+    { "id": "binding.artifact.s3", "semanticObject": "SourceArtifact", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "s3-documents", "representation": "object", "location": "source-artifacts", "path": "{studyId}/{sha256}", "authority": "source" },
+    { "id": "binding.publication.pubmed", "semanticObject": "Publication", "archetype": "archetype.contextual-literature-evidence.v1", "adapter": "pubmed", "representation": "api-resource", "location": "pubmed.ncbi.nlm.nih.gov", "path": "/{pmid}", "authority": "source" },
+    { "id": "binding.publication.mongodb", "semanticObject": "Publication", "archetype": "archetype.contextual-literature-evidence.v1", "adapter": "mongodb", "representation": "document", "location": "literature_documents", "path": "publication", "authority": "projection" },
+    { "id": "binding.chunk.mongodb", "semanticObject": "DocumentChunk", "archetype": "archetype.contextual-literature-evidence.v1", "adapter": "mongodb", "representation": "document", "location": "literature_chunks", "path": "chunk", "authority": "projection" },
+    { "id": "binding.chunk.s3", "semanticObject": "DocumentChunk", "archetype": "archetype.contextual-literature-evidence.v1", "adapter": "s3-documents", "representation": "object", "location": "licensed-literature", "path": "{pmid}/source.pdf", "authority": "source" },
+    { "id": "binding.assertion.mongodb", "semanticObject": "EvidenceAssertion", "archetype": "archetype.governed-evidence-brief.v1", "adapter": "mongodb", "representation": "document", "location": "investigations", "path": "result", "authority": "solution-state" },
+    { "id": "binding.decision.mongodb", "semanticObject": "ReviewDecision", "archetype": "archetype.governed-evidence-brief.v1", "adapter": "mongodb", "representation": "document", "location": "review_actions", "path": "decision", "authority": "solution-state" }
+  ],
+  "sourceAdapters": [
+    { "id": "mongodb", "kind": "database", "role": "Operational evidence and semantic projections", "changeFeed": "mongodb-change-stream" },
+    { "id": "pubmed", "kind": "api", "role": "Bibliographic metadata, abstracts, MeSH terms, and identifiers", "changeFeed": "scheduled-cursor" },
+    { "id": "s3-documents", "kind": "object-storage", "role": "Licensed PDFs and source documents", "changeFeed": "object-created-event" },
+    { "id": "pmc-open-access", "kind": "document-corpus", "role": "Permitted full-text scientific articles", "changeFeed": "scheduled-cursor" }
   ],
   "subscriptions": [
     {
@@ -313,7 +409,7 @@
     }
   ],
   "governance": {
-    "evidenceCollections": ["study_evidence", "subjects", "source_artifacts"],
+    "evidenceCollections": ["study_evidence", "subjects", "source_artifacts", "literature_documents", "literature_chunks"],
     "solutionWriteCollections": ["investigations", "review_actions"],
     "writeWorkflow": ["propose", "simulate", "diff", "validate", "approve", "commit", "audit"],
     "rules": [
@@ -323,5 +419,5 @@
       "Profile authorization is enforced by the API, not only by the UI."
     ]
   },
-  "contentDigest": "sha256:ff110b736041e2589851a9f3d55f25f32fe2c84acdf27d5f3c93ef319a2ebafb"
+  "contentDigest": "sha256:f29e3d62d8598fbc843b90f229e4ae4f075b86a2804348176861b5fa427339dd"
 }

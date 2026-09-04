@@ -1,0 +1,55 @@
+{
+  "source": {
+    "provider": "PubMed",
+    "retrievedAt": "2026-09-05T00:00:00Z",
+    "usage": "Bibliographic metadata and concise application-authored relevance summaries. Full text is not redistributed.",
+    "fullTextPolicy": "Ingest full text only from PubMed Central Open Access or explicitly licensed sources."
+  },
+  "documents": [
+    {
+      "id": "pmid-17067942",
+      "pmid": "17067942",
+      "doi": "10.1080/01926230600978458",
+      "title": "Histopathology of the thymus",
+      "authors": ["Gail Pearse"],
+      "journal": "Toxicologic Pathology",
+      "year": 2006,
+      "publicationType": "Review",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/17067942/",
+      "evidenceRole": "pathology-reference",
+      "relevance": "Provides the interpretive background that cortical lymphocyte loss can be an early thymic response to stress or toxic insult.",
+      "concepts": ["THYMUS", "lymphocyte depletion", "atrophy", "apoptosis", "rat"],
+      "matchedSignalIds": ["thymus-lymphocytes"]
+    },
+    {
+      "id": "pmid-10401683",
+      "pmid": "10401683",
+      "doi": "10.1007/s002040050602",
+      "title": "Immunotoxicity of the anticancer drug CI-994 in rats: effects on lymphoid tissue",
+      "authors": ["M J Graziano", "A J Galati", "K M Walsh"],
+      "journal": "Archives of Toxicology",
+      "year": 1999,
+      "publicationType": "Journal Article",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/10401683/",
+      "evidenceRole": "analogous-pattern",
+      "relevance": "Reports dose-related lymphocyte changes and lymphoid tissue effects in rats; useful as an analogous pattern, not compound-specific proof.",
+      "concepts": ["THYMUS", "lymphoid depletion", "lymphocytes", "dose response", "Wistar rat"],
+      "matchedSignalIds": ["thymus-lymphocytes"]
+    },
+    {
+      "id": "pmid-8378702",
+      "pmid": "8378702",
+      "doi": "10.1177/019262339302100101",
+      "title": "Effects of two weeks of feed restriction on some common toxicologic parameters in Sprague-Dawley rats",
+      "authors": ["S Levin", "D Semler", "Z Ruben"],
+      "journal": "Toxicologic Pathology",
+      "year": 1993,
+      "publicationType": "Comparative Study",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/8378702/",
+      "evidenceRole": "alternative-explanation",
+      "relevance": "Demonstrates that feed restriction can reduce lymphocytes and thymus weight, making body-weight and food-consumption context important during causality review.",
+      "concepts": ["THYMUS", "lymphopenia", "feed restriction", "body weight", "Sprague-Dawley rat"],
+      "matchedSignalIds": ["thymus-lymphocytes"]
+    }
+  ]
+}
