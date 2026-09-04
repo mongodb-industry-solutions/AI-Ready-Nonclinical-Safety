@@ -27,7 +27,7 @@ function ModelNode({ data }: NodeProps<Node<ModelNodeData>>) {
 const nodeTypes = { model: ModelNode };
 const lensIcons = { 'business-documents': Box, 'semantic-graph': GitBranch, 'retrieval-projections': SearchCode, 'physical-mongodb': Database };
 
-export default function SemanticModelExplorer({ runtime }: { runtime: SemanticRuntimeView }) {
+export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { runtime: SemanticRuntimeView; onRuntimeChange: (runtime: SemanticRuntimeView) => void }) {
   const [lens, setLens] = useState<Lens>('business-documents');
   const [selectedId, setSelectedId] = useState('Finding');
   const [streamState, setStreamState] = useState('connecting');
@@ -37,16 +37,22 @@ export default function SemanticModelExplorer({ runtime }: { runtime: SemanticRu
   useEffect(() => {
     const stream = new EventSource(`/api/semantics/stream?profile=${runtime.activeProfile.id}`);
     const connected = () => setStreamState('synchronized');
-    const changed = () => setStreamState('update received');
+    const changed = async () => {
+      setStreamState('update received');
+      const response = await fetch(`/api/semantics?profile=${runtime.activeProfile.id}`, { cache: 'no-store' });
+      if (response.ok) onRuntimeChange(await response.json());
+      setStreamState('map updated');
+    };
     stream.addEventListener('semantic.snapshot.ready', connected);
     stream.addEventListener('semantic.release.activated', changed);
     stream.addEventListener('semantic.object.changed', changed);
     stream.addEventListener('profile.projection.changed', changed);
     stream.onerror = () => setStreamState('snapshot mode');
     return () => stream.close();
-  }, [runtime.activeProfile.id]);
+  }, [runtime.activeProfile.id, onRuntimeChange]);
   const selected = runtime.objects.find((object) => object.id === selectedId) || runtime.objects[0];
   const valueSet = runtime.valueSets.find((item) => item.id === 'finding-morphology');
+  const demoValueActive = valueSet?.values.includes(newValue) || false;
   const relatedCapabilities = runtime.capabilities.filter((capability) => capability.reads.includes(selected?.id));
   const relatedResolvers = runtime.resolvers.filter((resolver) => relatedCapabilities.some((capability) => capability.id === resolver.capability));
   const nodes = useMemo<Array<Node<ModelNodeData>>>(() => runtime.objects.map((object) => ({
@@ -73,13 +79,14 @@ export default function SemanticModelExplorer({ runtime }: { runtime: SemanticRu
     setLens('semantic-graph');
     setChangeStep(0);
     try {
-      const response = await fetch('/api/semantics/value-sets/observe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ valueSetId: 'finding-morphology', value: newValue, source: 'incoming SEND MI record' }) });
+      const response = await fetch('/api/semantics/value-sets/observe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ valueSetId: 'finding-morphology', value: newValue, source: 'incoming SEND MI record', profile: runtime.activeProfile.id }) });
       const payload = await response.json();
       setChangeMode(payload.mode || 'portable-simulation');
       for (let step = 1; step <= 4; step += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 650));
         setChangeStep(step);
       }
+      if (payload.runtime) onRuntimeChange(payload.runtime);
       setStreamState('map updated');
     } catch {
       setChangeMode('portable-simulation');
@@ -96,7 +103,7 @@ export default function SemanticModelExplorer({ runtime }: { runtime: SemanticRu
     <section className="semantic-change-lab">
       <div className="change-summary"><span className="panel-kicker">Semantic change lab</span><h2>Watch a new source value become governed meaning</h2><p><b>{newValue}</b> appears in a new MI record. The evidence stays immutable while the terminology projection is reviewed and refreshed.</p></div>
       <div className="change-flow">{['Value observed', 'Change Stream', 'Validate candidate', 'Compile projection', 'Map refreshed'].map((label, index) => <div key={label} className={changeStep >= index ? 'complete' : changeStep === index - 1 ? 'next' : ''}><i>{changeStep > index ? <Check size={10} /> : index + 1}</i><span>{label}</span></div>)}</div>
-      <div className="change-action"><span><b>{valueSet?.label}</b><small>{(valueSet?.values.length || 0) + (changeStep === 4 ? 1 : 0)} values · {changeMode || 'ready'}</small></span><button onClick={demonstrateSemanticChange} disabled={changeStep >= 0 && changeStep < 4}><RefreshCw size={13} className={changeStep >= 0 && changeStep < 4 ? 'spin' : ''} /> {changeStep === 4 ? 'Replay update' : changeStep >= 0 ? 'Compiling…' : 'Simulate new value'}</button></div>
+      <div className="change-action"><span><b>{valueSet?.label}</b><small>{(valueSet?.values.length || 0) + (changeStep === 4 && !demoValueActive ? 1 : 0)} values · {changeMode || 'ready'}</small></span><button onClick={demonstrateSemanticChange} disabled={changeStep >= 0 && changeStep < 4}><RefreshCw size={13} className={changeStep >= 0 && changeStep < 4 ? 'spin' : ''} /> {changeStep === 4 ? 'Replay update' : changeStep >= 0 ? 'Compiling…' : 'Simulate new value'}</button></div>
     </section>
     <nav className="model-lenses">{runtime.surfaces.map((surface) => { const Icon = lensIcons[surface.id as Lens] || Braces; return <button key={surface.id} className={lens === surface.id ? 'active' : ''} onClick={() => setLens(surface.id as Lens)}><Icon size={15} /><span><b>{surface.label}</b><small>{surface.description}</small></span></button>; })}</nav>
     <div className="model-workbench">

@@ -1,5 +1,7 @@
+import type { ChangeStream } from 'mongodb';
 import { solutionDatabase } from '@/lib/data/mongodb';
-import { isSemanticProfile, semanticRuntimeBundle } from '@/lib/semantics/runtime';
+import { loadActiveSemanticBundle } from '@/lib/semantics/repository';
+import { isSemanticProfile } from '@/lib/semantics/runtime';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,7 +15,7 @@ function event(name: string, data: unknown, id?: string): Uint8Array {
 export async function GET(request: Request) {
   const requested = new URL(request.url).searchParams.get('profile');
   const profile = isSemanticProfile(requested) ? requested : 'toxicologist';
-  const bundle = semanticRuntimeBundle();
+  const bundle = await loadActiveSemanticBundle();
   let cleanup = () => {};
 
   const stream = new ReadableStream<Uint8Array>({
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
         try { controller.enqueue(event('heartbeat', { releaseId: bundle.release.releaseId, at: new Date().toISOString() })); } catch { /* client disconnected */ }
       }, 15_000);
 
-      let changeStream: Awaited<ReturnType<NonNullable<Awaited<ReturnType<typeof solutionDatabase>>>['watch']>> | null = null;
+      let changeStream: ChangeStream | null = null;
       cleanup = () => {
         clearInterval(heartbeat);
         void changeStream?.close();
@@ -38,18 +40,21 @@ export async function GET(request: Request) {
       try {
         const database = await solutionDatabase();
         if (!database) return;
+        const lastEventId = request.headers.get('last-event-id');
+        const resumeAfter = lastEventId ? JSON.parse(Buffer.from(lastEventId, 'base64url').toString('utf8')) : undefined;
         changeStream = database.watch([
           { $match: { 'ns.coll': { $in: ['semantic_releases', 'semantic_objects', 'semantic_profiles', 'semantic_value_sets', 'semantic_change_events', 'review_actions'] } } },
-        ], { fullDocument: 'updateLookup' });
+        ], { fullDocument: 'updateLookup', ...(resumeAfter ? { resumeAfter } : {}) });
         changeStream.on('change', (change) => {
-          const collection = change.ns?.coll || 'unknown';
+          if (!('ns' in change)) return;
+          const collection = 'coll' in change.ns ? change.ns.coll : 'unknown';
           const eventName = collection === 'review_actions' ? 'review.action.committed' : collection === 'semantic_change_events' ? 'terminology.value.observed' : collection === 'semantic_value_sets' ? 'terminology.valueset.compiled' : collection === 'semantic_profiles' ? 'profile.projection.changed' : collection === 'semantic_objects' ? 'semantic.object.changed' : 'semantic.release.activated';
           controller.enqueue(event(eventName, {
             operation: change.operationType,
             collection,
             profile,
             releaseId: bundle.release.releaseId,
-          }, change._id?._data));
+          }, Buffer.from(JSON.stringify(change._id)).toString('base64url')));
         });
         changeStream.on('error', () => controller.enqueue(event('semantic.stream.degraded', { fallback: 'snapshot', releaseId: bundle.release.releaseId })));
       } catch {

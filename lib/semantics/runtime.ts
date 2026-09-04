@@ -14,9 +14,9 @@ export function isSemanticProfile(value: string | null | undefined): value is Se
   return semanticRuntimeBundle().profiles.some((profile) => profile.id === value);
 }
 
-export function semanticRuntimeForProfile(requested: string | null | undefined): SemanticRuntimeView {
-  const source = semanticRuntimeBundle();
-  const profileId: SemanticProfileId = isSemanticProfile(requested) ? requested : 'toxicologist';
+export function semanticRuntimeForProfile(requested: string | null | undefined, source: SemanticRuntimeBundle = semanticRuntimeBundle()): SemanticRuntimeView {
+  const sourceProfileIds = source.profiles.map((profile) => profile.id);
+  const profileId: SemanticProfileId = requested && sourceProfileIds.includes(requested as SemanticProfileId) ? requested as SemanticProfileId : 'toxicologist';
   const activeProfile = source.profiles.find((profile) => profile.id === profileId)!;
   const hidden = new Set(activeProfile.hiddenObjects || []);
   const objects = source.objects.filter((object) => object.visibleTo.includes(profileId) && !hidden.has(object.id));

@@ -28,7 +28,7 @@ const client = new MongoClient(uri);
 await client.connect();
 try {
   const database = client.db(process.env.MONGODB_DATABASE || 'nonclinical_safety_solution');
-  const release = { ...bundle.release, apiVersion: bundle.apiVersion, digest, importedAt: new Date(), active: true };
+  const release = { ...bundle.release, apiVersion: bundle.apiVersion, digest, bundle, importedAt: new Date(), active: true };
   await database.collection('semantic_releases').updateMany({}, { $set: { active: false } });
   await database.collection('semantic_releases').replaceOne({ releaseId: release.releaseId }, release, { upsert: true });
 

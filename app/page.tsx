@@ -1,11 +1,11 @@
 import SafetyIntelligenceApp from '@/components/SafetyIntelligenceApp';
 import { loadStudyEvidence } from '@/lib/data/study-repository';
-import { semanticRuntimeForProfile } from '@/lib/semantics/runtime';
+import { loadSemanticRuntimeForProfile } from '@/lib/semantics/repository';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const evidence = await loadStudyEvidence();
-  const semantics = semanticRuntimeForProfile('toxicologist');
+  const semantics = await loadSemanticRuntimeForProfile('toxicologist');
   return <SafetyIntelligenceApp evidence={evidence} initialSemantics={semantics} />;
 }

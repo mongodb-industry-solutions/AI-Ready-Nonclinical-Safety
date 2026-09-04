@@ -93,6 +93,8 @@ The solution never makes canonical CDISC records, semantic projections, or agent
 - terminology value sets and four synchronized UI surface definitions;
 - a snapshot + cursor + event subscription contract backed by MongoDB Change Streams.
 
+With MongoDB configured, the semantic API resolves the active release from `semantic_runtime_pointer`. The change lab creates a candidate event, compiles a new immutable bundle, activates its pointer, and lets connected clients refresh from the emitted resume-safe event. Fixture mode performs the identical visual workflow against the bundled release without pretending to persist it.
+
 The application imports that artifact; it never imports Context Studio internals. A production identity provider must supply the profile—this demonstrator exposes a profile picker so the authorization projections are visible.
 
 ## Data Modes

@@ -61,7 +61,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics }: { 
         <button className="icon-button"><CircleHelp size={17} /></button>
       </header>
 
-      {section === 'architecture' ? <Architecture evidence={evidence} onBack={() => setSection('signals')} /> : section === 'semantics' ? <SemanticModelExplorer runtime={semantics} /> : <>
+      {section === 'architecture' ? <Architecture evidence={evidence} onBack={() => setSection('signals')} /> : section === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : <>
         <section className="hero-row" id="overview">
           <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
           <div className="hero-actions"><button className="secondary-action" onClick={() => goTo('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" onClick={() => setRoomOpen(true)}><Sparkles size={14} /> Start investigation</button></div>

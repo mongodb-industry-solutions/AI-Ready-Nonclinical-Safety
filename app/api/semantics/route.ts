@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { semanticRuntimeForProfile } from '@/lib/semantics/runtime';
+import { loadSemanticRuntimeForProfile } from '@/lib/semantics/repository';
 
 export async function GET(request: Request) {
   const profile = new URL(request.url).searchParams.get('profile');
-  return NextResponse.json(semanticRuntimeForProfile(profile), {
+  return NextResponse.json(await loadSemanticRuntimeForProfile(profile), {
     headers: { 'cache-control': 'no-store' },
   });
 }
