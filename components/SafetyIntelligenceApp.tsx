@@ -1,13 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Activity, Beaker, Bot, Braces, ChevronDown, CircleHelp, Database, Dna, FileCheck2, FlaskConical, GitBranch, Layers3, Microscope, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { Activity, Beaker, Bot, Braces, ChevronDown, CircleHelp, Database, Dna, Expand, FileCheck2, FlaskConical, GitBranch, Layers3, Microscope, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
 import type { SafetySignal, StudyEvidence } from '@/lib/contracts';
 import { reviewScore } from '@/lib/analysis/signal-engine';
 import AgentPanel from '@/components/AgentPanel';
 import DoseResponseChart from '@/components/DoseResponseChart';
 import EvidenceGraph from '@/components/EvidenceGraph';
 import LabTrajectoryChart from '@/components/LabTrajectoryChart';
+import SignalMatrix from '@/components/SignalMatrix';
 
 const nav = [
   { id: 'overview', label: 'Study overview', icon: FlaskConical },
@@ -24,6 +25,7 @@ function PriorityPill({ value }: { value: SafetySignal['reviewPriority'] }) {
 export default function SafetyIntelligenceApp({ evidence }: { evidence: StudyEvidence }) {
   const [section, setSection] = useState('signals');
   const [selectedId, setSelectedId] = useState(evidence.signals[0].id);
+  const [graphOpen, setGraphOpen] = useState(false);
   const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
   const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : evidence.labSeries.LYM;
   const ranked = useMemo(() => evidence.signals.map((item) => ({ ...item, score: reviewScore(item, evidence.doseGroups) })).sort((a, b) => b.score - a.score), [evidence]);
@@ -63,9 +65,14 @@ export default function SafetyIntelligenceApp({ evidence }: { evidence: StudyEvi
           <article className="accent-metric"><span>Top review signal</span><strong>{ranked[0].score}</strong><small>heuristic priority, not a conclusion</small></article>
         </section>
 
+        <section className="panel matrix-panel" id="signals">
+          <div className="panel-heading"><div><span className="panel-kicker">Study-wide visual triage</span><h2>Dose × organ signal matrix</h2><p>Scan every finding at once. Select a row to synchronize the charts, evidence graph, and AI investigator.</p></div><div className="matrix-callout"><Activity size={14} /><span><b>{ranked.filter((item) => item.reviewPriority === 'high').length}</b> priority signal</span></div></div>
+          <SignalMatrix groups={evidence.doseGroups} signals={ranked} selectedId={signal.id} onSelect={setSelectedId} />
+        </section>
+
         <div className="content-grid">
           <section className="analysis-column">
-            <article className="panel signal-map-panel" id="signals">
+            <article className="panel signal-map-panel">
               <div className="panel-heading"><div><span className="panel-kicker">Organ signal map</span><h2>Findings ranked for review</h2></div><div className="legend"><span className="legend-high" /> treated-only <span className="legend-context" /> contextual</div></div>
               <div className="signal-landscape">
                 <div className="body-map" aria-label="Stylized organ map"><div className="body-head" /><div className="body-torso"><button className={signal.organ === 'THYMUS' ? 'selected' : ''} onClick={() => setSelectedId('thymus-lymphocytes')} style={{ top: '18%', left: '43%' }} title="Thymus"><span /></button><button className={signal.organ === 'LUNG' ? 'selected' : ''} onClick={() => setSelectedId('lung-infiltration')} style={{ top: '28%', left: '28%' }} title="Lung"><span /></button><button className={signal.organ === 'HEART' ? 'selected' : ''} onClick={() => setSelectedId('heart-infiltration')} style={{ top: '34%', left: '55%' }} title="Heart"><span /></button><button className={signal.organ === 'LIVER' ? 'selected' : ''} onClick={() => setSelectedId('liver-inflammatory')} style={{ top: '51%', left: '31%' }} title="Liver"><span /></button><button className={signal.organ === 'KIDNEY' ? 'selected' : ''} onClick={() => setSelectedId('kidney-infiltration')} style={{ top: '58%', left: '59%' }} title="Kidney"><span /></button></div><div className="body-legs" /></div>
@@ -89,12 +96,15 @@ export default function SafetyIntelligenceApp({ evidence }: { evidence: StudyEvi
                 <div><span className="domain-tag">LB</span><b>{signal.correlatedLab || 'Context'}</b><small>longitudinal labs</small></div>
               </div>
             </article>
-
-            <article className="panel graph-panel" id="graph"><div className="panel-heading"><div><span className="panel-kicker">Explainable graph</span><h2>Evidence lineage</h2></div><button className="text-action" onClick={() => setSection('architecture')}>See data model <Braces size={13} /></button></div><EvidenceGraph evidence={evidence} signal={signal} /></article>
           </section>
           <AgentPanel id="agent" study={evidence.study} signal={signal} />
         </div>
+        <section className="panel graph-panel graph-wide" id="graph">
+          <div className="panel-heading"><div><span className="panel-kicker">Interactive evidence network</span><h2>{signal.organ}: from dose assignment to source artifact</h2><p>Follow the highlighted path, select any node for context, or expand the graph for investigation mode.</p></div><div className="graph-actions"><button className="text-action" onClick={() => setSection('architecture')}>See data model <Braces size={13} /></button><button className="secondary-action graph-expand" onClick={() => setGraphOpen(true)}><Expand size={13} /> Expand graph</button></div></div>
+          <EvidenceGraph evidence={evidence} signal={signal} />
+        </section>
         <footer className="study-footer"><span>{evidence.provenance.method}</span><a href={evidence.study.source} target="_blank" rel="noreferrer">PhUSE SENDConform · {evidence.study.sourceRevision.slice(0, 9)}</a><span>{evidence.provenance.disclaimer}</span></footer>
+        {graphOpen && <div className="graph-modal-backdrop" role="presentation" onMouseDown={() => setGraphOpen(false)}><section className="graph-modal" role="dialog" aria-modal="true" aria-label={`Evidence network for ${signal.organ}`} onMouseDown={(event) => event.stopPropagation()}><header><div><span className="panel-kicker">Immersive evidence network</span><h2>{signal.organ} · {signal.finding}</h2></div><button className="icon-button" onClick={() => setGraphOpen(false)} aria-label="Close evidence graph"><X size={18} /></button></header><EvidenceGraph evidence={evidence} signal={signal} immersive /></section></div>}
       </>}
     </main>
   </div>;

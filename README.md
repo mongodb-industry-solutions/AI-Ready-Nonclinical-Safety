@@ -10,10 +10,10 @@ It then progressively reveals the data model, governed queries, hybrid retrieval
 
 ## What You Can Explore
 
-- A visual organ-level signal landscape ranked for expert review.
+- A study-wide dose-by-organ incidence matrix and organ signal landscape ranked for expert review.
 - Dose-response and longitudinal laboratory charts.
 - Cross-domain links between SEND DM, TX, MI, and LB records.
-- An interactive evidence and lineage graph built with React Flow.
+- A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
 - A read-only AI investigator that exposes its retrieval plan and citations.
 - A technical view explaining the boundary between the deployed solution and upstream HDL/Kehrnel enablement.
 
