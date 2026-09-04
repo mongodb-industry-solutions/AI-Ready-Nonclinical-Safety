@@ -13,10 +13,7 @@ services:
       INTERNAL_AGENT_URL: http://safety-agent:8082
 
   safety-agent:
-    build:
-      context: ./services/agent
-      secrets:
-        - github_token
+    build: ./services/agent
     env_file:
       - path: .env.local
         required: false
@@ -24,7 +21,3 @@ services:
       GATEWAY_PORT: "8082"
     expose:
       - "8082"
-
-secrets:
-  github_token:
-    environment: GITHUB_TOKEN

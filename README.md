@@ -38,7 +38,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The default local command uses the deterministic cited investigator. `docker compose up --build` starts the application and its bundled Magenta service together; no external Magenta URL or Kehrnel URL is required. Until the Magenta SDK is published to an installable registry, MongoDB contributors should expose their existing GitHub credential to BuildKit with `export GITHUB_TOKEN="$(gh auth token)"` before building the agent image.
+The default local command uses the deterministic cited investigator. `docker compose up --build` starts the application and its bundled Magenta service together; no external Magenta URL, Kehrnel URL, or GitHub token is required. The agent vendors the approved Magenta runtime wheels in the repository, following the same deployment pattern as `patient-access-coordination-advisor`.
 
 Set `MONGODB_URI` to persist study evidence, search chunks, and investigation sessions in the solution database. The application owns these deployed collections and APIs.
 
