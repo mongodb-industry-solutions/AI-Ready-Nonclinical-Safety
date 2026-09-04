@@ -1,0 +1,123 @@
+{
+  "study": {
+    "id": "Study ID",
+    "title": "PhUSE FFU Contribution to FDA",
+    "profile": "SEND",
+    "implementationGuide": "SENDIG 3.0",
+    "snapshotId": "phuse-ffu-public-v1",
+    "state": "published",
+    "source": "https://github.com/phuse-org/SENDConform",
+    "sourceRevision": "eb438ce3f7cbd74eea77677f43b916dd46c802cd",
+    "license": "MIT",
+    "recordCount": 2319,
+    "animalCount": 10,
+    "domains": ["DM", "TX", "MI", "LB"],
+    "domainCounts": { "DM": 10, "TX": 35, "MI": 242, "LB": 2032 }
+  },
+  "doseGroups": [
+    { "code": "1", "label": "Vehicle control", "dose": 0, "unit": "mg/kg", "animalCount": 2 },
+    { "code": "3", "label": "Dose 4", "dose": 4, "unit": "mg/kg", "animalCount": 2 },
+    { "code": "5", "label": "Dose 6", "dose": 6, "unit": "mg/kg", "animalCount": 2 },
+    { "code": "4", "label": "Dose 8", "dose": 8, "unit": "mg/kg", "animalCount": 2 },
+    { "code": "2", "label": "Dose 12", "dose": 12, "unit": "mg/kg", "animalCount": 2 }
+  ],
+  "signals": [
+    {
+      "id": "thymus-lymphocytes",
+      "organ": "THYMUS",
+      "finding": "Decreased number, lymphocytes, cortex",
+      "affectedAnimals": 7,
+      "totalAnimals": 10,
+      "reviewPriority": "high",
+      "pattern": "treated-only",
+      "incidence": [0, 1, 2, 2, 2],
+      "severity": { "minimal": 2, "mild": 3, "moderate": 2 },
+      "correlatedLab": "LYM"
+    },
+    {
+      "id": "lung-infiltration",
+      "organ": "LUNG",
+      "finding": "Mononuclear cell infiltration",
+      "affectedAnimals": 8,
+      "totalAnimals": 10,
+      "reviewPriority": "context",
+      "pattern": "control-and-treated",
+      "incidence": [2, 2, 2, 2, 0],
+      "severity": { "minimal": 7, "mild": 1, "moderate": 0 },
+      "correlatedLab": null
+    },
+    {
+      "id": "heart-infiltration",
+      "organ": "HEART",
+      "finding": "Mononuclear cell infiltration",
+      "affectedAnimals": 7,
+      "totalAnimals": 10,
+      "reviewPriority": "context",
+      "pattern": "control-and-treated",
+      "incidence": [2, 2, 1, 1, 1],
+      "severity": { "minimal": 6, "mild": 1, "moderate": 0 },
+      "correlatedLab": null
+    },
+    {
+      "id": "kidney-infiltration",
+      "organ": "KIDNEY",
+      "finding": "Interstitial mononuclear cell infiltration",
+      "affectedAnimals": 6,
+      "totalAnimals": 10,
+      "reviewPriority": "medium",
+      "pattern": "non-monotonic",
+      "incidence": [1, 2, 1, 0, 2],
+      "severity": { "minimal": 5, "mild": 1, "moderate": 0 },
+      "correlatedLab": null
+    },
+    {
+      "id": "injection-site-fibroblasts",
+      "organ": "SITE, INJECTION",
+      "finding": "Increased fibroblasts / mononuclear infiltration",
+      "affectedAnimals": 6,
+      "totalAnimals": 10,
+      "reviewPriority": "medium",
+      "pattern": "local-tolerance",
+      "incidence": [1, 1, 2, 0, 2],
+      "severity": { "minimal": 7, "mild": 1, "moderate": 0 },
+      "correlatedLab": null
+    },
+    {
+      "id": "liver-inflammatory",
+      "organ": "LIVER",
+      "finding": "Inflammatory / mononuclear findings",
+      "affectedAnimals": 3,
+      "totalAnimals": 10,
+      "reviewPriority": "low",
+      "pattern": "sparse",
+      "incidence": [0, 1, 1, 1, 0],
+      "severity": { "minimal": 2, "mild": 1, "moderate": 0 },
+      "correlatedLab": null
+    }
+  ],
+  "labSeries": {
+    "LYM": {
+      "label": "Lymphocytes",
+      "unit": "10^9/L",
+      "points": [
+        { "day": -16, "0": 7.325, "4": 6.49, "6": 5.745, "8": 5.0, "12": 9.115 },
+        { "day": -10, "0": 5.455, "4": 4.31, "6": 6.14, "8": 4.81, "12": 7.09 },
+        { "day": 8, "0": 6.15, "4": 2.02, "6": 3.315, "8": 2.245, "12": 4.475 },
+        { "day": 22, "0": 7.975, "4": 8.32, "6": 7.145, "8": 5.18, "12": 11.85 },
+        { "day": 29, "0": 7.055, "4": 3.86, "6": 3.145, "8": 2.565, "12": 5.0 }
+      ]
+    }
+  },
+  "provenance": {
+    "derivedAt": "2026-09-04",
+    "method": "Deterministic aggregation of checksum-verified public XPT files",
+    "sourceArtifacts": {
+      "define.xml": "sha256:f9474ff5c96d4158a2c7a52c3f102495b6511d91ebd95ebb489cc87b87d65f17",
+      "dm.xpt": "sha256:b96fd8e5da32cbba9a97981fee973de3b7e56149f5fe0f312a90f36b333397a3",
+      "tx.xpt": "sha256:eaf8f1bf9e47c7f4a46cf655eeb9257b42f6f333f80aa124a94c37a977a90491",
+      "mi.xpt": "sha256:edc563592c9ba368fe636aefd1126a1848f5753e6f005153e6bf5bc3425f5c96",
+      "lb.xpt": "sha256:2213d9a70a4bb7170542edb79f9929f1813b122baaeded0dc6a04e5bd9a30cff"
+    },
+    "disclaimer": "Demonstration data only. Signals are review hypotheses, not toxicologic conclusions."
+  }
+}

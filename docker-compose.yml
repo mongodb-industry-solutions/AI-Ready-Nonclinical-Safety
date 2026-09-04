@@ -1,0 +1,8 @@
+services:
+  safety-intelligence:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: .env.local
+        required: false

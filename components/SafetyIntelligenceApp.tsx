@@ -1,0 +1,122 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { Activity, Beaker, Bot, Braces, ChevronDown, CircleHelp, Database, Dna, FileCheck2, FlaskConical, GitBranch, Layers3, Microscope, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import type { SafetySignal, StudyEvidence } from '@/lib/contracts';
+import { reviewScore } from '@/lib/analysis/signal-engine';
+import AgentPanel from '@/components/AgentPanel';
+import DoseResponseChart from '@/components/DoseResponseChart';
+import EvidenceGraph from '@/components/EvidenceGraph';
+import LabTrajectoryChart from '@/components/LabTrajectoryChart';
+
+const nav = [
+  { id: 'overview', label: 'Study overview', icon: FlaskConical },
+  { id: 'signals', label: 'Signal landscape', icon: Activity },
+  { id: 'dose', label: 'Dose & labs', icon: Beaker },
+  { id: 'graph', label: 'Evidence graph', icon: GitBranch },
+  { id: 'agent', label: 'AI investigations', icon: Bot },
+];
+
+function PriorityPill({ value }: { value: SafetySignal['reviewPriority'] }) {
+  return <span className={`priority-pill priority-${value}`}>{value === 'high' ? 'review first' : value}</span>;
+}
+
+export default function SafetyIntelligenceApp({ evidence }: { evidence: StudyEvidence }) {
+  const [section, setSection] = useState('signals');
+  const [selectedId, setSelectedId] = useState(evidence.signals[0].id);
+  const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
+  const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : evidence.labSeries.LYM;
+  const ranked = useMemo(() => evidence.signals.map((item) => ({ ...item, score: reviewScore(item, evidence.doseGroups) })).sort((a, b) => b.score - a.score), [evidence]);
+  const goTo = (target: string) => {
+    setSection(target);
+    window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+
+  return <div className="app-shell">
+    <aside className="sidebar">
+      <div className="brand"><span className="brand-mark"><Dna size={20} /></span><div><strong>Safety Intelligence</strong><small>MongoDB Solution Library</small></div></div>
+      <div className="nav-label">Investigation</div>
+      <nav>{nav.map((item) => { const Icon = item.icon; return <button key={item.id} className={section === item.id ? 'active' : ''} onClick={() => goTo(item.id)}><Icon size={16} /><span>{item.label}</span>{item.id === 'signals' && <em>{evidence.signals.length}</em>}</button>; })}</nav>
+      <div className="nav-label">Platform</div>
+      <nav><button onClick={() => setSection('architecture')} className={section === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Data & AI architecture</span></button><button onClick={() => goTo('graph')}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
+      <div className="source-card"><div><span className="status-dot" /> Published evidence</div><strong>{evidence.study.implementationGuide}</strong><small>Immutable · checksum verified</small></div>
+    </aside>
+
+    <main className="workspace">
+      <header className="topbar">
+        <button className="study-switcher"><span className="study-icon"><FlaskConical size={16} /></span><span><b>{evidence.study.title}</b><small>{evidence.study.id} · {evidence.study.snapshotId}</small></span><ChevronDown size={14} /></button>
+        <div className="global-search"><Search size={14} /><span>Search findings, animals, tests…</span><kbd>⌘ K</kbd></div>
+        <span className="published"><ShieldCheck size={14} /> Published</span>
+        <button className="icon-button"><CircleHelp size={17} /></button>
+      </header>
+
+      {section === 'architecture' ? <Architecture evidence={evidence} onBack={() => setSection('signals')} /> : <>
+        <section className="hero-row" id="overview">
+          <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
+          <div className="hero-actions"><button className="secondary-action" onClick={() => goTo('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" onClick={() => goTo('agent')}><Sparkles size={14} /> Start investigation</button></div>
+        </section>
+
+        <section className="metric-row">
+          <article><span>Canonical records</span><strong>{evidence.study.recordCount.toLocaleString()}</strong><small>across {evidence.study.domains.length} SEND domains</small></article>
+          <article><span>Study animals</span><strong>{evidence.study.animalCount}</strong><small>5 treatment groups</small></article>
+          <article><span>Microscopy records</span><strong>{evidence.study.domainCounts.MI}</strong><small>study day 30 review</small></article>
+          <article className="accent-metric"><span>Top review signal</span><strong>{ranked[0].score}</strong><small>heuristic priority, not a conclusion</small></article>
+        </section>
+
+        <div className="content-grid">
+          <section className="analysis-column">
+            <article className="panel signal-map-panel" id="signals">
+              <div className="panel-heading"><div><span className="panel-kicker">Organ signal map</span><h2>Findings ranked for review</h2></div><div className="legend"><span className="legend-high" /> treated-only <span className="legend-context" /> contextual</div></div>
+              <div className="signal-landscape">
+                <div className="body-map" aria-label="Stylized organ map"><div className="body-head" /><div className="body-torso"><button className={signal.organ === 'THYMUS' ? 'selected' : ''} onClick={() => setSelectedId('thymus-lymphocytes')} style={{ top: '18%', left: '43%' }} title="Thymus"><span /></button><button className={signal.organ === 'LUNG' ? 'selected' : ''} onClick={() => setSelectedId('lung-infiltration')} style={{ top: '28%', left: '28%' }} title="Lung"><span /></button><button className={signal.organ === 'HEART' ? 'selected' : ''} onClick={() => setSelectedId('heart-infiltration')} style={{ top: '34%', left: '55%' }} title="Heart"><span /></button><button className={signal.organ === 'LIVER' ? 'selected' : ''} onClick={() => setSelectedId('liver-inflammatory')} style={{ top: '51%', left: '31%' }} title="Liver"><span /></button><button className={signal.organ === 'KIDNEY' ? 'selected' : ''} onClick={() => setSelectedId('kidney-infiltration')} style={{ top: '58%', left: '59%' }} title="Kidney"><span /></button></div><div className="body-legs" /></div>
+                <div className="signal-list">{ranked.map((item) => <button key={item.id} className={item.id === signal.id ? 'selected' : ''} onClick={() => setSelectedId(item.id)}><span className="organ-abbr">{item.organ.slice(0, 2)}</span><span className="signal-copy"><b>{item.organ}</b><small>{item.finding}</small></span><span className="signal-count">{item.affectedAnimals}/{item.totalAnimals}</span><PriorityPill value={item.reviewPriority} /></button>)}</div>
+              </div>
+            </article>
+
+            <article className="panel selected-signal" id="dose">
+              <div className="selected-heading"><span className="selected-icon"><Microscope size={21} /></span><div><span className="panel-kicker">Selected evidence thread</span><h2>{signal.organ} · {signal.finding}</h2></div><PriorityPill value={signal.reviewPriority} /></div>
+              <div className="chart-grid">
+                <div className="chart-card"><div className="chart-title"><div><b>Finding incidence</b><small>affected animals by dose</small></div><span>MI + DM + TX</span></div><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div>
+                <div className="chart-card"><div className="chart-title"><div><b>{lab.label} trajectory</b><small>group mean by study day</small></div><span>LB + DM + TX</span></div><LabTrajectoryChart series={lab} /></div>
+              </div>
+              <div className="evidence-ribbon">
+                <div><span className="domain-tag">MI</span><b>{signal.affectedAnimals} animals</b><small>finding + severity</small></div>
+                <i />
+                <div><span className="domain-tag">DM</span><b>{evidence.study.animalCount} animals</b><small>identity + group</small></div>
+                <i />
+                <div><span className="domain-tag">TX</span><b>{evidence.doseGroups.length} groups</b><small>dose + vehicle</small></div>
+                <i />
+                <div><span className="domain-tag">LB</span><b>{signal.correlatedLab || 'Context'}</b><small>longitudinal labs</small></div>
+              </div>
+            </article>
+
+            <article className="panel graph-panel" id="graph"><div className="panel-heading"><div><span className="panel-kicker">Explainable graph</span><h2>Evidence lineage</h2></div><button className="text-action" onClick={() => setSection('architecture')}>See data model <Braces size={13} /></button></div><EvidenceGraph evidence={evidence} signal={signal} /></article>
+          </section>
+          <AgentPanel id="agent" study={evidence.study} signal={signal} />
+        </div>
+        <footer className="study-footer"><span>{evidence.provenance.method}</span><a href={evidence.study.source} target="_blank" rel="noreferrer">PhUSE SENDConform · {evidence.study.sourceRevision.slice(0, 9)}</a><span>{evidence.provenance.disclaimer}</span></footer>
+      </>}
+    </main>
+  </div>;
+}
+
+function Architecture({ evidence, onBack }: { evidence: StudyEvidence; onBack: () => void }) {
+  const layers = [
+    { n: '01', title: 'Source evidence', sub: 'SEND XPT + Define-XML', body: 'Original checksummed artifacts remain replayable and attributed.', tone: 'cyan' },
+    { n: '02', title: 'Kehrnel CDISC', sub: 'Canonical study snapshot', body: 'Tenant-scoped records, facets, entities, validation and lineage.', tone: 'green' },
+    { n: '03', title: 'AI projections', sub: 'Evidence + vectors + graph', body: 'Rebuildable safety signals, semantic chunks and relationship edges.', tone: 'violet' },
+    { n: '04', title: 'Magenta agent', sub: 'Governed investigation', body: 'Plans read-only tools, retrieves, reranks and cites evidence.', tone: 'amber' },
+    { n: '05', title: 'Solution app', sub: 'Expert review workspace', body: 'Interactive visuals, explanations, feedback and audit trail.', tone: 'rose' },
+  ];
+  return <section className="architecture-page">
+    <button className="back-link" onClick={onBack}>← Back to signal landscape</button>
+    <div className="architecture-title"><div className="eyebrow">How it was created</div><h1>One governed source. Many intelligent interactions.</h1><p>The business application is intentionally separate from the data factory, canonical model, and agent runtime.</p></div>
+    <div className="architecture-flow">{layers.map((layer, index) => <article key={layer.n} className={`architecture-card tone-${layer.tone}`}><span>{layer.n}</span><div className="architecture-icon">{index === 0 ? <FileCheck2 /> : index === 1 ? <Database /> : index === 2 ? <GitBranch /> : index === 3 ? <Bot /> : <Activity />}</div><h2>{layer.title}</h2><b>{layer.sub}</b><p>{layer.body}</p>{index < layers.length - 1 && <i>→</i>}</article>)}</div>
+    <div className="boundary-grid">
+      <article><span className="ready-dot" /><div><h3>Available now</h3><p>Canonical CDISC records, {evidence.study.recordCount.toLocaleString()}-record example, immutable snapshots, analysis, lineage and hybrid search contract.</p></div></article>
+      <article><span className="configure-dot" /><div><h3>Deployment configuration</h3><p>MongoDB Atlas, Search and Vector Search indexes, embedding provider, authentication and Kehrnel environment bindings.</p></div></article>
+      <article><span className="build-dot" /><div><h3>Solution intelligence</h3><p>Safety-specific projections, second-stage reranking, cross-study graph, agent evaluation and expert feedback loops.</p></div></article>
+    </div>
+    <div className="contract-table"><div className="contract-head"><span>Owner</span><span>Owns</span><span>Must not own</span></div><div><b>Healthcare Data Lab</b><span>Data creation, ingestion, model discovery and query experimentation</span><span>Business-specific safety conclusions</span></div><div><b>Kehrnel</b><span>CDISC model, generation, governed query, validation, snapshots and lineage</span><span>User experience or agent personality</span></div><div><b>Magenta</b><span>Agent graph, memory, tool policy, traces and human review</span><span>Canonical CDISC persistence</span></div><div><b>Solution Library</b><span>Safety workflow, visuals, evidence assembly and reviewer experience</span><span>Duplicate data standards or runtime kernels</span></div></div>
+  </section>;
+}

@@ -1,0 +1,39 @@
+{
+  "name": "ai-ready-nonclinical-safety",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An AI-ready nonclinical safety intelligence reference application built on MongoDB, Kehrnel CDISC and Magenta.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.8.4",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "mongodb": "^6.13.0",
+    "next": "^15.5.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.18",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "postcss": "^8.5.28"
+  }
+}
