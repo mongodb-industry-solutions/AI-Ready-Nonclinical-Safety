@@ -1,6 +1,6 @@
 # AI-Ready Nonclinical Safety Intelligence
 
-An interactive reference application for investigating nonclinical safety signals across CDISC SEND studies with MongoDB, Kehrnel, and the MongoDB Agentic Platform (Magenta).
+An interactive, self-contained reference application for investigating nonclinical safety signals across CDISC SEND studies with MongoDB and the MongoDB Agentic Platform (Magenta).
 
 The application starts with the question a toxicologist actually asks:
 
@@ -15,13 +15,13 @@ It then progressively reveals the data model, governed queries, hybrid retrieval
 - Cross-domain links between SEND DM, TX, MI, and LB records.
 - An interactive evidence and lineage graph built with React Flow.
 - A read-only AI investigator that exposes its retrieval plan and citations.
-- A technical view explaining the boundary between the solution, Healthcare Data Lab, Kehrnel, MongoDB Atlas, and Magenta.
+- A technical view explaining the boundary between the deployed solution and upstream HDL/Kehrnel enablement.
 
 The included demonstration uses deterministic aggregates from the public [PhUSE SENDConform FFU contribution](https://github.com/phuse-org/SENDConform), pinned to revision `eb438ce3f7cbd74eea77677f43b916dd46c802cd`. No large XPT files are committed.
 
 ## Quick Start
 
-The application runs in fixture mode without MongoDB, Kehrnel, or an LLM:
+The application runs in fixture mode without MongoDB or an LLM:
 
 ```bash
 npm install
@@ -30,25 +30,25 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-To connect the governed runtime:
+To persist the demonstration and investigation history in your own MongoDB deployment:
 
 ```bash
 cp .env.example .env.local
-# Set SAFETY_DATA_MODE=kehrnel and the KEHRNEL_* values.
+# Set MONGODB_URI. The public demonstration is bootstrapped automatically.
 npm run dev
 ```
 
-To use the Magenta safety investigator, also set `MAGENTA_AGENT_URL`. Without it, the same interface uses a deterministic, cited investigation path suitable for demos and tests.
+The default local command uses the deterministic cited investigator. `docker compose up --build` starts the application and its bundled Magenta service together; no external Magenta URL or Kehrnel URL is required. Until the Magenta SDK is published to an installable registry, MongoDB contributors should expose their existing GitHub credential to BuildKit with `export GITHUB_TOKEN="$(gh auth token)"` before building the agent image.
 
-Set `MONGODB_URI` to retain solution-owned investigation sessions for 90 days. This collection contains review interaction state only; canonical SEND records remain governed by Kehrnel.
+Set `MONGODB_URI` to persist study evidence, search chunks, and investigation sessions in the solution database. The application owns these deployed collections and APIs.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   A[Public or sponsor SEND<br/>XPT + Define-XML] --> B[Healthcare Data Lab<br/>intake + data factory]
-  B --> C[Kehrnel cdisc.sdr<br/>canonical snapshots]
-  C --> D[(MongoDB Atlas<br/>records + projections)]
+  B --> C[Versioned solution import<br/>CDISC-derived contract]
+  C --> D[(Solution MongoDB Atlas<br/>evidence + review state)]
   D --> E[Search + Vector Search<br/>hybrid retrieval]
   C --> F[Safety evidence graph]
   E --> G[Magenta<br/>investigation agent]
@@ -61,23 +61,33 @@ flowchart LR
 
 | Component | Responsibility |
 |---|---|
-| Healthcare Data Lab | Create, ingest, validate, inspect, and experiment with study data and queries. |
-| Kehrnel | Own the CDISC model, deterministic generation, immutable snapshots, validation, governed query contracts, projections, and lineage. |
-| MongoDB Atlas | Store operational documents and derived views; execute structured, lexical, vector, and graph-style aggregations. |
-| Magenta | Orchestrate read-only investigation tools, memory, traces, reranking, and human review. |
+| Healthcare Data Lab + Kehrnel | Upstream learning and enablement: create/ingest data, validate the model, test query patterns, and export a versioned solution input. They are not runtime dependencies. |
+| MongoDB Atlas | The deployed solution database: evidence documents, search/vector projections, investigation history, and reviewer state. |
+| Bundled Magenta service | Orchestrate solution-owned read-only tools, memory, traces, reranking, and human review within the same deployment. |
 | This repository | Deliver the business workflow, visual explanation, evidence assembly, and expert experience. |
 
 The solution never makes canonical CDISC records or agent memory competing sources of truth.
 
 ## Data Modes
 
-### Fixture
+### Fixture fallback
 
-`SAFETY_DATA_MODE=fixture` is the default. It provides a fully interactive experience from checked-in, traceable aggregates. It is deterministic and requires no credentials.
+Without `MONGODB_URI`, the application provides a fully interactive experience from checked-in, traceable aggregates. It is deterministic and requires no credentials.
 
-### Kehrnel
+### MongoDB
 
-`SAFETY_DATA_MODE=kehrnel` binds the application to an activated `cdisc.sdr` environment. The first implementation resolves canonical study identity and snapshot scope through Kehrnel while retaining the same presentation contract. Portfolio materializations can replace the fixture read model without changing UI components.
+When `MONGODB_URI` is set, the application reads its own `study_evidence` and `evidence_chunks` collections, retains investigations, and exposes its own API. The bundled public study is inserted idempotently on first use. Future Kehrnel or HDL exports target this same versioned import contract without coupling the running solution to either tool.
+
+Import another solution-ready snapshot with:
+
+```bash
+npm run import:study -- ./path/to/study-evidence.json
+npm run setup:indexes
+```
+
+The import is idempotent by study and snapshot. It is the deployment handoff point for data prepared in HDL/Kehrnel or another validated pipeline.
+
+The index command creates the solution-owned Atlas Search and Vector Search definitions described in [`docs/atlas-indexes.md`](docs/atlas-indexes.md). It requires an Atlas database role permitted to manage search indexes.
 
 ## AI Retrieval Design
 
@@ -101,8 +111,9 @@ components/           Interactive safety visualizations and agent UI
 data/                 Small, attributed demonstration read model
 lib/analysis/         Deterministic review-priority calculations
 lib/ai/               Magenta adapter and deterministic fallback
-lib/data/             Fixture and Kehrnel providers
+lib/data/             MongoDB repositories and fixture bootstrap
 lib/data/review-store Optional solution-owned MongoDB investigation history
+services/agent/       Bundled Magenta investigation service
 docs/                 Architecture and delivery guidance
 tests/                Contract and analysis tests
 ```

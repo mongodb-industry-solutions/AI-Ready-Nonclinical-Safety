@@ -7,35 +7,37 @@ export async function investigate(
   question: string,
 ): Promise<InvestigationResult> {
   const signal = evidence.signals.find((candidate) => candidate.id === signalId) || evidence.signals[0];
-  const magentaUrl = process.env.MAGENTA_AGENT_URL?.replace(/\/$/, '');
+  const magentaUrl = process.env.INTERNAL_AGENT_URL?.replace(/\/$/, '');
 
   if (magentaUrl) {
-    const response = await fetch(`${magentaUrl}/ask`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(process.env.MAGENTA_AGENT_TOKEN ? { authorization: `Bearer ${process.env.MAGENTA_AGENT_TOKEN}` } : {}),
-      },
-      body: JSON.stringify({
-        text: question,
-        context: {
-          studyId: evidence.study.id,
-          snapshotId: evidence.study.snapshotId,
-          signalId: signal.id,
-        },
-      }),
-      cache: 'no-store',
-    });
-    if (response.ok) {
-      const result = await response.json();
-      return {
-        answer: result.answer || 'The Magenta investigator completed without a textual response.',
-        confidence: result.confidence || 'review',
-        citations: Array.isArray(result.citations) ? result.citations : [],
-        steps: Array.isArray(result.steps) ? result.steps : [],
-        guardrails: result.guardrails || { readOnly: true, snapshotBound: true, regulatoryConclusion: false },
-        provider: 'magenta',
-      } as InvestigationResult;
+    try {
+      const response = await fetch(`${magentaUrl}/ask`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          text: question,
+          context: {
+            studyId: evidence.study.id,
+            snapshotId: evidence.study.snapshotId,
+            signalId: signal.id,
+          },
+        }),
+        cache: 'no-store',
+      });
+      if (response.ok) {
+        const result = await response.json();
+        return {
+          answer: result.answer || 'The Magenta investigator completed without a textual response.',
+          confidence: result.confidence || 'review',
+          citations: Array.isArray(result.citations) ? result.citations : [],
+          steps: Array.isArray(result.steps) ? result.steps : [],
+          guardrails: result.guardrails || { readOnly: true, snapshotBound: true, regulatoryConclusion: false },
+          provider: 'magenta',
+        } as InvestigationResult;
+      }
+    } catch {
+      // The bundled deterministic investigator keeps the UI useful while the
+      // internal Magenta service is starting or intentionally disabled.
     }
   }
 

@@ -4,7 +4,7 @@ The target agent is an evidence coordinator, not a toxicologist replacement.
 
 ## Retrieval lanes
 
-- **Structured:** incidence, distinct animals, severity, dose, time, and laboratory values through `cdisc-analysis/v1` and `cdisc-query/v1`.
+- **Structured:** incidence, distinct animals, severity, dose, time, and laboratory values through solution-owned MongoDB queries learned and verified upstream in Kehrnel.
 - **Lexical:** exact finding names, controlled terminology, variables, and source metadata.
 - **Vector:** semantic similarity across normalized finding descriptions, study narratives, and prior reviewed signals.
 - **Graph:** compound → study → group → animal → specimen → finding → measurement → source artifact.
@@ -31,7 +31,7 @@ stateDiagram-v2
 
 ## Guardrails
 
-- Every tool call is tenant-, study-, and snapshot-scoped.
+- Every tool call is database-, study-, and snapshot-scoped.
 - The default tool set is read-only.
 - Every assertion must cite canonical evidence or a named derived projection.
 - The interface presents tool activity and retrieval evidence, not hidden chain-of-thought.

@@ -103,9 +103,9 @@ export default function SafetyIntelligenceApp({ evidence }: { evidence: StudyEvi
 function Architecture({ evidence, onBack }: { evidence: StudyEvidence; onBack: () => void }) {
   const layers = [
     { n: '01', title: 'Source evidence', sub: 'SEND XPT + Define-XML', body: 'Original checksummed artifacts remain replayable and attributed.', tone: 'cyan' },
-    { n: '02', title: 'Kehrnel CDISC', sub: 'Canonical study snapshot', body: 'Tenant-scoped records, facets, entities, validation and lineage.', tone: 'green' },
-    { n: '03', title: 'AI projections', sub: 'Evidence + vectors + graph', body: 'Rebuildable safety signals, semantic chunks and relationship edges.', tone: 'violet' },
-    { n: '04', title: 'Magenta agent', sub: 'Governed investigation', body: 'Plans read-only tools, retrieves, reranks and cites evidence.', tone: 'amber' },
+    { n: '02', title: 'Solution import', sub: 'Versioned evidence contract', body: 'Validated CDISC-derived evidence enters through an idempotent deployment boundary.', tone: 'green' },
+    { n: '03', title: 'MongoDB Atlas', sub: 'Evidence + vectors + graph', body: 'The solution owns records, semantic chunks, investigations and relationship views.', tone: 'violet' },
+    { n: '04', title: 'Bundled Magenta', sub: 'Governed investigation', body: 'The internal agent plans read-only tools, retrieves, reranks and cites evidence.', tone: 'amber' },
     { n: '05', title: 'Solution app', sub: 'Expert review workspace', body: 'Interactive visuals, explanations, feedback and audit trail.', tone: 'rose' },
   ];
   return <section className="architecture-page">
@@ -114,9 +114,9 @@ function Architecture({ evidence, onBack }: { evidence: StudyEvidence; onBack: (
     <div className="architecture-flow">{layers.map((layer, index) => <article key={layer.n} className={`architecture-card tone-${layer.tone}`}><span>{layer.n}</span><div className="architecture-icon">{index === 0 ? <FileCheck2 /> : index === 1 ? <Database /> : index === 2 ? <GitBranch /> : index === 3 ? <Bot /> : <Activity />}</div><h2>{layer.title}</h2><b>{layer.sub}</b><p>{layer.body}</p>{index < layers.length - 1 && <i>→</i>}</article>)}</div>
     <div className="boundary-grid">
       <article><span className="ready-dot" /><div><h3>Available now</h3><p>Canonical CDISC records, {evidence.study.recordCount.toLocaleString()}-record example, immutable snapshots, analysis, lineage and hybrid search contract.</p></div></article>
-      <article><span className="configure-dot" /><div><h3>Deployment configuration</h3><p>MongoDB Atlas, Search and Vector Search indexes, embedding provider, authentication and Kehrnel environment bindings.</p></div></article>
+      <article><span className="configure-dot" /><div><h3>Deployment configuration</h3><p>MongoDB Atlas, Search and Vector Search indexes, model provider and application authentication.</p></div></article>
       <article><span className="build-dot" /><div><h3>Solution intelligence</h3><p>Safety-specific projections, second-stage reranking, cross-study graph, agent evaluation and expert feedback loops.</p></div></article>
     </div>
-    <div className="contract-table"><div className="contract-head"><span>Owner</span><span>Owns</span><span>Must not own</span></div><div><b>Healthcare Data Lab</b><span>Data creation, ingestion, model discovery and query experimentation</span><span>Business-specific safety conclusions</span></div><div><b>Kehrnel</b><span>CDISC model, generation, governed query, validation, snapshots and lineage</span><span>User experience or agent personality</span></div><div><b>Magenta</b><span>Agent graph, memory, tool policy, traces and human review</span><span>Canonical CDISC persistence</span></div><div><b>Solution Library</b><span>Safety workflow, visuals, evidence assembly and reviewer experience</span><span>Duplicate data standards or runtime kernels</span></div></div>
+    <div className="contract-table"><div className="contract-head"><span>Owner</span><span>Owns</span><span>Must not own</span></div><div><b>HDL + Kehrnel</b><span>Upstream data creation, CDISC validation, model learning and query prototyping</span><span>Production solution availability</span></div><div><b>Solution MongoDB</b><span>Deployed evidence, search/vector projections, review state and APIs</span><span>Upstream experimentation workspaces</span></div><div><b>Bundled Magenta</b><span>Agent graph, memory, tool policy, traces and human review</span><span>Unscoped database access</span></div><div><b>Solution UI</b><span>Safety workflow, visuals, evidence assembly and reviewer experience</span><span>Standards-authoring logic</span></div></div>
   </section>;
 }

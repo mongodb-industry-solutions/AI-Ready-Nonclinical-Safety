@@ -1,5 +1,6 @@
-import { MongoClient, type Collection } from 'mongodb';
+import type { Collection } from 'mongodb';
 import type { InvestigationResult } from '@/lib/contracts';
+import { solutionDatabase } from '@/lib/data/mongodb';
 
 type InvestigationRecord = {
   studyId: string;
@@ -10,22 +11,13 @@ type InvestigationRecord = {
   createdAt: Date;
 };
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __safetyMongoClient: Promise<MongoClient> | undefined;
-}
-
 export function configuredForReviewStore(): boolean {
   return Boolean(process.env.MONGODB_URI);
 }
 
 async function investigations(): Promise<Collection<InvestigationRecord> | null> {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) return null;
-
-  globalThis.__safetyMongoClient ??= new MongoClient(uri).connect();
-  const client = await globalThis.__safetyMongoClient;
-  const database = client.db(process.env.MONGODB_DATABASE || 'nonclinical_safety_solution');
+  const database = await solutionDatabase();
+  if (!database) return null;
   const collection = database.collection<InvestigationRecord>('investigations');
   await collection.createIndexes([
     { key: { studyId: 1, snapshotId: 1, createdAt: -1 }, name: 'study_snapshot_history' },

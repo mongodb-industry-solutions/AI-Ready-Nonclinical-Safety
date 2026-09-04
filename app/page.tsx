@@ -1,5 +1,5 @@
 import SafetyIntelligenceApp from '@/components/SafetyIntelligenceApp';
-import { loadStudyEvidence } from '@/lib/data/kehrnel';
+import { loadStudyEvidence } from '@/lib/data/study-repository';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { investigate } from '@/lib/ai/investigator';
-import { loadStudyEvidence } from '@/lib/data/kehrnel';
+import { loadStudyEvidence } from '@/lib/data/study-repository';
 import { recordInvestigation } from '@/lib/data/review-store';
 
 const requestSchema = z.object({

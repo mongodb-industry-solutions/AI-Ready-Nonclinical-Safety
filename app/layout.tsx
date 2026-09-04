@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Nonclinical Safety Intelligence',
-  description: 'AI-ready SEND safety signal investigation on MongoDB, Kehrnel and Magenta.',
+  description: 'Self-contained AI-ready SEND safety signal investigation on MongoDB and Magenta.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
