@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Braces, ChevronLeft, ChevronRight, Database, FileCheck2, Fingerprint, LoaderCircle, Microscope, Rows3 } from 'lucide-react';
-import type { CanonicalEvidenceRecord, CanonicalRecordPage, SafetySignal, SignalRecordEvidence, StudySummary } from '@/lib/contracts';
+import type { CanonicalEvidenceRecord, CanonicalRecordPage, DoseGroup, SafetySignal, SignalRecordEvidence, StudySummary } from '@/lib/contracts';
 import type { EvidenceDomain } from '@/components/EvidenceAssembly';
 
 function value(record: Record<string, unknown> | undefined, keys: string[]) {
@@ -54,7 +54,7 @@ function laboratoryAssessment(record: CanonicalEvidenceRecord) {
   return { status: 'unassessed', label: 'reference range unavailable' };
 }
 
-export default function RecordEvidencePanel({ study, signal, focusDomain }: { study: StudySummary; signal: SafetySignal; focusDomain?: EvidenceDomain }) {
+export default function RecordEvidencePanel({ study, doseGroups, signal, focusDomain }: { study: StudySummary; doseGroups: DoseGroup[]; signal: SafetySignal; focusDomain?: EvidenceDomain }) {
   const [result, setResult] = useState<SignalRecordEvidence | null>(null);
   const [selected, setSelected] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -114,6 +114,8 @@ export default function RecordEvidencePanel({ study, signal, focusDomain }: { st
     const recordGroup = value(record.data, ['TXSETCD', 'SETCD', 'SPGRPCD', 'GRPID']);
     return subject?.treatmentGroup && recordGroup === subject.treatmentGroup;
   }) || result.treatmentRecords[0];
+  const doseGroup = doseGroups.find((group) => group.code === subject?.treatmentGroup);
+  const subjectRecordCount = Object.values(subject?.domainCounts || {}).reduce((sum, count) => sum + count, 0);
   return <div className="record-evidence-workspace">
     <header>
       <div><span className="panel-kicker">Canonical record drilldown</span><h2>Every visual claim resolves to source rows</h2></div>
@@ -121,10 +123,12 @@ export default function RecordEvidencePanel({ study, signal, focusDomain }: { st
     </header>
     {focusDomain && <div className="record-domain-focus" data-domain={focusDomain}><span>{focusDomain}</span><div><b>Inspecting {domainFocusCopy[focusDomain].title}</b><small>{domainFocusCopy[focusDomain].detail}</small></div></div>}
     <div className="record-counts"><span><b>{result.counts.subjects}</b> subjects</span><span><b>{result.counts.findings}</b> MI rows</span><span><b>{result.counts.laboratory}</b> correlated LB rows</span><span><b>{result.counts.artifacts}</b> artifacts</span></div>
+    <div className="signal-derivation"><span><small>Signal definition</small><b>{signal.organ} · {signal.finding}</b></span><i>→</i><span><small>Numerator</small><b>{signal.affectedAnimals} distinct animals with matching MI</b></span><i>÷</i><span><small>Denominator</small><b>{signal.totalAnimals} animals from DM</b></span><i>→</i><span><small>Dose comparison</small><b>{doseGroups.length} groups resolved through TX</b></span></div>
     <div className="record-evidence-body">
       <aside><span>Supporting animals</span>{result.subjects.map((item, index) => <button key={item.subjectId} className={selected === index ? 'active' : ''} onClick={() => { setSelected(index); setRecordOffset(0); }}><i>{String(index + 1).padStart(2, '0')}</i><span><b>{item.subjectId}</b><small>{item.treatmentGroup || 'group not projected'} · {Object.values(item.domainCounts).reduce((sum, count) => sum + count, 0)} source rows</small></span></button>)}</aside>
       {subject && <main>
         <section className="record-thread-head"><div><Fingerprint size={16} /><span><b>{subject.subjectId}</b><small>{subject.treatmentGroup || 'Treatment group unresolved'}</small></span></div><em>{subject.findingRecords.length} matching finding row{subject.findingRecords.length === 1 ? '' : 's'}</em></section>
+        <div className="record-relationship-path" aria-label="Resolved source-data relationship"><article><small>Observed finding · MI</small><b>{signal.organ}</b><span>{signal.finding}</span></article><i>→</i><article><small>Animal identity · DM</small><b>{subject.subjectId}</b><span>group {subject.treatmentGroup || 'unresolved'}</span></article><i>→</i><article><small>Assigned exposure · TX</small><b>{doseGroup ? `${doseGroup.dose} ${doseGroup.unit}` : 'Dose unresolved'}</b><span>{doseGroup?.label || 'No matching trial set'}</span></article><i>→</i><article><small>Available context</small><b>{subjectRecordCount} source rows</b><span>{Object.keys(subject.domainCounts).join(' · ')}</span></article></div>
         <div className="record-cards">
           <article data-domain="MI" className={focusDomain === 'MI' ? 'domain-focused' : ''}><header><Microscope size={13} /><b>MI · finding</b></header><dl><div><dt>Specimen</dt><dd>{value(finding?.data, ['MISPEC', 'MIORRES'])}</dd></div><div><dt>Finding</dt><dd>{value(finding?.data, ['MISTRESC', 'MIORRES', 'MITEST'])}</dd></div><div><dt>Severity</dt><dd>{value(finding?.data, ['MISEV'])}</dd></div></dl><footer>{finding ? `row ${finding.lineage.sourceRow} · ${finding.lineage.recordHash.slice(0, 12)}…` : 'No MI row'}</footer></article>
           <article data-domain="DM" className={focusDomain === 'DM' ? 'domain-focused' : ''}><header><Database size={13} /><b>DM · identity</b></header><dl><div><dt>Sex</dt><dd>{value(demographic?.data, ['SEX'])}</dd></div><div><dt>Species</dt><dd>{value(demographic?.data, ['SPECIES'])}</dd></div><div><dt>Group</dt><dd>{value(demographic?.data, ['SPGRPCD', 'GRPID', 'ARMCD'])}</dd></div></dl><footer>{demographic ? `row ${demographic.lineage.sourceRow} · ${demographic.lineage.recordHash.slice(0, 12)}…` : 'No DM row'}</footer></article>

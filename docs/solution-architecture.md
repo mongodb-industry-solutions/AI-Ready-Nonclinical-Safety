@@ -79,6 +79,8 @@ The solution projector is intentionally owned here rather than in Kehrnel. Kehrn
 
 The visual read model is not an access boundary. The Source records workspace resolves a selected signal to its immediate evidence thread and also exposes a paginated canonical-record API across every domain present in the immutable snapshot. Users can switch between one subject and the complete study, inspect every non-empty canonical field, distinguish canonical data from retrieval facets, and trace each row to its source artifact and hash. Laboratory filters identify the test explicitly linked to the finding and detect values outside source-supplied reference limits or abnormality flags. If the source provides neither, the result is labelled `reference range unavailable`; the solution never invents a threshold.
 
+For the current observed-study projector, a pathology incidence is the number of distinct `MI.USUBJID` values matching the normalized specimen and finding, divided within each treatment group by animals derived from `DM`. Dose is resolved through the subject's `DM.SPGRPCD` binding to its `TX` trial-set definition; it is not duplicated into the immutable MI or LB rows. An LB record becomes contextual evidence only through an explicit versioned rule such as `correlatedLab`; simple co-occurrence does not establish a biological relationship or causality.
+
 ## API surface
 
 | Method | Route | Responsibility |
