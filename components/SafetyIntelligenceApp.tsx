@@ -15,6 +15,8 @@ import AuditLineageView from '@/components/AuditLineageView';
 import ArchitectureView from '@/components/ArchitectureView';
 import PortfolioIntelligenceView from '@/components/PortfolioIntelligenceView';
 import LearningJourney from '@/components/LearningJourney';
+import EvidenceAssembly, { type EvidenceDomain } from '@/components/EvidenceAssembly';
+import type { InvestigationCanvas } from '@/components/InvestigationRoom';
 
 type WorkspaceView = 'journey' | 'workspace' | 'portfolio' | 'semantics' | 'architecture' | 'audit';
 
@@ -28,6 +30,8 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const [selectedId, setSelectedId] = useState(initialEvidence.signals[0].id);
   const [graphOpen, setGraphOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
+  const [roomCanvas, setRoomCanvas] = useState<InvestigationCanvas>('evidence');
+  const [recordFocus, setRecordFocus] = useState<EvidenceDomain>();
   const [semanticFocus, setSemanticFocus] = useState<string>();
   const [journeyStep, setJourneyStep] = useState(0);
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
@@ -43,6 +47,14 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   };
   const openInvestigation = () => {
     if (!canInvestigate) return;
+    setRoomCanvas('evidence');
+    setRecordFocus(undefined);
+    setView('workspace');
+    setRoomOpen(true);
+  };
+  const inspectEvidenceDomain = (domain: EvidenceDomain) => {
+    setRoomCanvas('records');
+    setRecordFocus(domain);
     setView('workspace');
     setRoomOpen(true);
   };
@@ -143,15 +155,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
                 <div className="chart-card"><div className="chart-title"><div><b>Finding incidence</b><small>affected animals by dose</small></div><span>MI + DM + TX</span></div><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div>
                 {lab ? <div className="chart-card"><div className="chart-title"><div><b>{lab.label} trajectory</b><small>group mean by study day</small></div><span>LB + DM + TX</span></div><LabTrajectoryChart series={lab} /></div> : <div className="chart-card no-lab-context"><Activity size={23} /><div><b>No asserted laboratory correlate</b><p>The pathology signal remains linked to subjects, treatment groups and source records without inventing a laboratory relationship.</p></div></div>}
               </div>
-              <div className="evidence-ribbon">
-                <div><span className="domain-tag">MI</span><b>{signal.affectedAnimals} animals</b><small>finding + severity</small></div>
-                <i />
-                <div><span className="domain-tag">DM</span><b>{evidence.study.animalCount} animals</b><small>identity + group</small></div>
-                <i />
-                <div><span className="domain-tag">TX</span><b>{evidence.doseGroups.length} groups</b><small>dose + vehicle</small></div>
-                <i />
-                <div><span className="domain-tag">LB</span><b>{signal.correlatedLab || 'Context'}</b><small>longitudinal labs</small></div>
-              </div>
+              <EvidenceAssembly evidence={evidence} signal={signal} onInspect={inspectEvidenceDomain} />
             </article>
           </section>
           <AgentPanel id="agent" study={evidence.study} signal={signal} profileId={semantics.activeProfile.id} enabled={canInvestigate} runtime={semantics} onOpenSemantic={openSemantic} />
@@ -163,7 +167,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
         <footer className="study-footer"><span>{evidence.provenance.method}</span><a href={evidence.study.source} target="_blank" rel="noreferrer">PhUSE SENDConform · {evidence.study.sourceRevision.slice(0, 9)}</a><span>{evidence.provenance.disclaimer}</span></footer>
         {graphOpen && <div className="graph-modal-backdrop" role="presentation" onMouseDown={() => setGraphOpen(false)}><section className="graph-modal" role="dialog" aria-modal="true" aria-label={`Evidence network for ${signal.organ}`} onMouseDown={(event) => event.stopPropagation()}><header><div><span className="panel-kicker">Immersive evidence network</span><h2>{signal.organ} · {signal.finding}</h2></div><button className="icon-button" onClick={() => setGraphOpen(false)} aria-label="Close evidence graph"><X size={18} /></button></header><EvidenceGraph evidence={evidence} signal={signal} immersive /></section></div>}
       </>}
-      {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} onClose={() => setRoomOpen(false)} onOpenSemantic={openSemantic} />}
+      {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} initialCanvas={roomCanvas} recordFocus={recordFocus} onClose={() => setRoomOpen(false)} onOpenSemantic={openSemantic} />}
     </main>
   </div>;
 }
