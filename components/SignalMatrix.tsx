@@ -1,6 +1,6 @@
 'use client';
 
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { ArrowRight, ScanSearch } from 'lucide-react';
 import type { DoseGroup, SafetySignal } from '@/lib/contracts';
 
@@ -22,9 +22,13 @@ export default function SignalMatrix({
   selectedId: string;
   onSelect: (signalId: string) => void;
 }) {
+  const matrixRef = useRef<HTMLDivElement>(null);
   const gridStyle = { gridTemplateColumns: `minmax(250px, 1.7fr) repeat(${groups.length}, minmax(58px, .52fr)) minmax(125px, .8fr)`, minWidth: `${Math.max(760, 405 + groups.length * 65)}px` } as CSSProperties;
+  useEffect(() => {
+    matrixRef.current?.querySelector<HTMLElement>('.matrix-row.selected')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [selectedId]);
   return (
-    <div className="signal-matrix" role="grid" aria-label="Signal incidence by organ and dose group">
+    <div ref={matrixRef} className="signal-matrix" role="grid" aria-label={`Signal incidence by organ and dose group, ${signals.length} findings`} tabIndex={0}>
       <div className="matrix-header" role="row" style={gridStyle}>
         <span role="columnheader">Finding</span>
         {groups.map((group) => <span role="columnheader" key={group.code} title={group.label}><b>{group.dose}</b><small>{group.code} · {group.unit}</small></span>)}

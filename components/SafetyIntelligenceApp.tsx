@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, BookOpenCheck, Braces, ChevronDown, CircleHelp, Dna, Expand, FileCheck2, FlaskConical, GitBranch, GitCompareArrows, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
 import type { LiteratureDocument, SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import { reviewScore } from '@/lib/analysis/signal-engine';
@@ -37,12 +37,16 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const [journeyStep, setJourneyStep] = useState(0);
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [semantics, setSemantics] = useState(initialSemantics);
+  const signalListRef = useRef<HTMLDivElement>(null);
   const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
   const lab = signal.correlatedLab ? evidence.labSeries?.[signal.correlatedLab] : undefined;
   const ranked = useMemo(() => evidence.signals.map((item) => ({ ...item, score: reviewScore(item, evidence.doseGroups) })).sort((a, b) => b.score - a.score), [evidence]);
   const canInvestigate = semantics.capabilities.some((item) => item.id === 'assemble-evidence-brief');
   const canCompare = semantics.capabilities.some((item) => item.id === 'retrieve-similar-findings');
   const availableStudies = portfolioEvidence.filter((item) => item.study.evidenceClass !== 'synthetic-benchmark');
+  useEffect(() => {
+    signalListRef.current?.querySelector<HTMLElement>('button.selected')?.scrollIntoView({ block: 'nearest' });
+  }, [selectedId]);
   const scrollToSection = (target: string) => {
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
@@ -146,7 +150,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
               <div className="panel-heading"><div><span className="panel-kicker">Organ signal map</span><h2>Findings ranked for review</h2></div><div className="legend"><span className="legend-high" /> treated-only <span className="legend-context" /> contextual</div></div>
               <div className="signal-landscape">
                 <AnatomicalSignalNavigator signals={ranked} selectedId={signal.id} species={evidence.study.species} onSelect={setSelectedId} />
-                <div className="signal-list">{ranked.map((item) => <button key={item.id} className={item.id === signal.id ? 'selected' : ''} onClick={() => setSelectedId(item.id)}><span className="organ-abbr">{item.organ.slice(0, 2)}</span><span className="signal-copy"><b>{item.organ}</b><small>{item.finding}</small></span><span className="signal-count">{item.affectedAnimals}/{item.totalAnimals}</span><PriorityPill value={item.reviewPriority} /></button>)}</div>
+                <div ref={signalListRef} className="signal-list" tabIndex={0} aria-label={`${ranked.length} findings ranked for review`}>{ranked.length > 10 && <div className="list-scroll-status"><span>{ranked.length} ranked findings</span><span>Scroll to explore</span></div>}{ranked.map((item) => <button key={item.id} className={item.id === signal.id ? 'selected' : ''} onClick={() => setSelectedId(item.id)}><span className="organ-abbr">{item.organ.slice(0, 2)}</span><span className="signal-copy"><b>{item.organ}</b><small>{item.finding}</small></span><span className="signal-count">{item.affectedAnimals}/{item.totalAnimals}</span><PriorityPill value={item.reviewPriority} /></button>)}</div>
               </div>
             </article>
 
