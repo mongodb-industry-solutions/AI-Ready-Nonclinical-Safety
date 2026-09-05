@@ -69,7 +69,7 @@ export default function PortfolioIntelligenceView({ evidence, evidenceSet, profi
         <div className="match-rank">#{selected.rank}<strong>{selected.score}%</strong><small>reranked match</small></div>
         <span className={`evidence-class ${selected.evidenceClass}`}>{evidenceLabel(selected.evidenceClass)}</span>
         <h2>{selected.signal.organ}</h2><p className="match-finding">{selected.signal.finding}</p>
-        <div className="match-study"><FlaskConical size={13} /><span><b>{selected.study.title}</b><small>{selected.study.species || 'Species not supplied'} · {selected.study.strain || 'strain not supplied'} · {selected.study.snapshotId}</small></span></div>
+        <div className="match-study"><FlaskConical size={13} /><span><b>{selected.study.title}</b><small>{selected.study.compoundName ? `${selected.study.compoundName} · ` : ''}{selected.study.species || 'Species not supplied'} · {selected.study.strain || 'strain not supplied'} · {selected.study.snapshotId}</small></span></div>
         <p className="match-explanation">{selected.explanation}</p>
         <div className="lane-stack">{selected.lanes.map((lane) => <div key={lane.id} className={lane.status === 'skipped' ? 'skipped' : ''}><header><span>{lane.label}</span><b>{lane.score === null ? 'not run' : `${lane.score}%`}</b></header><i><span style={{ width: `${lane.score || 0}%` }} /></i><small>{lane.detail}</small></div>)}</div>
       </aside>}

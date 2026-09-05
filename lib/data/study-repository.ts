@@ -101,7 +101,9 @@ export async function loadStudyEvidence(studyId?: string): Promise<StudyEvidence
   if (!collection) return demoEvidence;
 
   await bootstrapDemoEvidence();
-  const query = studyId ? { 'study.id': studyId } : { 'study.evidenceClass': 'observed-public' };
+  const query = studyId
+    ? { 'study.id': studyId }
+    : { 'study.id': demoEvidence.study.id, 'study.snapshotId': demoEvidence.study.snapshotId };
   let stored = await collection.findOne(
     query,
     { projection: { _id: 0, importedAt: 0, importSource: 0 }, sort: { importedAt: -1 } },

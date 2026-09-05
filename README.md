@@ -25,7 +25,7 @@ The in-product **Solution architecture** workspace and [full architecture guide]
 - A live semantic change lab that shows a newly observed terminology value flowing through Change Streams, validation, compilation, profile projection, and map refresh.
 - A technical view explaining the boundary between the deployed solution and upstream HDL/Kehrnel enablement.
 
-The included demonstration uses deterministic aggregates from the public [PhUSE SENDConform FFU contribution](https://github.com/phuse-org/SENDConform), pinned to revision `eb438ce3f7cbd74eea77677f43b916dd46c802cd`. No large XPT files are committed.
+The default demonstration uses deterministic aggregates from the public [PhUSE SENDConform FFU contribution](https://github.com/phuse-org/SENDConform), pinned to revision `eb438ce3f7cbd74eea77677f43b916dd46c802cd`. The connected vertical corpus has also been verified with three independent public studies from that revision: Nimble, Instem GLP003, and PointCross. No large XPT files are committed.
 
 ## Quick Start
 
@@ -122,6 +122,8 @@ Without `MONGODB_URI`, the application provides a fully interactive experience f
 
 When `MONGODB_URI` is set, the application reads its own canonical evidence, operational read models, retrieval projections, and solution-state collections. The bundled public study summary is inserted idempotently only when no connected projection has been imported. A Kehrnel export populates `study_snapshots`, `dataset_definitions`, `cdisc_records`, `subjects`, `source_artifacts`, `validation_evidence`, and `lineage_events` without coupling the running solution to Kehrnel.
 
+The verified public corpus exercises 34,843 canonical records and 501 animals across four distinct studies. The study selector opens every imported observed study as a complete workspace; the portfolio atlas compares their bounded pathology projections alongside clearly separated synthetic benchmarks. Kehrnel exposes the additional source packages as `phuse-nimble-send`, `phuse-instem-send`, and `phuse-pointcross-send`, with source revision, license, and checksums retained in every export.
+
 Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Its checked-in contract is [`contracts/cdisc-solution-evidence-v1.schema.json`](contracts/cdisc-solution-evidence-v1.schema.json). Download the generated JSON artifact, then import it:
 
 ```bash
@@ -194,8 +196,8 @@ npm run build
 ## Product Roadmap
 
 1. **Single-study SEND investigation** — implemented foundation.
-2. **Connected Atlas AI retrieval** — executable containment, Atlas Search, optional embeddings/Vector Search, graph expansion, fusion, reranking and visible plan telemetry are implemented; a larger evaluation corpus remains.
-3. **Cross-study portfolio intelligence** — implemented explainable target-organ, species, dose-pattern, severity and vector-ready comparisons. The included synthetic corpus is explicitly segregated from observed evidence; compound/SMILES similarity remains deferred until governed compound identities are supplied.
+2. **Connected Atlas AI retrieval** — executable containment, Atlas Search, optional embeddings/Vector Search, graph expansion, fusion, reranking and visible plan telemetry are implemented; expert-labeled retrieval evaluation remains.
+3. **Cross-study portfolio intelligence** — implemented across four observed public SEND studies plus segregated synthetic benchmarks, with explainable target-organ, species, dose-pattern, severity and vector-ready comparisons. Compound/SMILES similarity remains deferred until governed compound identities and structures are supplied.
 4. **Translational safety bridge** — governed connections from nonclinical SEND to clinical SDTM and ADaM evidence.
 
 ## Safety and Scope

@@ -8,7 +8,26 @@ const KNOWN_STUDIES = {
     license: 'MIT',
     evidenceClass: 'observed-public',
   },
+  'phuse-nimble-send': {
+    title: 'PhUSE Nimble SEND Study',
+    license: 'MIT',
+    evidenceClass: 'observed-public',
+  },
+  'phuse-instem-send': {
+    title: 'PhUSE Instem GLP003 Comprehensive SEND Study',
+    license: 'MIT',
+    evidenceClass: 'observed-public',
+  },
+  'phuse-pointcross-send': {
+    title: 'PhUSE PointCross Recovery-Cohort SEND Study',
+    license: 'MIT',
+    evidenceClass: 'observed-public',
+  },
 };
+
+const CURATED_SIGNAL_PACKAGES = new Set(['phuse-ffu-send', 'sendig-3.0', 'test-send']);
+const NON_FINDINGS = /^(?:normal|within normal limits|no abnormalit(?:y|ies)(?: detected)?|not examined|not done|unremarkable|microscopic examination)$/i;
+const MAX_GENERIC_SIGNALS = 32;
 
 const DOMAIN_ORDER = ['DM', 'TX', 'MI', 'LB'];
 
@@ -112,6 +131,11 @@ function sourceMetadata(artifacts) {
   };
 }
 
+function tsValue(records, parameterCode) {
+  const record = records.find((item) => item.domain === 'TS' && asString(item.data?.TSPARMCD).toUpperCase() === parameterCode);
+  return asString(record?.data?.TSVAL || record?.data?.TSVALCD).trim();
+}
+
 function buildDoseGroups(records) {
   const demographics = records.filter((record) => record.domain === 'DM');
   const treatment = records.filter((record) => record.domain === 'TX');
@@ -131,9 +155,10 @@ function buildDoseGroups(records) {
     const dose = asNumber(values.TRTDOS?.numeric ?? values.TRTDOS?.value);
     if (dose === null) throw new Error(`TX group ${code} does not define a numeric TRTDOS`);
     const animalCount = demographics.filter((record) => groupCode(record) === code).length;
+    const suppliedLabel = asString(values.SETLBL?.value || values.GRPLBL?.value).trim();
     return {
       code,
-      label: dose === 0 ? 'Vehicle control' : `Dose ${dose}`,
+      label: suppliedLabel || (dose === 0 ? 'Vehicle control' : `Dose ${dose}`),
       dose,
       unit: asString(values.TRTDOSU?.value || values.TRTDOS?.unit) || 'dose unit not supplied',
       animalCount,
@@ -176,6 +201,83 @@ function buildSignals(records, doseGroups) {
       projectionRuleId: `signal.${rule.id}.v1`,
     };
   }).filter((signal) => signal.affectedAnimals > 0);
+}
+
+function signalPattern(incidence, doseGroups, organ) {
+  if (/INJECTION|ADMINISTRATION SITE/i.test(organ)) return 'local-tolerance';
+  const groups = incidence.map((affected, index) => ({ affected, ...doseGroups[index] }));
+  const controls = groups.filter((group) => group.dose === 0);
+  const treated = groups.filter((group) => group.dose > 0).sort((left, right) => left.dose - right.dose);
+  const controlAffected = controls.reduce((sum, group) => sum + group.affected, 0);
+  const controlTotal = controls.reduce((sum, group) => sum + group.animalCount, 0);
+  const controlRate = controlTotal ? controlAffected / controlTotal : 0;
+  const treatedRates = treated.map((group) => group.animalCount ? group.affected / group.animalCount : 0);
+  const treatedAffected = treated.reduce((sum, group) => sum + group.affected, 0);
+  if (!treatedAffected) return controlAffected ? 'control-only' : 'sparse';
+  if (!controlAffected) {
+    if (treatedRates.length > 1 && treatedRates.every((rate, index) => index === 0 || rate >= treatedRates[index - 1]) && treatedRates.at(-1) > treatedRates[0]) return 'dose-responsive';
+    return 'treated-only';
+  }
+  const maximumTreatedRate = Math.max(...treatedRates);
+  if (treatedRates.length > 1 && maximumTreatedRate > controlRate && treatedRates.every((rate, index) => index === 0 || rate >= treatedRates[index - 1])) return 'dose-responsive';
+  return maximumTreatedRate > controlRate ? 'non-monotonic' : 'control-and-treated';
+}
+
+function reviewPriority(pattern, incidence, doseGroups) {
+  const rates = incidence.map((affected, index) => doseGroups[index].animalCount ? affected / doseGroups[index].animalCount : 0);
+  const controlRate = Math.max(0, ...rates.filter((_, index) => doseGroups[index].dose === 0));
+  const treatedRate = Math.max(0, ...rates.filter((_, index) => doseGroups[index].dose > 0));
+  const delta = treatedRate - controlRate;
+  if ((pattern === 'dose-responsive' && delta >= 0.15) || (pattern === 'treated-only' && treatedRate >= 0.2)) return 'high';
+  if (pattern === 'dose-responsive' || pattern === 'treated-only' || pattern === 'local-tolerance' || delta >= 0.1) return 'medium';
+  if (pattern === 'control-and-treated' || pattern === 'non-monotonic') return 'context';
+  return 'low';
+}
+
+function buildObservedMicroscopySignals(records, doseGroups) {
+  const demographics = records.filter((record) => record.domain === 'DM');
+  const subjectGroups = new Map(demographics.map((record) => [subjectId(record), groupCode(record)]));
+  const grouped = new Map();
+  for (const record of records.filter((item) => item.domain === 'MI')) {
+    const organ = asString(record.facets?.organ || record.data?.MISPEC).trim().toUpperCase();
+    const finding = asString(record.facets?.finding || record.data?.MISTRESC || record.data?.MIORRES).trim();
+    if (!organ || !finding || NON_FINDINGS.test(finding)) continue;
+    const key = `${organ}\u0000${finding.toUpperCase()}`;
+    if (!grouped.has(key)) grouped.set(key, { organ, finding, records: [] });
+    grouped.get(key).records.push(record);
+  }
+
+  const priorityWeight = { high: 4, medium: 3, context: 2, low: 1 };
+  return [...grouped.values()].map((group) => {
+    const affectedSubjects = [...new Set(group.records.map(subjectId).filter(Boolean))];
+    const incidence = doseGroups.map((doseGroup) => affectedSubjects.filter((id) => subjectGroups.get(id) === doseGroup.code).length);
+    const pattern = signalPattern(incidence, doseGroups, group.organ);
+    const severity = {};
+    for (const record of group.records) {
+      const value = asString(record.data?.MISEV).trim().toLowerCase() || 'ungraded';
+      severity[value] = (severity[value] || 0) + 1;
+    }
+    return {
+      id: `${group.organ.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 30)}-${sha256(`${group.organ}|${group.finding.toUpperCase()}`).slice(0, 10)}`,
+      organ: group.organ,
+      finding: group.finding,
+      affectedAnimals: affectedSubjects.length,
+      totalAnimals: demographics.length,
+      reviewPriority: reviewPriority(pattern, incidence, doseGroups),
+      pattern,
+      incidence,
+      severity,
+      correlatedLab: null,
+      sourceRecordIds: group.records.map((record) => record.sourceId).filter(Boolean).sort(),
+      sourceRecordHashes: group.records.map((record) => record.lineage?.recordHash).filter(Boolean).sort(),
+      projectionRuleId: 'signal.observed-microscopy-grouping.v1',
+    };
+  }).filter((signal) => signal.affectedAnimals > 0)
+    .sort((left, right) => priorityWeight[right.reviewPriority] - priorityWeight[left.reviewPriority]
+      || right.affectedAnimals - left.affectedAnimals
+      || left.organ.localeCompare(right.organ)
+      || left.finding.localeCompare(right.finding))
+    .slice(0, MAX_GENERIC_SIGNALS);
 }
 
 function buildLabSeries(records, signals, doseGroups) {
@@ -238,8 +340,10 @@ export function projectStudyEvidence(packageDocument, options = {}) {
       || left.domain.localeCompare(right.domain);
   });
   const doseGroups = buildDoseGroups(records);
-  const signals = buildSignals(records, doseGroups);
-  if (!signals.length) throw new Error('The package contains no microscopic findings covered by the solution signal policy');
+  const signals = CURATED_SIGNAL_PACKAGES.has(manifest.standardsPackageId)
+    ? buildSignals(records, doseGroups)
+    : buildObservedMicroscopySignals(records, doseGroups);
+  if (!signals.length) throw new Error('The package contains no reviewable microscopic findings');
   const labSeries = buildLabSeries(records, signals, doseGroups);
   const domainCounts = Object.fromEntries(datasets.map((dataset) => [dataset.domain, dataset.recordCount]));
   const demographics = records.filter((record) => record.domain === 'DM');
@@ -272,6 +376,9 @@ export function projectStudyEvidence(packageDocument, options = {}) {
   };
   if (asString(firstDemographic.SPECIES)) study.species = asString(firstDemographic.SPECIES);
   if (asString(firstDemographic.STRAIN)) study.strain = asString(firstDemographic.STRAIN);
+  if (!study.species && tsValue(records, 'SPECIES')) study.species = tsValue(records, 'SPECIES');
+  if (!study.strain && tsValue(records, 'STRAIN')) study.strain = tsValue(records, 'STRAIN');
+  if (tsValue(records, 'TRT')) study.compoundName = tsValue(records, 'TRT');
 
   const projection = {
     study,

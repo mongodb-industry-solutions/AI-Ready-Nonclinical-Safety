@@ -108,4 +108,41 @@ describe('canonical SEND study evidence projector', () => {
     expect(projection.signals[0]).toMatchObject({ id: 'thymus-lymphocytes', incidence: [0, 1] });
     expect(projection.study.evidenceClass).toBe('sponsor-observed');
   });
+
+  it('derives bounded review signals and TS metadata for an independent public SEND package', () => {
+    const publicRecords = records.map((item) => structuredClone(item));
+    publicRecords.push(
+      record('MI', 'mi-kidney', { USUBJID: 'S-2', MISPEC: 'KIDNEY', MISTRESC: 'Tubular degeneration', MISEV: 'MODERATE' }, { subjectId: 'S-2', organ: 'KIDNEY', finding: 'Tubular degeneration' }),
+      record('MI', 'mi-normal', { USUBJID: 'S-1', MISPEC: 'KIDNEY', MISTRESC: 'NORMAL' }, { subjectId: 'S-1', organ: 'KIDNEY', finding: 'NORMAL' }),
+      record('MI', 'mi-procedure', { USUBJID: 'S-1', MISPEC: 'KIDNEY', MISTRESC: 'Microscopic Examination' }, { subjectId: 'S-1', organ: 'KIDNEY', finding: 'Microscopic Examination' }),
+      record('TS', 'ts-species', { TSPARMCD: 'SPECIES', TSVAL: 'RAT' }),
+      record('TS', 'ts-strain', { TSPARMCD: 'STRAIN', TSVAL: 'FISCHER 344' }),
+      record('TS', 'ts-treatment', { TSPARMCD: 'TRT', TSVAL: 'Example compound' }),
+    );
+    const publicPackage = structuredClone(packageDocument);
+    publicPackage.manifest.studyId = 'Nimort-01';
+    publicPackage.manifest.standardsPackageId = 'phuse-nimble-send';
+    publicPackage.manifest.counts.records = publicRecords.length;
+    publicPackage.evidence.records = publicRecords;
+    publicPackage.evidence.datasets = ['DM', 'TX', 'MI', 'LB', 'TS'].map((domain) => ({
+      domain,
+      recordCount: publicRecords.filter((item) => item.domain === domain).length,
+      standard: { family: 'SEND', implementationGuide: 'SENDIG', implementationGuideVersion: '3.0' },
+    }));
+
+    const projection = projectStudyEvidence(publicPackage);
+    expect(projection.study).toMatchObject({
+      title: 'PhUSE Nimble SEND Study',
+      evidenceClass: 'observed-public',
+      species: 'RAT',
+      strain: 'FISCHER 344',
+      compoundName: 'Example compound',
+    });
+    expect(projection.signals).toEqual(expect.arrayContaining([
+      expect.objectContaining({ organ: 'KIDNEY', finding: 'Tubular degeneration', incidence: [0, 1], pattern: 'treated-only' }),
+    ]));
+    expect(projection.signals.some((signal) => signal.finding === 'NORMAL')).toBe(false);
+    expect(projection.signals.some((signal) => signal.finding === 'Microscopic Examination')).toBe(false);
+    expect(new Set(projection.signals.map((signal) => signal.projectionRuleId))).toEqual(new Set(['signal.observed-microscopy-grouping.v1']));
+  });
 });

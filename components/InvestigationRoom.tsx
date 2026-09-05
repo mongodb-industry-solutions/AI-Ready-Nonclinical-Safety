@@ -18,7 +18,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
   const [note, setNote] = useState('');
   const [saved, setSaved] = useState<ReviewActionRecord | null>(null);
   const [busy, setBusy] = useState(false);
-  const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : evidence.labSeries.LYM;
+  const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : undefined;
 
   async function commitReview() {
     if (note.trim().length < 3) return;
@@ -57,7 +57,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
         <section className="room-widget">
           {canvas === 'evidence' && <EvidenceGraph evidence={evidence} signal={signal} immersive />}
           {canvas === 'records' && <RecordEvidencePanel study={evidence.study} signal={signal} />}
-          {canvas === 'dose' && <div className="room-charts"><div><span className="panel-kicker">Finding incidence</span><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div><div><span className="panel-kicker">{lab.label} trajectory</span><LabTrajectoryChart series={lab} /></div></div>}
+          {canvas === 'dose' && <div className="room-charts"><div><span className="panel-kicker">Finding incidence</span><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div>{lab ? <div><span className="panel-kicker">{lab.label} trajectory</span><LabTrajectoryChart series={lab} /></div> : <div className="no-lab-context"><Activity size={23} /><div><b>No asserted laboratory correlate</b><p>The evidence graph does not create an LB relationship where none is governed.</p></div></div>}</div>}
           {canvas === 'literature' && <LiteratureEvidencePanel signal={signal} documents={literature} profileId={runtime.activeProfile.id} />}
           {canvas === 'semantics' && <div className="resolver-board"><header><span className="panel-kicker">Compiled resolver graph</span><h2>Authorized tools for {runtime.activeProfile.label}</h2></header>{runtime.capabilities.map((capability, index) => <article key={capability.id}><i>{index + 1}</i><div><b>{capability.label}</b><p>{capability.description}</p><span>{capability.engines.join(' + ')}</span></div></article>)}</div>}
         </section>

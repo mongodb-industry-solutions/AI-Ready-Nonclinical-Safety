@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { ArrowRight, ScanSearch } from 'lucide-react';
 import type { DoseGroup, SafetySignal } from '@/lib/contracts';
 
@@ -21,11 +22,12 @@ export default function SignalMatrix({
   selectedId: string;
   onSelect: (signalId: string) => void;
 }) {
+  const gridStyle = { gridTemplateColumns: `minmax(250px, 1.7fr) repeat(${groups.length}, minmax(58px, .52fr)) minmax(125px, .8fr)`, minWidth: `${Math.max(760, 405 + groups.length * 65)}px` } as CSSProperties;
   return (
     <div className="signal-matrix" role="grid" aria-label="Signal incidence by organ and dose group">
-      <div className="matrix-header" role="row">
+      <div className="matrix-header" role="row" style={gridStyle}>
         <span role="columnheader">Finding</span>
-        {groups.map((group) => <span role="columnheader" key={group.code}><b>{group.dose}</b><small>{group.unit}</small></span>)}
+        {groups.map((group) => <span role="columnheader" key={group.code} title={group.label}><b>{group.dose}</b><small>{group.code} · {group.unit}</small></span>)}
         <span role="columnheader">Pattern</span>
       </div>
       {signals.map((signal) => (
@@ -36,6 +38,7 @@ export default function SignalMatrix({
           className={`matrix-row ${signal.id === selectedId ? 'selected' : ''}`}
           key={signal.id}
           onClick={() => onSelect(signal.id)}
+          style={gridStyle}
         >
           <span className="matrix-finding" role="rowheader"><i><ScanSearch size={13} /></i><span><b>{signal.organ}</b><small>{signal.finding}</small></span></span>
           {groups.map((group, index) => {

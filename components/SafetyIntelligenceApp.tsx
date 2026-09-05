@@ -21,17 +21,20 @@ function PriorityPill({ value }: { value: SafetySignal['reviewPriority'] }) {
   return <span className={`priority-pill priority-${value}`}>{value === 'high' ? 'review first' : value}</span>;
 }
 
-export default function SafetyIntelligenceApp({ evidence, portfolioEvidence, initialSemantics, literature }: { evidence: StudyEvidence; portfolioEvidence: StudyEvidence[]; initialSemantics: SemanticRuntimeView; literature: LiteratureDocument[] }) {
+export default function SafetyIntelligenceApp({ evidence: initialEvidence, portfolioEvidence, initialSemantics, literature }: { evidence: StudyEvidence; portfolioEvidence: StudyEvidence[]; initialSemantics: SemanticRuntimeView; literature: LiteratureDocument[] }) {
   const [view, setView] = useState<WorkspaceView>('workspace');
-  const [selectedId, setSelectedId] = useState(evidence.signals[0].id);
+  const [evidence, setEvidence] = useState(initialEvidence);
+  const [selectedId, setSelectedId] = useState(initialEvidence.signals[0].id);
   const [graphOpen, setGraphOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
+  const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [semantics, setSemantics] = useState(initialSemantics);
   const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
-  const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : evidence.labSeries.LYM;
+  const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : undefined;
   const ranked = useMemo(() => evidence.signals.map((item) => ({ ...item, score: reviewScore(item, evidence.doseGroups) })).sort((a, b) => b.score - a.score), [evidence]);
   const canInvestigate = semantics.capabilities.some((item) => item.id === 'assemble-evidence-brief');
   const canCompare = semantics.capabilities.some((item) => item.id === 'retrieve-similar-findings');
+  const availableStudies = portfolioEvidence.filter((item) => item.study.evidenceClass !== 'synthetic-benchmark');
   const scrollToSection = (target: string) => {
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
@@ -44,6 +47,14 @@ export default function SafetyIntelligenceApp({ evidence, portfolioEvidence, ini
     setRoomOpen(false);
     setView(target);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const changeStudy = (studyId: string) => {
+    const next = availableStudies.find((item) => item.study.id === studyId);
+    if (!next) return;
+    setEvidence(next);
+    setSelectedId(next.signals[0].id);
+    setStudyMenuOpen(false);
+    setRoomOpen(false);
   };
   async function changeProfile(profile: SemanticProfileId) {
     const response = await fetch(`/api/semantics?profile=${profile}`, { cache: 'no-store' });
@@ -66,7 +77,7 @@ export default function SafetyIntelligenceApp({ evidence, portfolioEvidence, ini
 
     <main className="workspace">
       <header className="topbar">
-        <button className="study-switcher"><span className="study-icon"><FlaskConical size={16} /></span><span><b>{evidence.study.title}</b><small>{evidence.study.id} · {evidence.study.snapshotId}</small></span><ChevronDown size={14} /></button>
+        <div className="study-control"><button className="study-switcher" aria-label="Choose active SEND study" aria-expanded={studyMenuOpen} onClick={() => setStudyMenuOpen((open) => !open)}><span className="study-icon"><FlaskConical size={16} /></span><span><b>{evidence.study.title}</b><small>{evidence.study.id} · {evidence.study.snapshotId}</small></span><ChevronDown size={14} /></button>{studyMenuOpen && <div className="study-menu" role="menu">{availableStudies.map((item) => <button type="button" role="menuitem" className={item.study.id === evidence.study.id ? 'active' : ''} key={`${item.study.id}:${item.study.snapshotId}`} onClick={() => changeStudy(item.study.id)}><b>{item.study.title}</b><small>{item.study.compoundName || item.study.id} · {item.study.animalCount} animals · {item.signals.length} findings</small></button>)}</div>}</div>
         <div className="global-search"><Search size={14} /><span>Search findings, animals, tests…</span><kbd>⌘ K</kbd></div>
         <span className="published"><ShieldCheck size={14} /> Published</span>
         <label className="profile-switcher"><UserRound size={13} /><select value={semantics.activeProfile.id} onChange={(event) => changeProfile(event.target.value as SemanticProfileId)}>{semantics.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
@@ -81,8 +92,8 @@ export default function SafetyIntelligenceApp({ evidence, portfolioEvidence, ini
 
         <section className="metric-row">
           <article><span>Canonical records</span><strong>{evidence.study.recordCount.toLocaleString()}</strong><small>across {evidence.study.domains.length} SEND domains</small></article>
-          <article><span>Study animals</span><strong>{evidence.study.animalCount}</strong><small>5 treatment groups</small></article>
-          <article><span>Microscopy records</span><strong>{evidence.study.domainCounts.MI}</strong><small>study day 30 review</small></article>
+          <article><span>Study animals</span><strong>{evidence.study.animalCount}</strong><small>{evidence.doseGroups.length} treatment groups</small></article>
+          <article><span>Microscopy records</span><strong>{evidence.study.domainCounts.MI}</strong><small>source observations</small></article>
           <article className="accent-metric"><span>Top review signal</span><strong>{ranked[0].score}</strong><small>heuristic priority, not a conclusion</small></article>
         </section>
 
@@ -105,7 +116,7 @@ export default function SafetyIntelligenceApp({ evidence, portfolioEvidence, ini
               <div className="selected-heading"><span className="selected-icon"><Microscope size={21} /></span><div><span className="panel-kicker">Selected evidence thread</span><h2>{signal.organ} · {signal.finding}</h2></div><PriorityPill value={signal.reviewPriority} /></div>
               <div className="chart-grid">
                 <div className="chart-card"><div className="chart-title"><div><b>Finding incidence</b><small>affected animals by dose</small></div><span>MI + DM + TX</span></div><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div>
-                <div className="chart-card"><div className="chart-title"><div><b>{lab.label} trajectory</b><small>group mean by study day</small></div><span>LB + DM + TX</span></div><LabTrajectoryChart series={lab} /></div>
+                {lab ? <div className="chart-card"><div className="chart-title"><div><b>{lab.label} trajectory</b><small>group mean by study day</small></div><span>LB + DM + TX</span></div><LabTrajectoryChart series={lab} /></div> : <div className="chart-card no-lab-context"><Activity size={23} /><div><b>No asserted laboratory correlate</b><p>The pathology signal remains linked to subjects, treatment groups and source records without inventing a laboratory relationship.</p></div></div>}
               </div>
               <div className="evidence-ribbon">
                 <div><span className="domain-tag">MI</span><b>{signal.affectedAnimals} animals</b><small>finding + severity</small></div>

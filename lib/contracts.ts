@@ -18,6 +18,7 @@ export interface StudySummary {
   evidenceClass?: EvidenceClass;
   species?: string;
   strain?: string;
+  compoundName?: string;
 }
 
 export interface DoseGroup {
