@@ -12,6 +12,7 @@ The in-product **Solution architecture** workspace and [full architecture guide]
 
 ## What You Can Explore
 
+- A seven-chapter guided journey for non-experts covering the scientific purpose, roles, SEND evidence, signal triage, AI investigation, semantic resolution, and audit trail. See the [companion guide](docs/guided-journey.md).
 - A study-wide dose-by-organ incidence matrix and organ signal landscape ranked for expert review.
 - A separate portfolio similarity atlas with interactive cross-study graphs, explainable retrieval lanes, and evidence-class boundaries.
 - Dose-response and longitudinal laboratory charts.

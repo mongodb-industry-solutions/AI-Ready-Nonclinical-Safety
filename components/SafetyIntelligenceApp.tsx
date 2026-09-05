@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Activity, Braces, ChevronDown, CircleHelp, Dna, Expand, FileCheck2, FlaskConical, GitBranch, GitCompareArrows, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
+import { Activity, BookOpenCheck, Braces, ChevronDown, CircleHelp, Dna, Expand, FileCheck2, FlaskConical, GitBranch, GitCompareArrows, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
 import type { LiteratureDocument, SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import { reviewScore } from '@/lib/analysis/signal-engine';
 import AgentPanel from '@/components/AgentPanel';
@@ -14,8 +14,9 @@ import InvestigationRoom from '@/components/InvestigationRoom';
 import AuditLineageView from '@/components/AuditLineageView';
 import ArchitectureView from '@/components/ArchitectureView';
 import PortfolioIntelligenceView from '@/components/PortfolioIntelligenceView';
+import LearningJourney from '@/components/LearningJourney';
 
-type WorkspaceView = 'workspace' | 'portfolio' | 'semantics' | 'architecture' | 'audit';
+type WorkspaceView = 'journey' | 'workspace' | 'portfolio' | 'semantics' | 'architecture' | 'audit';
 
 function PriorityPill({ value }: { value: SafetySignal['reviewPriority'] }) {
   return <span className={`priority-pill priority-${value}`}>{value === 'high' ? 'review first' : value}</span>;
@@ -28,6 +29,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const [graphOpen, setGraphOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
   const [semanticFocus, setSemanticFocus] = useState<string>();
+  const [journeyStep, setJourneyStep] = useState(0);
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [semantics, setSemantics] = useState(initialSemantics);
   const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
@@ -68,10 +70,25 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
     const response = await fetch(`/api/semantics?profile=${profile}`, { cache: 'no-store' });
     setSemantics(await response.json());
   }
+  function openFromJourney(destination: 'workspace' | 'investigation' | 'semantics' | 'portfolio' | 'architecture' | 'audit') {
+    if (destination === 'investigation') {
+      if (!canInvestigate) return;
+      setView('journey');
+      setRoomOpen(true);
+      return;
+    }
+    if (destination === 'semantics') {
+      openSemantic('Finding');
+      return;
+    }
+    openView(destination);
+  }
 
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark"><Dna size={20} /></span><div><strong>Safety Intelligence</strong><small>MongoDB Solution Library</small></div></div>
+      <div className="nav-label">Start here</div>
+      <nav><button aria-label="Guided journey" className={view === 'journey' ? 'active' : ''} onClick={() => openView('journey')}><BookOpenCheck size={16} /><span>Guided journey</span><em>{journeyStep + 1}/7</em></button></nav>
       <div className="nav-label">Investigation</div>
       <nav>
         <button aria-label="Study workspace" className={view === 'workspace' && !roomOpen ? 'active' : ''} onClick={() => openView('workspace')}><LayoutDashboard size={16} /><span>Study workspace</span></button>
@@ -89,13 +106,13 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
         <div className="global-search"><Search size={14} /><span>Search findings, animals, tests…</span><kbd>⌘ K</kbd></div>
         <span className="published"><ShieldCheck size={14} /> Published</span>
         <label className="profile-switcher"><UserRound size={13} /><select value={semantics.activeProfile.id} onChange={(event) => changeProfile(event.target.value as SemanticProfileId)}>{semantics.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
-        <button className="icon-button"><CircleHelp size={17} /></button>
+        <button className="icon-button" aria-label="Open guided journey" title="Learn how to use this solution" onClick={() => openView('journey')}><CircleHelp size={17} /></button>
       </header>
 
-      {view === 'architecture' ? <ArchitectureView evidence={evidence} runtime={semantics} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} focusId={semanticFocus} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : view === 'portfolio' ? <PortfolioIntelligenceView evidence={evidence} evidenceSet={portfolioEvidence} profileId={semantics.activeProfile.id} semanticReleaseId={semantics.release.releaseId} /> : <>
+      {view === 'journey' ? <LearningJourney evidence={evidence} runtime={semantics} activeStep={journeyStep} onStepChange={setJourneyStep} onChangeProfile={changeProfile} onOpen={openFromJourney} /> : view === 'architecture' ? <ArchitectureView evidence={evidence} runtime={semantics} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} focusId={semanticFocus} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : view === 'portfolio' ? <PortfolioIntelligenceView evidence={evidence} evidenceSet={portfolioEvidence} profileId={semantics.activeProfile.id} semanticReleaseId={semantics.release.releaseId} /> : <>
         <section className="hero-row" id="overview">
           <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
-          <div className="hero-actions"><button className="secondary-action" onClick={() => scrollToSection('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={14} /> Start investigation</button></div>
+          <div className="hero-actions"><button className="secondary-action" onClick={() => openView('journey')}><BookOpenCheck size={14} /> Learn the workflow</button><button className="secondary-action" onClick={() => scrollToSection('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={14} /> Start investigation</button></div>
         </section>
 
         <section className="metric-row">
