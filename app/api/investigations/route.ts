@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { investigate } from '@/lib/ai/investigator';
 import { loadSignalRecordEvidence } from '@/lib/data/evidence-repository';
-import { loadStudyEvidence } from '@/lib/data/study-repository';
+import { loadStudyEvidence, StudyEvidenceNotFoundError } from '@/lib/data/study-repository';
 import { recordInvestigation } from '@/lib/data/review-store';
 import { loadActiveSemanticBundle } from '@/lib/semantics/repository';
 import type { DataQueryTrace } from '@/lib/contracts';
@@ -27,8 +27,19 @@ export async function POST(request: Request) {
   }
   const dataOperations: DataQueryTrace[] = [];
   const recordQuery = (trace: DataQueryTrace) => dataOperations.push(trace);
-  const evidence = await loadStudyEvidence(parsed.data.studyId, recordQuery);
-  const signal = evidence.signals.find((candidate) => candidate.id === parsed.data.signalId) || evidence.signals[0];
+  let evidence;
+  try {
+    evidence = await loadStudyEvidence(parsed.data.studyId, recordQuery);
+  } catch (error) {
+    if (error instanceof StudyEvidenceNotFoundError) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    throw error;
+  }
+  const signal = evidence.signals.find((candidate) => candidate.id === parsed.data.signalId);
+  if (!signal) {
+    return NextResponse.json({ error: `Signal ${parsed.data.signalId} was not found in study ${parsed.data.studyId}` }, { status: 404 });
+  }
   const recordEvidence = await loadSignalRecordEvidence(evidence.study.id, evidence.study.snapshotId, signal, recordQuery);
   const result = await investigate(evidence, parsed.data.signalId, parsed.data.question, parsed.data.profileId, recordEvidence);
   const readCollections = [...new Set(dataOperations.filter((operation) => operation.source === 'mongodb' && operation.status === 'executed').map((operation) => operation.collection))];
@@ -69,7 +80,7 @@ export async function POST(request: Request) {
   const investigationId = await recordInvestigation({
     studyId: evidence.study.id,
     snapshotId: evidence.study.snapshotId,
-    signalId: parsed.data.signalId,
+    signalId: signal.id,
     profileId: parsed.data.profileId,
     question: parsed.data.question,
     result: executed,

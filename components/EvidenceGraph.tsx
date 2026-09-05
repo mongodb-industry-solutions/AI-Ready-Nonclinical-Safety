@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { SafetySignal, StudyEvidence } from '@/lib/contracts';
+import { useThemeTokens } from '@/lib/useThemeTokens';
 
 type EvidenceNodeData = { label: string; meta: string; detail: string; tone: 'study' | 'finding' | 'animal' | 'lab' | 'source' | 'dose' };
 
@@ -15,6 +16,7 @@ const nodeTypes = { evidence: EvidenceNode };
 
 export default function EvidenceGraph({ evidence, signal, immersive = false }: { evidence: StudyEvidence; signal: SafetySignal; immersive?: boolean }) {
   const [selectedNode, setSelectedNode] = useState<string>('finding');
+  const theme = useThemeTokens();
   const nodes = useMemo<Array<Node<EvidenceNodeData>>>(() => {
     const doseNodes = evidence.doseGroups.map((group, index) => {
       const affected = signal.incidence[index] || 0;
@@ -39,21 +41,23 @@ export default function EvidenceGraph({ evidence, signal, immersive = false }: {
       { id: 'artifact', type: 'evidence', position: { x: 1015, y: 184 }, data: { label: 'Source evidence', meta: 'XPT + Define-XML + SHA-256', detail: 'Every derived assertion can be traced to immutable, checksum-verified source artifacts.', tone: 'source' } },
     ];
   }, [evidence, signal]);
-  const edge = (id: string, source: string, target: string, label: string, highlighted = false): Edge => ({ id, source, target, label, animated: highlighted, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: highlighted ? '#64e8df' : '#2b666b', strokeWidth: highlighted ? 1.8 : 1.1 }, labelStyle: { fill: '#78939b', fontSize: 9 } });
-  const edges = useMemo(() => [
+  const edges = useMemo(() => {
+    const edge = (id: string, source: string, target: string, label: string, highlighted = false): Edge => ({ id, source, target, label, animated: highlighted, markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: highlighted ? theme?.accent : theme?.grid, strokeWidth: highlighted ? 2 : 1.2 }, labelStyle: { fill: theme?.tick, fontSize: 11 }, labelBgStyle: { fill: theme?.surface, fillOpacity: .88 }, labelBgPadding: [4, 2] as [number, number], labelBgBorderRadius: 4 });
+    return theme ? [
     ...evidence.doseGroups.map((group, index) => edge(`study-dose-${group.code}`, 'study', `dose-${group.code}`, index === 0 ? 'assigns' : '', false)),
     ...evidence.doseGroups.map((group) => edge(`dose-finding-${group.code}`, `dose-${group.code}`, 'finding', 'incidence', true)),
     edge('finding-animals', 'finding', 'animals', 'observed in', true),
     edge('finding-lab', 'finding', 'lab', 'correlates', Boolean(signal.correlatedLab)),
     edge('animals-artifact', 'animals', 'artifact', 'traces to'),
     edge('lab-artifact', 'lab', 'artifact', 'traces to'),
-  ], [evidence.doseGroups, signal.correlatedLab]);
+    ] : [];
+  }, [evidence.doseGroups, signal.correlatedLab, theme]);
   const selected = nodes.find((node) => node.id === selectedNode)?.data || nodes[0].data;
 
   return <div className={`graph-canvas ${immersive ? 'immersive' : ''}`}>
     <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.16 }} minZoom={0.38} maxZoom={1.55} nodesDraggable={immersive} nodesConnectable={false} elementsSelectable onNodeClick={(_, node) => setSelectedNode(node.id)}>
-      <Background color="#183039" gap={22} size={1} />
-      <MiniMap pannable zoomable nodeColor={(node) => node.id === 'finding' ? '#eabd5b' : node.id === selectedNode ? '#57ddd8' : '#27454d'} maskColor="rgba(5, 13, 17, .78)" style={{ width: 150, height: 92 }} />
+      <Background color={theme?.grid || 'transparent'} gap={22} size={1} />
+      <MiniMap pannable zoomable nodeColor={(node) => node.id === 'finding' ? 'var(--amber-50)' : node.id === selectedNode ? 'var(--green-45)' : 'var(--line-25)'} maskColor="rgba(var(--surface-4-rgb), .72)" style={{ width: 150, height: 92 }} />
       <Controls showInteractive={false} />
     </ReactFlow>
     <div className="graph-inspector" aria-live="polite"><span>Selected evidence</span><b>{selected.label}</b><p>{selected.detail}</p></div>

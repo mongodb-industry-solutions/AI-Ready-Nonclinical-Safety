@@ -31,7 +31,7 @@ export default function SignalMatrix({
     <div ref={matrixRef} className="signal-matrix" role="grid" aria-label={`Signal incidence by organ and dose group, ${signals.length} findings`} tabIndex={0}>
       <div className="matrix-header" role="row" style={gridStyle}>
         <span role="columnheader">Finding</span>
-        {groups.map((group) => <span role="columnheader" key={group.code} title={group.label}><b>{group.dose}</b><small>{group.code} · {group.unit}</small></span>)}
+        {groups.map((group) => <span role="columnheader" key={group.code} title={`${group.label} · group ${group.code} · ${group.animalCount} animals`}><b>{group.dose}</b><small>{group.unit}</small></span>)}
         <span role="columnheader">Pattern</span>
       </div>
       {signals.map((signal) => (

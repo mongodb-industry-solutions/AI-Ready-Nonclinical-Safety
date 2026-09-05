@@ -30,12 +30,30 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
   const [busy, setBusy] = useState(false);
   const [investigatorExpanded, setInvestigatorExpanded] = useState(false);
   const lab = signal.correlatedLab ? evidence.labSeries?.[signal.correlatedLab] : undefined;
-  const contextNodes: Array<{ id: EvidenceContextStep; label: string }> = [
-    { id: 'study', label: 'Study' },
-    { id: 'treatment', label: 'Treatment group' },
-    { id: 'subject', label: 'Subject' },
-    { id: 'finding', label: 'Finding' },
-    signal.correlatedLab ? { id: 'laboratory', label: 'Lab measurement' } : { id: 'artifact', label: 'Source artifact' },
+  // The path names the identities actually bound to this investigation, not the
+  // generic classes, so the chain reads as a traversable evidence route.
+  const strongestTreatedGroup = evidence.doseGroups
+    .map((group, index) => ({
+      group,
+      affected: signal.incidence[index] || 0,
+      rate: group.animalCount ? (signal.incidence[index] || 0) / group.animalCount : 0,
+    }))
+    .filter((entry) => entry.group.dose > 0)
+    .sort((left, right) => right.rate - left.rate || right.group.dose - left.group.dose)[0];
+  const contextNodes: Array<{ id: EvidenceContextStep; label: string; detail: string }> = [
+    { id: 'study', label: evidence.study.id, detail: `${evidence.study.implementationGuide} · ${evidence.study.snapshotId}` },
+    {
+      id: 'treatment',
+      label: `${evidence.doseGroups.length} treatment groups`,
+      detail: strongestTreatedGroup
+        ? `Highest observed treated incidence: ${strongestTreatedGroup.group.dose} ${strongestTreatedGroup.group.unit} · ${strongestTreatedGroup.affected}/${strongestTreatedGroup.group.animalCount}`
+        : 'TX trial sets',
+    },
+    { id: 'subject', label: `${signal.affectedAnimals} of ${signal.totalAnimals} animals`, detail: `${evidence.study.species || 'subjects'} · DM + TX` },
+    { id: 'finding', label: signal.organ, detail: signal.finding },
+    signal.correlatedLab
+      ? { id: 'laboratory', label: signal.correlatedLab, detail: `${lab?.label || 'Laboratory series'} · LB` }
+      : { id: 'artifact', label: 'Source artifact', detail: 'XPT + Define-XML · SHA-256' },
   ];
 
   function navigateContext(step: EvidenceContextStep) {
@@ -93,7 +111,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
       <aside className="room-context">
         <span className="panel-kicker">Investigation navigator</span><h2>Evidence path</h2><p className="context-guidance">Select a node to inspect that layer of the governed evidence chain.</p>
         <div className="context-score"><strong>{signal.affectedAnimals}/{signal.totalAnimals}</strong><span>affected animals</span><em>{signal.pattern}</em></div>
-        <div className="context-chain">{contextNodes.map((item, index) => <button key={item.id} className={contextStep === item.id ? 'active' : ''} aria-current={contextStep === item.id ? 'step' : undefined} onClick={() => navigateContext(item.id)}><i>{index + 1}</i><span>{item.label}</span></button>)}</div>
+        <div className="context-chain">{contextNodes.map((item, index) => <button key={item.id} className={contextStep === item.id ? 'active' : ''} aria-current={contextStep === item.id ? 'step' : undefined} onClick={() => navigateContext(item.id)}><i>{index + 1}</i><span><b>{item.label}</b><small>{item.detail}</small></span></button>)}</div>
         <div className="semantic-policy"><b>Semantic policy</b>{runtime.governance.rules.slice(0, 3).map((rule) => <p key={rule}><CheckCircle2 size={11} />{rule}</p>)}</div>
         <div className="live-contract"><Activity size={13} /><span><b>Change Stream ready</b><small>Snapshot + cursor + typed events</small></span></div>
       </aside>

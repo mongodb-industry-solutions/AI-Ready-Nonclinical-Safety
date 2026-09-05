@@ -100,7 +100,7 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
   }
 
   return <aside className={`agent-panel ${expanded ? 'agent-panel-expanded' : ''}`} id={id}>
-    <div className="agent-heading"><span className="agent-orb"><Sparkles size={17} /></span><div><strong>AI Safety Investigator</strong><small><ShieldCheck size={11} /> Read-only · snapshot-bound</small></div>{onToggleExpanded && <button className="agent-expand" onClick={onToggleExpanded} aria-label={expanded ? 'Return investigator to split view' : 'Expand investigator to full workspace'}>{expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}<span>{expanded ? 'Split view' : 'AI workspace'}</span></button>}<span className="agent-live">LIVE</span></div>
+    <div className="agent-heading"><span className="agent-orb"><Sparkles size={17} /></span><div><strong>AI Safety Investigator</strong><small><ShieldCheck size={11} /> Read-only · snapshot-bound</small></div>{onToggleExpanded && <button className="agent-expand" onClick={onToggleExpanded} aria-label={expanded ? 'Return investigator to split view' : 'Expand investigator to full workspace'}>{expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}<span>{expanded ? 'Split view' : 'AI workspace'}</span></button>}<span className={`agent-live ${result?.provider === 'magenta' ? 'agent-live-magenta' : result ? 'agent-live-deterministic' : ''}`} title={result ? (result.provider === 'magenta' ? 'Answered by the Magenta agent runtime' : 'Answered by the bundled deterministic investigator') : 'Run an investigation to see which execution path answers'}>{result ? (result.provider === 'magenta' ? 'MAGENTA' : 'DETERMINISTIC') : 'READY'}</span></div>
     <div className="agent-scope"><span>STUDY</span><b>{study.id}</b><span>SNAPSHOT</span><b>{study.snapshotId}</b></div>
     <div className="agent-conversation">
       <div className="agent-dialogue">
@@ -113,7 +113,7 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
             {semanticSearch?.hits.length ? <button className="meaning-link" onClick={() => onOpenSemantic?.(semanticObjectForHit(semanticSearch.hits[0], runtime))}><Braces size={12} /> Explore the governing meaning</button> : null}
           </> : <p>Select a suggested investigation or ask your own question. I will combine exact study queries, semantic evidence, graph expansion and citations.</p>}
         </div>
-        {result && !expanded && <div className="agent-plan"><div className="agent-plan-title">Executed plan <span>{result.execution?.resolverId || result.provider}</span></div>{result.steps.map((step) => <div className="agent-step" key={step.id}><span className={`step-dot ${step.status}`} /><div><b>{step.label}</b><small>{step.detail}</small></div></div>)}</div>}
+        {result?.provider === 'deterministic' && result.fallbackReason && !expanded && <p className="agent-fallback-note" role="status"><ShieldCheck size={12} /> <span><b>Deterministic investigator answered.</b> {result.fallbackReason}</span></p>}{result && !expanded && <div className="agent-plan"><div className="agent-plan-title">Executed plan <span>{result.execution?.resolverId || result.provider}</span></div>{result.steps.map((step) => <div className="agent-step" key={step.id}><span className={`step-dot ${step.status}`} /><div><b>{step.label}</b><small>{step.detail}</small></div></div>)}</div>}
       </div>
 
       {expanded && result && evidence && runtime && <div className="agent-visual-canvas">

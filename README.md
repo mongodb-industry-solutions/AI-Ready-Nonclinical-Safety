@@ -8,7 +8,17 @@ The application starts with the question a toxicologist actually asks:
 
 It then progressively reveals the data model, governed queries, hybrid retrieval, evidence graph, and agent execution that produced the answer.
 
-The in-product **Solution architecture** workspace and [full architecture guide](docs/solution-architecture.md) show exactly where CDISC is used, how SEND domains become traceable MongoDB documents, which APIs form the runtime boundary, and how search, embeddings, graph traversal, semantic resolution, and Magenta work together.
+The in-product **Solution architecture** workspace and [full architecture guide](docs/solution-architecture.md) show exactly where CDISC is used, how SEND domains become traceable MongoDB documents, which APIs form the runtime boundary, and how search, embeddings, graph traversal, semantic resolution, and Magenta work together. The [vertical expansion program](docs/vertical-expansion-program.md) defines the evidence-first path from the current signal-triage experience to a cross-domain target-organ assessment and expert-controlled NOAEL workbench.
+
+## Reusable patterns
+
+The data-architecture decisions behind this solution are extracted into
+[`patterns/`](patterns/) so they can be lifted into another project without
+reading the application: the polymorphic canonical record envelope,
+authorization-first index prefixes, bounded retrieval projections, reconciled
+derived read models, rebuildable semantic projections, and the separation of
+immutable evidence from agent and reviewer state. Each pattern states the
+problem, the shape, why it works, and **when not to use it**.
 
 ## What You Can Explore
 
@@ -27,7 +37,7 @@ The in-product **Solution architecture** workspace and [full architecture guide]
 - A live semantic change lab that shows a newly observed terminology value flowing through Change Streams, validation, compilation, profile projection, and map refresh.
 - A technical view explaining the boundary between the deployed solution and upstream HDL/Kehrnel enablement.
 
-The default demonstration uses deterministic aggregates from the public [PhUSE SENDConform FFU contribution](https://github.com/phuse-org/SENDConform), pinned to revision `eb438ce3f7cbd74eea77677f43b916dd46c802cd`. The connected vertical corpus has also been verified with three independent public studies from that revision: Nimble, Instem GLP003, and PointCross. No large XPT files are committed.
+The default demonstration uses deterministic aggregates from the public [PhUSE SENDConform FFU contribution](https://github.com/phuse-org/SENDConform), pinned to revision `eb438ce3f7cbd74eea77677f43b916dd46c802cd`. The connected vertical corpus has also been verified with three independent public studies from that revision: Nimble, Instem GLP003, and PointCross. A reproducible [public SEND evidence profile](docs/evidence/cdisc-public-study-profile.md) now covers those studies plus PDS2014 and selects PDS adrenal-gland vacuolization as the next cross-domain vertical. No large XPT files are committed.
 
 ## Quick Start
 
@@ -48,7 +58,45 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The default local command uses the deterministic cited investigator. `docker compose up --build` starts the application and its bundled Magenta service together; no external Magenta URL, Kehrnel URL, or GitHub token is required. The agent vendors the approved Magenta runtime wheels in the repository, following the same deployment pattern as `patient-access-coordination-advisor`.
+The default local command uses the deterministic cited investigator. The agent vendors the approved Magenta runtime wheels in the repository, so no external Magenta URL, Kehrnel URL, or GitHub token is required.
+
+### Activating the bundled Magenta agent
+
+The agent needs two things: the solution database and an LLM key.
+
+```bash
+# .env.local
+MONGODB_URI=mongodb+srv://...
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini        # must be a model your key can call
+INTERNAL_AGENT_URL=http://localhost:8082   # only when running the app outside compose
+```
+
+```bash
+docker compose up --build       # starts the app and the agent together
+```
+
+Confirm what is actually running — the endpoint probes both dependencies rather than
+inferring them from configuration:
+
+```bash
+curl -s localhost:3000/api/health | jq '{dataMode, agentMode, agent}'
+```
+
+`agent.status` reports one of:
+
+| Status | Meaning |
+|---|---|
+| `ready` | Magenta is answering investigations |
+| `degraded` | The agent process is up but has no `OPENAI_API_KEY`, so it returns HTTP 503 |
+| `unreachable` | `INTERNAL_AGENT_URL` is set but nothing answered |
+| `not-configured` | No agent URL; the deterministic investigator answers by design |
+
+Without a key the application stays fully usable: the deterministic cited
+investigator answers and the UI states *why* — the investigator badge reads
+`DETERMINISTIC` rather than `MAGENTA`, and the panel shows the exact reason
+(for example, `The agent returned HTTP 503.`). The interface never presents a
+fallback as though the agent had run.
 
 Set `MONGODB_URI` to persist study evidence, search chunks, and investigation sessions in the solution database. The application owns these deployed collections and APIs.
 
@@ -186,6 +234,7 @@ lib/semantics/        Portable semantic runtime loader and profile projection
 semantic/             Context Studio-compiled runtime release
 services/agent/       Bundled Magenta investigation service
 docs/                 Architecture and delivery guidance
+patterns/             Reusable MongoDB data-architecture patterns, extracted to copy
 tests/                Contract and analysis tests
 ```
 

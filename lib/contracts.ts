@@ -256,6 +256,8 @@ export interface InvestigationResult {
     regulatoryConclusion: false;
   };
   provider: 'deterministic' | 'magenta';
+  /** Why the deterministic investigator answered. Absent when Magenta responded. */
+  fallbackReason?: string;
   execution?: InvestigationExecutionContract;
 }
 

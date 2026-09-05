@@ -18,6 +18,13 @@ type EvidenceChunk = {
   metadata: Record<string, unknown>;
 };
 
+export class StudyEvidenceNotFoundError extends Error {
+  constructor(public readonly studyId: string) {
+    super(`Study ${studyId} was not found`);
+    this.name = 'StudyEvidenceNotFoundError';
+  }
+}
+
 async function evidenceCollection(ensureIndexes = false) {
   const database = await solutionDatabase();
   if (!database) return null;
@@ -102,7 +109,9 @@ export async function loadStudyEvidence(studyId?: string, onQuery?: (trace: Data
   const startedAt = Date.now();
   const collection = await evidenceCollection();
   if (!collection) {
-    onQuery?.({ id: 'study-evidence', source: 'portable-bundle', collection: 'study_evidence', operation: 'fixture-read', predicate: studyId ? { 'study.id': studyId } : { 'study.id': demoEvidence.study.id }, status: 'fallback', resultCount: 1, durationMs: Date.now() - startedAt });
+    const matchesPortableStudy = !studyId || studyId === demoEvidence.study.id;
+    onQuery?.({ id: 'study-evidence', source: 'portable-bundle', collection: 'study_evidence', operation: 'fixture-read', predicate: studyId ? { 'study.id': studyId } : { 'study.id': demoEvidence.study.id }, status: 'fallback', resultCount: matchesPortableStudy ? 1 : 0, durationMs: Date.now() - startedAt });
+    if (!matchesPortableStudy) throw new StudyEvidenceNotFoundError(studyId);
     return demoEvidence;
   }
 
@@ -127,7 +136,9 @@ export async function loadStudyEvidence(studyId?: string, onQuery?: (trace: Data
     );
   }
   onQuery?.({ id: 'study-evidence', source: 'mongodb', collection: 'study_evidence', operation: 'findOne', predicate: query, status: 'executed', resultCount: stored ? 1 : 0, durationMs: Date.now() - startedAt });
-  return stored ? (stored as unknown as StudyEvidence) : demoEvidence;
+  if (stored) return stored as unknown as StudyEvidence;
+  if (studyId) throw new StudyEvidenceNotFoundError(studyId);
+  return demoEvidence;
 }
 
 export async function loadPortfolioEvidence(): Promise<StudyEvidence[]> {

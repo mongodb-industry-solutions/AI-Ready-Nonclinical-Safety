@@ -1,5 +1,6 @@
 import type { Citation, InvestigationResult, SemanticProfileId, SignalRecordEvidence, StudyEvidence } from '@/lib/contracts';
 import { signalSummary } from '@/lib/analysis/signal-engine';
+import { agentHealth } from '@/lib/ai/agent-health';
 
 function canonicalCitations(recordEvidence?: SignalRecordEvidence): Citation[] {
   if (!recordEvidence?.available) return [];
@@ -37,6 +38,9 @@ export async function investigate(
   const signal = evidence.signals.find((candidate) => candidate.id === signalId) || evidence.signals[0];
   const magentaUrl = process.env.INTERNAL_AGENT_URL?.replace(/\/$/, '');
   const sourceCitations = canonicalCitations(recordEvidence);
+  // Recorded so the UI can state why the deterministic path answered, instead of
+  // presenting a fallback as though the agent had run.
+  let fallbackReason = (await agentHealth()).detail;
 
   if (magentaUrl) {
     try {
@@ -71,9 +75,11 @@ export async function investigate(
           provider: 'magenta',
         } as InvestigationResult;
       }
-    } catch {
+      fallbackReason = `The agent returned HTTP ${response.status}.`;
+    } catch (error) {
       // The bundled deterministic investigator keeps the UI useful while the
       // internal Magenta service is starting or intentionally disabled.
+      fallbackReason = error instanceof Error ? error.message : 'The agent request failed.';
     }
   }
 
@@ -88,6 +94,7 @@ export async function investigate(
     answer: `${structured}${labContext} This is a review hypothesis, not a causal or regulatory conclusion.`,
     confidence: signal.reviewPriority === 'high' ? 'strong-pattern' : 'review',
     provider: 'deterministic',
+    fallbackReason,
     citations: sourceCitations.length ? sourceCitations : [
       { domain: 'MI', label: `${signal.affectedAnimals} affected animals`, detail: signal.finding, sourceRef: `${evidence.study.snapshotId}:MI` },
       ...(lab ? [{ domain: 'LB', label: `${lab.label} trajectory`, detail: `Study days ${lab.points.map((p) => p.day).join(', ')}`, sourceRef: `${evidence.study.snapshotId}:LB:${signal.correlatedLab}` }] : []),

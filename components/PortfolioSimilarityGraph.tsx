@@ -50,13 +50,13 @@ export default function PortfolioSimilarityGraph({ result, selectedId, onSelect 
     label: `${match.score}%`,
     animated: match.rank <= 2,
     markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: match.rank <= 2 ? '#51ddd6' : '#365b64', strokeWidth: 1 + match.score / 45 },
-    labelStyle: { fill: '#87a0a7', fontSize: 8 },
+    style: { stroke: match.rank <= 2 ? 'var(--green-45)' : 'var(--line-25)', strokeWidth: 1 + match.score / 45 },
+    labelStyle: { fill: 'var(--ink-56)', fontSize: 11 }, labelBgStyle: { fill: 'var(--surface-8)', fillOpacity: .88 }, labelBgPadding: [4, 2] as [number, number], labelBgBorderRadius: 4,
   })), [result]);
 
   return <div className="portfolio-graph-canvas">
     <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.18 }} minZoom={0.45} maxZoom={1.45} nodesConnectable={false} nodesDraggable={false} onNodeClick={(_, node) => node.id !== 'query' && onSelect(node.id)}>
-      <Background color="#1a343d" gap={22} size={1} />
+      <Background color="var(--surface-16)" gap={22} size={1} />
       <Controls showInteractive={false} />
     </ReactFlow>
   </div>;

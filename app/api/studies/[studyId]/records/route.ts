@@ -1,13 +1,19 @@
 import { NextResponse } from 'next/server';
 import { loadCanonicalRecordPage } from '@/lib/data/evidence-repository';
-import { loadStudyEvidence } from '@/lib/data/study-repository';
+import { loadStudyEvidence, StudyEvidenceNotFoundError } from '@/lib/data/study-repository';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request, context: { params: Promise<{ studyId: string }> }) {
   const { studyId: encodedStudyId } = await context.params;
   const studyId = decodeURIComponent(encodedStudyId);
-  const evidence = await loadStudyEvidence(studyId);
+  let evidence;
+  try {
+    evidence = await loadStudyEvidence(studyId);
+  } catch (error) {
+    if (error instanceof StudyEvidenceNotFoundError) return NextResponse.json({ error: error.message }, { status: 404 });
+    throw error;
+  }
   const { searchParams } = new URL(request.url);
   const domain = (searchParams.get('domain') || '').trim().toUpperCase();
   const scope = searchParams.get('scope') === 'study' ? 'study' : 'subject';

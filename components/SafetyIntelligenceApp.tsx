@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, BookOpenCheck, Braces, ChevronDown, CircleHelp, Dna, Expand, FileCheck2, FlaskConical, GitBranch, GitCompareArrows, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
+import { Activity, BookOpenCheck, Braces, ChevronDown, CircleHelp, Expand, FileCheck2, FlaskConical, GitBranch, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
 import type { LiteratureDocument, SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import { reviewScore } from '@/lib/analysis/signal-engine';
 import AgentPanel from '@/components/AgentPanel';
@@ -18,11 +18,80 @@ import LearningJourney from '@/components/LearningJourney';
 import EvidenceAssembly, { type EvidenceDomain } from '@/components/EvidenceAssembly';
 import type { InvestigationCanvas } from '@/components/InvestigationRoom';
 import AnatomicalSignalNavigator from '@/components/AnatomicalSignalNavigator';
+import CommandPalette from '@/components/CommandPalette';
+import MongoLeaf from '@/components/MongoLeaf';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type WorkspaceView = 'journey' | 'workspace' | 'portfolio' | 'semantics' | 'architecture' | 'audit';
+type Section = 'investigate' | 'model' | 'evidence';
+
+/**
+ * Three top-level sections instead of six peer views. Each section owns the
+ * views that answer the same question, so the sidebar states the workflow —
+ * investigate a signal, understand the model behind it, prove where it came
+ * from — and the sub-tabs handle the detail.
+ */
+const sections: Array<{ id: Section; label: string; caption: string; views: WorkspaceView[] }> = [
+  { id: 'investigate', label: 'Investigate', caption: 'Triage signals and ask the agent', views: ['workspace', 'portfolio'] },
+  { id: 'model', label: 'Understand the model', caption: 'Meaning, contracts and architecture', views: ['semantics', 'architecture'] },
+  { id: 'evidence', label: 'Prove it', caption: 'Provenance, lineage and review', views: ['audit'] },
+];
+
+const viewMeta: Record<Exclude<WorkspaceView, 'journey'>, { label: string; hint: string }> = {
+  workspace: { label: 'Signal workspace', hint: 'Dose × organ matrix, charts and evidence graph' },
+  portfolio: { label: 'Portfolio similarity', hint: 'Explainable cross-study comparison' },
+  semantics: { label: 'Semantic model', hint: 'Business, graph, retrieval and physical lenses' },
+  architecture: { label: 'Solution architecture', hint: 'Build-time and runtime boundaries' },
+  audit: { label: 'Audit & lineage', hint: 'Checksums, provenance and review actions' },
+};
+
+const sectionIcons: Record<Section, typeof LayoutDashboard> = {
+  investigate: LayoutDashboard,
+  model: Layers3,
+  evidence: FileCheck2,
+};
+
+function sectionOf(view: WorkspaceView): Section {
+  return sections.find((item) => item.views.includes(view))?.id || 'investigate';
+}
+
+/**
+ * Urgency and the observed dose pattern are separate questions, so they get
+ * separate columns. Neither is a toxicologic conclusion: the assessment is the
+ * stored descriptive `pattern`, while the review band is the projector's stored
+ * `reviewPriority` and is never silently recomputed by the UI.
+ */
+const assessmentLabel: Record<string, string> = {
+  'treated-only': 'Treated-only',
+  'control-and-treated': 'Control + treated',
+  'control-only': 'Control-only',
+  'dose-responsive': 'Dose-responsive',
+  'non-monotonic': 'Non-monotonic',
+  'local-tolerance': 'Local tolerance',
+  'sparse': 'Sparse',
+};
+
+const assessmentHint: Record<string, string> = {
+  'treated-only': 'Absent in control animals and present in treated groups',
+  'control-and-treated': 'Observed in control and treated animals; this pattern alone neither establishes nor excludes a treatment relationship',
+  'control-only': 'Observed only in control animals in this study snapshot',
+  'dose-responsive': 'Observed incidence increases across the ordered dose groups',
+  'non-monotonic': 'Observed across groups without a monotonic dose relationship',
+  'local-tolerance': 'Observed at an administration site; systemic relevance still requires expert context',
+  'sparse': 'Too few affected animals to establish a pattern',
+};
+
+const priorityLabel: Record<SafetySignal['reviewPriority'], string> = { high: 'High', medium: 'Medium', context: 'Context', low: 'Low' };
+
+const priorityHint: Record<SafetySignal['reviewPriority'], string> = {
+  high: 'Review first',
+  medium: 'Review after the treated-only findings',
+  context: 'Interpret with control incidence and other study context',
+  low: 'Review last',
+};
 
 function PriorityPill({ value }: { value: SafetySignal['reviewPriority'] }) {
-  return <span className={`priority-pill priority-${value}`}>{value === 'high' ? 'review first' : value}</span>;
+  return <span className={`priority-pill priority-${value}`} title={priorityHint[value]}>{priorityLabel[value]}</span>;
 }
 
 export default function SafetyIntelligenceApp({ evidence: initialEvidence, portfolioEvidence, initialSemantics, literature }: { evidence: StudyEvidence; portfolioEvidence: StudyEvidence[]; initialSemantics: SemanticRuntimeView; literature: LiteratureDocument[] }) {
@@ -37,6 +106,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const [journeyStep, setJourneyStep] = useState(0);
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [semantics, setSemantics] = useState(initialSemantics);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const signalListRef = useRef<HTMLDivElement>(null);
   const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
   const lab = signal.correlatedLab ? evidence.labSeries?.[signal.correlatedLab] : undefined;
@@ -45,7 +115,25 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const canCompare = semantics.capabilities.some((item) => item.id === 'retrieve-similar-findings');
   const availableStudies = portfolioEvidence.filter((item) => item.study.evidenceClass !== 'synthetic-benchmark');
   useEffect(() => {
-    signalListRef.current?.querySelector<HTMLElement>('button.selected')?.scrollIntoView({ block: 'nearest' });
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen((value) => !value);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    const list = signalListRef.current;
+    const target = list?.querySelector<HTMLElement>('button.selected');
+    if (!list || !target) return;
+    // Keep the selection visible inside the list without scrolling the document.
+    const offset = target.offsetTop - list.clientHeight / 2 + target.clientHeight / 2;
+    list.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
   }, [selectedId]);
   const scrollToSection = (target: string) => {
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
@@ -103,29 +191,65 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <div className="brand"><span className="brand-mark"><Dna size={20} /></span><div><strong>Safety Intelligence</strong><small>MongoDB Solution Library</small></div></div>
-      <div className="nav-label">Start here</div>
-      <nav><button aria-label="Guided journey" className={view === 'journey' ? 'active' : ''} onClick={() => openView('journey')}><BookOpenCheck size={16} /><span>Guided journey</span><em>{journeyStep + 1}/7</em></button></nav>
-      <div className="nav-label">Investigation</div>
-      <nav>
-        <button aria-label="Study workspace" className={view === 'workspace' && !roomOpen ? 'active' : ''} onClick={() => openView('workspace')}><LayoutDashboard size={16} /><span>Study workspace</span></button>
-        <button aria-label="Investigation room" className={roomOpen ? 'active' : ''} disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={16} /><span>Investigation room</span></button>
-        <button aria-label="Portfolio similarity" className={view === 'portfolio' ? 'active' : ''} disabled={!canCompare} title={canCompare ? undefined : 'The active semantic profile cannot compare portfolio findings'} onClick={() => openView('portfolio')}><GitCompareArrows size={16} /><span>Portfolio similarity</span><em>new</em></button>
+      <div className="brand"><span className="brand-mark"><MongoLeaf size={26} /></span><div><strong>Safety Intelligence</strong><small>MongoDB Solution Library</small></div></div>
+      <nav className="primary-nav">
+        {sections.map((section) => {
+          const Icon = sectionIcons[section.id];
+          const active = view !== 'journey' && sectionOf(view) === section.id && !roomOpen;
+          return <button
+            key={section.id}
+            aria-label={section.label}
+            aria-current={active ? 'page' : undefined}
+            className={active ? 'active' : ''}
+            onClick={() => openView(section.views[0])}
+          ><Icon size={17} /><span>{section.label}</span></button>;
+        })}
+        <button
+          aria-label="Investigation room"
+          className={roomOpen ? 'active' : ''}
+          disabled={!canInvestigate}
+          title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'}
+          onClick={openInvestigation}
+        ><Sparkles size={17} /><span>Investigation room</span></button>
       </nav>
-      <div className="nav-label">Platform</div>
-      <nav><button aria-label="Semantic model" onClick={() => openSemantic()} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button aria-label="Solution architecture" onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Solution architecture</span></button><button aria-label="Audit and lineage" onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
+      <div className="nav-divider" />
+      <nav className="secondary-nav">
+        <button aria-label="Guided journey" className={view === 'journey' ? 'active' : ''} onClick={() => openView('journey')}>
+          <BookOpenCheck size={16} /><span>Guided journey</span><em>{journeyStep + 1}/7</em>
+        </button>
+      </nav>
       <div className="source-card"><div><span className="status-dot" /> Published evidence</div><strong>{evidence.study.implementationGuide}</strong><small>Immutable · checksum verified</small></div>
     </aside>
 
     <main className="workspace">
       <header className="topbar">
         <div className="study-control"><button className="study-switcher" aria-label="Choose active SEND study" aria-expanded={studyMenuOpen} onClick={() => setStudyMenuOpen((open) => !open)}><span className="study-icon"><FlaskConical size={16} /></span><span><b>{evidence.study.title}</b><small>{evidence.study.id} · {evidence.study.snapshotId}</small></span><ChevronDown size={14} /></button>{studyMenuOpen && <div className="study-menu" role="menu">{availableStudies.map((item) => <button type="button" role="menuitem" className={item.study.id === evidence.study.id ? 'active' : ''} key={`${item.study.id}:${item.study.snapshotId}`} onClick={() => changeStudy(item.study.id)}><b>{item.study.title}</b><small>{item.study.compoundName || item.study.id} · {item.study.animalCount} animals · {item.signals.length} findings</small></button>)}</div>}</div>
-        <div className="global-search"><Search size={14} /><span>Search findings, animals, tests…</span><kbd>⌘ K</kbd></div>
+        <button type="button" className="global-search" onClick={() => setPaletteOpen(true)} aria-label="Search findings, studies and the semantic map"><Search size={14} /><span>Search findings, studies, concepts…</span><kbd>⌘ K</kbd></button>
         <span className="published"><ShieldCheck size={14} /> Published</span>
         <label className="profile-switcher"><UserRound size={13} /><select value={semantics.activeProfile.id} onChange={(event) => changeProfile(event.target.value as SemanticProfileId)}>{semantics.profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
-        <button className="icon-button" aria-label="Open guided journey" title="Learn how to use this solution" onClick={() => openView('journey')}><CircleHelp size={17} /></button>
+        <ThemeToggle /><button className="icon-button" aria-label="Open guided journey" title="Learn how to use this solution" onClick={() => openView('journey')}><CircleHelp size={17} /></button>
       </header>
 
+      {view !== 'journey' && (() => {
+        const section = sections.find((item) => item.id === sectionOf(view));
+        if (!section || section.views.length < 2) return null;
+        return <nav className="section-tabs" aria-label={`${section.label} views`}>
+          {section.views.map((item) => {
+            const meta = viewMeta[item as Exclude<WorkspaceView, 'journey'>];
+            const disabled = item === 'portfolio' && !canCompare;
+            return <button
+              key={item}
+              type="button"
+              aria-label={meta.label}
+              aria-current={view === item ? 'page' : undefined}
+              className={view === item ? 'active' : ''}
+              disabled={disabled}
+              title={disabled ? 'The active semantic profile cannot compare portfolio findings' : meta.hint}
+              onClick={() => openView(item)}
+            ><b>{meta.label}</b><small>{meta.hint}</small></button>;
+          })}
+        </nav>;
+      })()}
       {view === 'journey' ? <LearningJourney evidence={evidence} runtime={semantics} activeStep={journeyStep} onStepChange={setJourneyStep} onChangeProfile={changeProfile} onOpen={openFromJourney} /> : view === 'architecture' ? <ArchitectureView evidence={evidence} runtime={semantics} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} focusId={semanticFocus} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : view === 'portfolio' ? <PortfolioIntelligenceView evidence={evidence} evidenceSet={portfolioEvidence} profileId={semantics.activeProfile.id} semanticReleaseId={semantics.release.releaseId} /> : <>
         <section className="hero-row" id="overview">
           <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
@@ -147,10 +271,10 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
         <div className="content-grid">
           <section className="analysis-column">
             <article className="panel signal-map-panel">
-              <div className="panel-heading"><div><span className="panel-kicker">Organ signal map</span><h2>Findings ranked for review</h2></div><div className="legend"><span className="legend-high" /> treated-only <span className="legend-context" /> contextual</div></div>
+              <div className="panel-heading"><div><span className="panel-kicker">Organ signal map</span><h2>Findings ranked for review</h2></div><div className="legend">Ranked by review score</div></div>
               <div className="signal-landscape">
                 <AnatomicalSignalNavigator signals={ranked} selectedId={signal.id} species={evidence.study.species} onSelect={setSelectedId} />
-                <div ref={signalListRef} className="signal-list" tabIndex={0} aria-label={`${ranked.length} findings ranked for review`}>{ranked.length > 10 && <div className="list-scroll-status"><span>{ranked.length} ranked findings</span><span>Scroll to explore</span></div>}{ranked.map((item) => <button key={item.id} className={item.id === signal.id ? 'selected' : ''} onClick={() => setSelectedId(item.id)}><span className="organ-abbr">{item.organ.slice(0, 2)}</span><span className="signal-copy"><b>{item.organ}</b><small>{item.finding}</small></span><span className="signal-count">{item.affectedAnimals}/{item.totalAnimals}</span><PriorityPill value={item.reviewPriority} /></button>)}</div>
+                <div ref={signalListRef} className="signal-list" tabIndex={0} aria-label={`${ranked.length} findings ranked for review`}>{ranked.length > 10 && <div className="list-scroll-status"><span>{ranked.length} ranked findings</span><span>Scroll to explore</span></div>}<div className="signal-list-header" aria-hidden="true"><span>Finding</span><span title="Heuristic review score from treated incidence, severity and a treated-only bonus. This is what the list is ordered by.">Score</span><span title="Descriptive incidence pattern; not a causality conclusion">Observed pattern</span><span title="Projector-assigned review band">Review band</span></div>{ranked.map((item) => <button key={item.id} className={item.id === signal.id ? 'selected' : ''} onClick={() => setSelectedId(item.id)}><span className="organ-abbr">{item.organ.slice(0, 2)}</span><span className="signal-copy"><b>{item.organ}</b><small title={item.finding}>{item.finding}</small></span><span className="signal-count" title={`Review score ${item.score} of 100 · ${item.affectedAnimals} of ${item.totalAnimals} animals affected`}>{item.score}</span><span className="signal-assessment" title={assessmentHint[item.pattern] || item.pattern}>{assessmentLabel[item.pattern] || item.pattern.replaceAll('-', ' ')}</span><PriorityPill value={item.reviewPriority} /></button>)}</div>
               </div>
             </article>
 
@@ -172,6 +296,17 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
         <footer className="study-footer"><span>{evidence.provenance.method}</span><a href={evidence.study.source} target="_blank" rel="noreferrer">PhUSE SENDConform · {evidence.study.sourceRevision.slice(0, 9)}</a><span>{evidence.provenance.disclaimer}</span></footer>
         {graphOpen && <div className="graph-modal-backdrop" role="presentation" onMouseDown={() => setGraphOpen(false)}><section className="graph-modal" role="dialog" aria-modal="true" aria-label={`Evidence network for ${signal.organ}`} onMouseDown={(event) => event.stopPropagation()}><header><div><span className="panel-kicker">Immersive evidence network</span><h2>{signal.organ} · {signal.finding}</h2></div><button className="icon-button" onClick={() => setGraphOpen(false)} aria-label="Close evidence graph"><X size={18} /></button></header><EvidenceGraph evidence={evidence} signal={signal} immersive /></section></div>}
       </>}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        evidence={evidence}
+        studies={availableStudies}
+        profileId={semantics.activeProfile.id}
+        onSelectSignal={setSelectedId}
+        onSelectStudy={changeStudy}
+        onOpenView={openView}
+        onOpenSemantic={openSemantic}
+      />
       {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} initialCanvas={roomCanvas} recordFocus={recordFocus} onClose={() => setRoomOpen(false)} onOpenSemantic={openSemantic} />}
     </main>
   </div>;

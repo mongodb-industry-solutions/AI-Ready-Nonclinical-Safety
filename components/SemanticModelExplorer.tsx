@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
-import { Box, Braces, Check, Database, GitBranch, Radio, RefreshCw, Search, SearchCode, ShieldCheck, Sparkles } from 'lucide-react';
+import { Check, Radio, RefreshCw, Search, SearchCode, ShieldCheck, Sparkles } from 'lucide-react';
+import MdbIcon, { type MdbIconName } from '@/components/MdbIcon';
 import '@xyflow/react/dist/style.css';
 import type { SemanticObject, SemanticRuntimeView } from '@/lib/contracts';
 
@@ -28,7 +29,7 @@ function ModelNode({ data }: NodeProps<Node<ModelNodeData>>) {
 }
 
 const nodeTypes = { model: ModelNode };
-const lensIcons = { 'business-documents': Box, 'semantic-graph': GitBranch, 'retrieval-projections': SearchCode, 'physical-mongodb': Database };
+const lensIcons: Record<string, MdbIconName> = { 'business-documents': 'document-model', 'semantic-graph': 'schema-visualization', 'retrieval-projections': 'hybrid-search', 'physical-mongodb': 'data-modeling' };
 
 export default function SemanticModelExplorer({ runtime, focusId, onRuntimeChange }: { runtime: SemanticRuntimeView; focusId?: string; onRuntimeChange: (runtime: SemanticRuntimeView) => void }) {
   const [lens, setLens] = useState<Lens>('business-documents');
@@ -107,8 +108,8 @@ export default function SemanticModelExplorer({ runtime, focusId, onRuntimeChang
     target: edge.to,
     label: lens === 'semantic-graph' ? edge.predicate : edge.label,
     markerEnd: { type: MarkerType.ArrowClosed },
-    style: { stroke: edge.to === selectedId ? '#65e3dc' : '#31545c', strokeWidth: edge.to === selectedId ? 2 : 1.1 },
-    labelStyle: { fill: '#6f8a92', fontSize: 8 },
+    style: { stroke: edge.to === selectedId ? 'var(--green-45)' : 'var(--line-25)', strokeWidth: edge.to === selectedId ? 2 : 1.1 },
+    labelStyle: { fill: 'var(--ink-56)', fontSize: 11 }, labelBgStyle: { fill: 'var(--surface-8)', fillOpacity: .88 }, labelBgPadding: [4, 2] as [number, number], labelBgBorderRadius: 4,
     }));
   }, [runtime.objects, runtime.edges, lens, selectedId]);
 
@@ -170,7 +171,7 @@ export default function SemanticModelExplorer({ runtime, focusId, onRuntimeChang
       <div className="change-flow">{['Value observed', 'Change Stream', 'Validate candidate', 'Compile projection', 'Map refreshed'].map((label, index) => <div key={label} className={changeStep >= index ? 'complete' : changeStep === index - 1 ? 'next' : ''}><i>{changeStep > index ? <Check size={10} /> : index + 1}</i><span>{label}</span></div>)}</div>
       <div className="change-action"><span><b>{valueSet?.label}</b><small>{(valueSet?.values.length || 0) + (changeStep === 4 && !demoValueActive ? 1 : 0)} values · {changeMode || 'ready'}</small></span><button onClick={demonstrateSemanticChange} disabled={changeStep >= 0 && changeStep < 4}><RefreshCw size={13} className={changeStep >= 0 && changeStep < 4 ? 'spin' : ''} /> {changeStep === 4 ? 'Replay update' : changeStep >= 0 ? 'Compiling…' : 'Simulate new value'}</button></div>
     </section>
-    <nav className="model-lenses">{runtime.surfaces.map((surface) => { const Icon = lensIcons[surface.id as Lens] || Braces; return <button key={surface.id} className={lens === surface.id ? 'active' : ''} onClick={() => setLens(surface.id as Lens)}><Icon size={15} /><span><b>{surface.label}</b><small>{surface.description}</small></span></button>; })}</nav>
+    <nav className="model-lenses">{runtime.surfaces.map((surface) => { const icon = lensIcons[surface.id] || 'document-model'; return <button key={surface.id} className={lens === surface.id ? 'active' : ''} onClick={() => setLens(surface.id as Lens)}><MdbIcon name={icon} size={22} /><span><b>{surface.label}</b><small>{surface.description}</small></span></button>; })}</nav>
     <div className="model-workbench">
       <div className="model-canvas">
         <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: .16 }} minZoom={.42} maxZoom={1.6} nodesConnectable={false} onNodeClick={(_, node) => setSelectedId(node.id)}>

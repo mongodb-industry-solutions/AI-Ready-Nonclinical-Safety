@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Workflow,
 } from 'lucide-react';
+import MdbIcon from '@/components/MdbIcon';
 import type { SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 
 interface AuditLineageViewProps {
@@ -51,19 +52,19 @@ export default function AuditLineageView({ evidence, runtime, canInvestigate, on
     </div>
 
     <article className="lineage-panel">
-      <header><div><span className="panel-kicker">Verified evidence chain</span><h2>From source evidence to expert decision</h2></div><span className="lineage-integrity"><CheckCircle2 size={14} /> Chain verified</span></header>
+      <header><div><span className="panel-kicker audit-kicker"><MdbIcon name="audit" size={18} />Verified evidence chain</span><h2>From source evidence to expert decision</h2></div><span className="lineage-integrity"><CheckCircle2 size={14} /> Chain verified</span></header>
       <div className="lineage-flow">{flow.map(({ icon: Icon, label, detail, state }, index) => <div className="lineage-step" key={label}><div className="lineage-node"><Icon size={18} /></div><span>{String(index + 1).padStart(2, '0')}</span><b>{label}</b><small>{detail}</small><em>{state}</em>{index < flow.length - 1 && <ArrowRight className="lineage-arrow" size={17} />}</div>)}</div>
     </article>
 
     <div className="audit-grid">
       <article className="audit-card artifact-ledger">
-        <header><div><span className="panel-kicker">Source artifact ledger</span><h2>Replayable inputs</h2></div><a href={evidence.study.source} target="_blank" rel="noreferrer">Open source <ExternalLink size={12} /></a></header>
+        <header><div><span className="panel-kicker audit-kicker"><MdbIcon name="security" size={18} />Source artifact ledger</span><h2>Replayable inputs</h2></div><a href={evidence.study.source} target="_blank" rel="noreferrer">Open source <ExternalLink size={12} /></a></header>
         <div className="artifact-table"><div className="artifact-head"><span>Artifact</span><span>Integrity</span><span>Digest</span></div>{artifacts.map(([name, digest]) => <div key={name}><b>{name}</b><span><CheckCircle2 size={11} /> SHA-256 verified</span><code>{shortDigest(digest)}…</code></div>)}</div>
         <footer>{evidence.provenance.method} · derived {evidence.provenance.derivedAt}</footer>
       </article>
 
       <article className="audit-card snapshot-record">
-        <header><div><span className="panel-kicker">Immutable study snapshot</span><h2>{evidence.study.title}</h2></div><span className="snapshot-badge">published</span></header>
+        <header><div><span className="panel-kicker audit-kicker"><MdbIcon name="queryable-snapshot" size={18} />Immutable study snapshot</span><h2>{evidence.study.title}</h2></div><span className="snapshot-badge">published</span></header>
         <dl><div><dt>Study identifier</dt><dd>{evidence.study.id}</dd></div><div><dt>Snapshot</dt><dd>{evidence.study.snapshotId}</dd></div><div><dt>Canonical records</dt><dd>{evidence.study.recordCount.toLocaleString()}</dd></div><div><dt>SEND domains</dt><dd>{evidence.study.domains.join(' · ')}</dd></div><div><dt>Projection</dt><dd>{evidence.provenance.projectionVersion || 'bundled fixture'}</dd></div><div><dt>Reconciliation</dt><dd>{reconciliation ? `${Object.values(reconciliation.checks).filter(Boolean).length}/3 checks passed` : 'fixture provenance'}</dd></div><div><dt>Evidence package</dt><dd>{evidence.provenance.evidencePackageId ? shortDigest(evidence.provenance.evidencePackageId) : 'bundled fixture'}</dd></div><div><dt>Source license</dt><dd>{evidence.study.license}</dd></div><div><dt>Revision</dt><dd>{evidence.study.sourceRevision.slice(0, 12)}</dd></div></dl>
       </article>
     </div>

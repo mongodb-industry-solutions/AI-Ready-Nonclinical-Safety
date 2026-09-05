@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, BookOpen, Bot, Braces, CheckCircle2, Code2, Database, FileCheck2, FileText, GitBranch, Layers3, Network, PackageCheck, Search, ShieldCheck, Sparkles, Waypoints, Workflow, Zap } from 'lucide-react';
 import type { SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
+import MdbIcon, { type MdbIconName } from '@/components/MdbIcon';
 
 type ArchitectureLens = 'blueprint' | 'model' | 'interfaces' | 'value';
 
@@ -71,24 +72,24 @@ function Blueprint({ evidence, runtime }: { evidence: StudyEvidence; runtime: Se
       <div className="plane-flow">
         <ArchitectureNode icon={FileCheck2} tone="cyan" eyebrow="CDISC source" title="SEND XPT + Define-XML" detail="Sponsor or public study packages" tags={['TS', 'TX', 'DM', 'MI', 'LB']} />
         <FlowArrow label="ingest + validate" />
-        <ArchitectureNode icon={PackageCheck} tone="green" eyebrow="HDL + Kehrnel" title="Data factory & model lab" detail="Examples, synthetic scenarios, conformance and query learning" tags={['versioned', 'deterministic']} />
+        <ArchitectureNode icon={PackageCheck} mdb="pharmaceuticals" tone="green" eyebrow="HDL + Kehrnel" title="Data factory & model lab" detail="Examples, synthetic scenarios, conformance and query learning" tags={['versioned', 'deterministic']} />
         <FlowArrow label="compile + export" />
-        <ArchitectureNode icon={Braces} tone="violet" eyebrow="Context Studio" title="Semantic compiler" detail={`${runtime.objects.length} objects · ${runtime.archetypes.length} archetypes · ${runtime.resolvers.length} resolvers`} tags={['portable bundle', 'digest']} />
+        <ArchitectureNode icon={Braces} mdb="data-modeling" tone="violet" eyebrow="Context Studio" title="Semantic compiler" detail={`${runtime.objects.length} objects · ${runtime.archetypes.length} archetypes · ${runtime.resolvers.length} resolvers`} tags={['portable bundle', 'digest']} />
       </div>
     </section>
 
     <section className="architecture-plane runtime-plane">
       <header><span>02</span><div><b>Self-contained solution runtime</b><small>The application owns its database, APIs, agent service, policy enforcement and expert experience.</small></div><em>deployed together</em></header>
       <div className="runtime-map">
-        <div className="runtime-sources"><span className="map-column-label">Source adapters</span><ArchitectureNode icon={Database} tone="cyan" eyebrow="Versioned import" title="CDISC study evidence" detail={`${evidence.study.recordCount.toLocaleString()} records · ${evidence.study.snapshotId}`} tags={['immutable']} compact /><ArchitectureNode icon={BookOpen} tone="amber" eyebrow="External context" title="PubMed · PMC · S3" detail="Metadata, permitted passages and source files" tags={['rights-aware']} compact /></div>
+        <div className="runtime-sources"><span className="map-column-label">Source adapters</span><ArchitectureNode icon={Database} mdb="document-model" tone="cyan" eyebrow="Versioned import" title="CDISC study evidence" detail={`${evidence.study.recordCount.toLocaleString()} records · ${evidence.study.snapshotId}`} tags={['immutable']} compact /><ArchitectureNode icon={BookOpen} tone="amber" eyebrow="External context" title="PubMed · PMC · S3" detail="Metadata, permitted passages and source files" tags={['rights-aware']} compact /></div>
         <div className="runtime-connector"><ArrowRight /><span>adapters</span></div>
         <div className="atlas-core">
           <div className="atlas-title"><Database size={18} /><div><b>MongoDB Atlas evidence fabric</b><small>One operational platform; explicitly separated authorities</small></div></div>
           <div className="atlas-planes"><div><span>Immutable evidence</span><code>study_snapshots</code><code>dataset_definitions</code><code>cdisc_records</code><code>subjects · source_artifacts</code></div><div><span>Reconciled projections</span><code>study_evidence · projector v1</code><code>portfolio_findings · autoEmbed</code><code>literature_chunks · autoEmbed</code><code>evidence_relationships</code></div><div><span>Semantic release</span><code>semantic_releases.bundle</code><code>semantic_resources · semantic_edges</code><code>semantic_search_documents · autoEmbed</code></div><div><span>Solution state</span><code>semantic_runtime_pointer</code><code>review_actions</code><code>semantic_change_events</code></div></div>
-          <div className="atlas-engines"><span><Search size={12} /> Aggregation + Search</span><span><Sparkles size={12} /> Vector Search</span><span><GitBranch size={12} /> Graph lookup</span><span><Zap size={12} /> Change Streams</span></div>
+          <div className="atlas-engines"><span><MdbIcon name="aggregation-pipelines" size={22} /> Aggregation + Search</span><span><MdbIcon name="vector-search" size={22} /> Vector Search</span><span><MdbIcon name="index" size={22} /> Graph lookup</span><span><MdbIcon name="change-streams" size={22} /> Change Streams</span></div>
         </div>
         <div className="runtime-connector"><ArrowRight /><span>governed tools</span></div>
-        <div className="runtime-consumers"><span className="map-column-label">Interfaces & experience</span><ArchitectureNode icon={Code2} tone="cyan" eyebrow="Stable boundary" title="Solution-owned APIs" detail="Contracts, profile policy, execution telemetry and audit" tags={['REST + SSE']} compact /><ArchitectureNode icon={Bot} tone="violet" eyebrow="Bundled Magenta" title="Agent orchestration" detail="Plan, authorize, retrieve, rerank, cite and review" tags={['profile-bound']} compact /><ArchitectureNode icon={Workflow} tone="green" eyebrow="Next.js solution" title="Safety Investigation Room" detail="Visual evidence, hypotheses and expert decisions" tags={['human in control']} compact /></div>
+        <div className="runtime-consumers"><span className="map-column-label">Interfaces & experience</span><ArchitectureNode icon={Code2} tone="cyan" eyebrow="Stable boundary" title="Solution-owned APIs" detail="Contracts, profile policy, execution telemetry and audit" tags={['REST + SSE']} compact /><ArchitectureNode icon={Bot} mdb="ai" tone="violet" eyebrow="Bundled Magenta" title="Agent orchestration" detail="Plan, authorize, retrieve, rerank, cite and review" tags={['profile-bound']} compact /><ArchitectureNode icon={Workflow} tone="green" eyebrow="Next.js solution" title="Safety Investigation Room" detail="Visual evidence, hypotheses and expert decisions" tags={['human in control']} compact /></div>
       </div>
     </section>
 
@@ -96,8 +97,8 @@ function Blueprint({ evidence, runtime }: { evidence: StudyEvidence; runtime: Se
   </div>;
 }
 
-function ArchitectureNode({ icon: Icon, tone, eyebrow, title, detail, tags, compact = false }: { icon: typeof Database; tone: string; eyebrow: string; title: string; detail: string; tags: string[]; compact?: boolean }) {
-  return <article className={`architecture-node tone-${tone} ${compact ? 'compact' : ''}`}><div className="architecture-node-icon"><Icon size={18} /></div><div><span>{eyebrow}</span><h3>{title}</h3><p>{detail}</p><footer>{tags.map((tag) => <em key={tag}>{tag}</em>)}</footer></div></article>;
+function ArchitectureNode({ icon: Icon, mdb, tone, eyebrow, title, detail, tags, compact = false }: { icon: typeof Database; mdb?: MdbIconName; tone: string; eyebrow: string; title: string; detail: string; tags: string[]; compact?: boolean }) {
+  return <article className={`architecture-node tone-${tone} ${compact ? 'compact' : ''}`}><div className="architecture-node-icon">{mdb ? <MdbIcon name={mdb} size={26} /> : <Icon size={18} />}</div><div><span>{eyebrow}</span><h3>{title}</h3><p>{detail}</p><footer>{tags.map((tag) => <em key={tag}>{tag}</em>)}</footer></div></article>;
 }
 
 function FlowArrow({ label }: { label: string }) {
