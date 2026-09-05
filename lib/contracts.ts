@@ -196,11 +196,127 @@ export interface DataQueryTrace {
   id: string;
   source: 'mongodb' | 'portable-bundle';
   collection: string;
-  operation: 'find' | 'findOne' | 'fixture-read';
+  operation: 'find' | 'findOne' | 'aggregate' | 'insertOne' | 'fixture-read';
   predicate: Record<string, unknown>;
   status: 'executed' | 'fallback' | 'skipped';
   resultCount: number;
   durationMs: number;
+  plan?: {
+    source: 'mongodb-explain-executionStats';
+    indexes: string[];
+    documentsExamined?: number;
+    keysExamined?: number;
+    rowsReturned?: number;
+  };
+}
+
+export interface OperationalEvidenceGroup {
+  code?: string;
+  label?: string;
+  dose?: number;
+  unit?: string;
+}
+
+export interface EndpointSummary {
+  id: string;
+  endpointType: 'categorical' | 'numeric';
+  domain: string;
+  testCode: string;
+  test: string;
+  organ?: string;
+  finding?: string;
+  studyDay?: number;
+  phase?: string;
+  sex?: string;
+  group?: OperationalEvidenceGroup;
+  incidence?: { affected: number; examined: number; percent: number };
+  severity?: Record<string, number>;
+  statistics?: { count: number; subjectCount: number; mean: number; min: number; max: number };
+  referenceRange?: { status: 'source-supplied' | 'not-supplied'; assessedCount: number; outsideRangeCount: number };
+  sourceRecordIds: string[];
+  projectionDigest: string;
+  projectionVersion: string;
+  semanticReleaseId: string;
+}
+
+export interface MeasurementSeriesPoint {
+  endpointSummaryId: string;
+  studyDay?: number;
+  group?: OperationalEvidenceGroup;
+  statistics: { count: number; subjectCount: number; mean: number; min: number; max: number };
+  referenceRange?: { status: 'source-supplied' | 'not-supplied'; assessedCount: number; outsideRangeCount: number };
+}
+
+export interface OperationalMeasurementSeries {
+  id: string;
+  domain: string;
+  testCode: string;
+  test: string;
+  organ?: string;
+  unit?: string;
+  sex?: string;
+  phase?: string;
+  points: MeasurementSeriesPoint[];
+  sourceRecordIds: string[];
+  projectionDigest: string;
+  projectionVersion: string;
+  semanticReleaseId: string;
+}
+
+export interface OperationalEvidenceRelationship {
+  id: string;
+  from: string;
+  to: string;
+  fromSemanticObject: string;
+  toSemanticObject: string;
+  predicate: string;
+  authority: 'source-declared' | 'governed-inference';
+  relationId?: string;
+  ruleId?: string;
+  subjectId?: string;
+  sourceRecordIds: string[];
+  projectionDigest: string;
+}
+
+export interface BiologicalCoherenceResponse {
+  available: boolean;
+  studyId: string;
+  snapshotId: string;
+  signalId: string;
+  organ: string;
+  semanticReleaseId: string;
+  targetOrgan: {
+    endpointSummaries: EndpointSummary[];
+    measurementSeries: OperationalMeasurementSeries[];
+  };
+  systemicContext: {
+    bodyWeightSeries: OperationalMeasurementSeries[];
+    exposureSeries: OperationalMeasurementSeries[];
+    laboratoryCoverage: {
+      endpointSummaryCount: number;
+      sourceRangeSummaryCount: number;
+      outsideRangeSummaryCount: number;
+      interpretation: string;
+    };
+  };
+  relationships: OperationalEvidenceRelationship[];
+  filters: { sexes: string[]; phases: string[] };
+  inventory: {
+    endpointSummaries: number;
+    measurementSeries: number;
+    sourceDeclaredRelationships: number;
+    sourceRecordCitations: number;
+  };
+  execution: {
+    resolverId: string;
+    capabilityId: string;
+    executor: string;
+    policies: string[];
+    declaredStages: string[];
+    containmentPlan?: SemanticResolver['containmentPlan'];
+    dataOperations: DataQueryTrace[];
+    executedAt: string;
+  };
 }
 
 export interface Citation {
@@ -218,6 +334,13 @@ export interface InvestigationStep {
   detail: string;
 }
 
+export interface InvestigationWidget {
+  id: string;
+  kind: 'dose-response' | 'laboratory-trajectory' | 'biological-coherence' | 'semantic-grounding' | 'execution-plan' | 'evidence-topology';
+  title: string;
+  sourceDomains: string[];
+}
+
 export interface InvestigationExecutionContract {
   apiVersion: 'nonclinical-safety.dev/investigation-execution/v1';
   resolverId: string;
@@ -230,6 +353,10 @@ export interface InvestigationExecutionContract {
   declaredStages: string[];
   executedStages: InvestigationStep[];
   dataOperations: DataQueryTrace[];
+  retrievalExecutions: {
+    semantic?: Pick<SemanticGroundingResult, 'mode' | 'query' | 'stages' | 'managedEmbedding'>;
+    literature?: LiteratureQueryExecution;
+  };
   executedAt: string;
   boundScope: {
     studyId: string;
@@ -250,12 +377,19 @@ export interface InvestigationResult {
   confidence: 'hypothesis' | 'review' | 'strong-pattern';
   citations: Citation[];
   steps: InvestigationStep[];
+  widgets: InvestigationWidget[];
   guardrails: {
     readOnly: true;
     snapshotBound: true;
     regulatoryConclusion: false;
   };
   provider: 'deterministic' | 'magenta';
+  /** Snapshot-bound operational evidence assembled by the biological-coherence resolver. */
+  coherence?: BiologicalCoherenceResponse;
+  /** Profile-scoped lexical + Atlas-managed-vector grounding executed with the investigation. */
+  semanticGrounding?: SemanticGroundingResult;
+  /** Governed literature containment, hybrid retrieval, fusion, and reranking result. */
+  literatureEvidence?: Omit<LiteratureQueryResponse, 'source' | 'plan'>;
   /** Why the deterministic investigator answered. Absent when Magenta responded. */
   fallbackReason?: string;
   execution?: InvestigationExecutionContract;
@@ -361,7 +495,7 @@ export interface SemanticAction {
   id: string;
   label: string;
   allowedProfiles: SemanticProfileId[];
-  writesCollection: 'review_actions';
+  writesCollection: 'review_actions' | 'target_organ_assessments';
   approval: string;
   immutableEvidence: true;
 }
@@ -390,6 +524,31 @@ export interface SemanticSubscription {
   snapshot: string;
   events: string[];
   policy: string[];
+}
+
+export interface SemanticSearchHit {
+  resourceType: 'object' | 'profile' | 'capability' | 'resolver' | 'action' | 'surface' | 'valueSet' | 'concept' | 'archetype' | 'storageBinding' | 'sourceAdapter' | 'subscription' | 'edge';
+  resourceId: string;
+  label: string;
+  excerpt: string;
+  score: number;
+  lanes: Array<'lexical' | 'vector'>;
+  sourceRef: string;
+}
+
+export interface SemanticGroundingResult {
+  query: string;
+  mode: 'portable-bundle' | 'mongodb-exact' | 'atlas-search' | 'atlas-hybrid';
+  hits: SemanticSearchHit[];
+  stages: Array<{ id: string; status: 'executed' | 'fallback' | 'skipped'; detail: string }>;
+  managedEmbedding: {
+    index: string;
+    sourcePath: string;
+    vectorStorage: string;
+    vectorFieldInSourceDocument: boolean;
+  };
+  releaseId: string;
+  profileId: SemanticProfileId;
 }
 
 export interface SemanticSourceAdapter {
@@ -482,6 +641,31 @@ export interface ReviewActionRecord {
   note: string;
   status: 'committed' | 'pending-approval';
   createdAt: string;
+}
+
+export type TargetOrganConclusion = 'TARGET ORGAN' | 'NOT TARGET ORGAN' | 'INDETERMINATE';
+export type AdversityDecision = 'ADVERSE' | 'NON-ADVERSE' | 'EQUIVOCAL' | 'NOT ASSESSED';
+export type ReversibilityDecision = 'RECOVERED' | 'PARTIALLY RECOVERED' | 'PERSISTENT' | 'NOT ASSESSED';
+
+export interface TargetOrganAssessmentRecord {
+  id: string;
+  apiVersion: 'nonclinical-safety.dev/target-organ-assessment/v1';
+  studyId: string;
+  snapshotId: string;
+  signalId: string;
+  organ: string;
+  profileId: SemanticProfileId;
+  targetOrganConclusion: TargetOrganConclusion;
+  adversityDecision: AdversityDecision;
+  reversibility: ReversibilityDecision;
+  rationale: string;
+  citedEndpointIds: string[];
+  citedSourceRecordIds: string[];
+  semanticReleaseId: string;
+  resolverId: string;
+  status: 'committed' | 'pending-approval';
+  createdAt: string;
+  assessmentDigest: string;
 }
 
 export interface LiteratureDocument {

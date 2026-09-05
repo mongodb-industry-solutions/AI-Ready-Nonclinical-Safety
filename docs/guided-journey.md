@@ -45,19 +45,27 @@ walkthrough.
 
 ### 3. Evidence
 
-Open the study workspace and locate four SEND domains:
+Open the PDS2014 study workspace and read the evidence in six connected lanes:
 
-- `DM` identifies animals and treatment groups.
-- `TX` describes the dose and vehicle definitions.
-- `MI` contains microscopic tissue findings and severity.
-- `LB` contains longitudinal laboratory measurements.
+- `DM` and `TX` establish animal identity, cohort, dose, and vehicle.
+- `MI`, `MA`, and `OM` carry microscopic findings, gross pathology, and organ measurements.
+- `BW`, `BG`, and `FW` provide longitudinal systemic-tolerance context.
+- `LB` and `CL` carry laboratory measurements and clinical observations.
+- `EX`, `PC`, and `PP` describe administration and systemic exposure.
+- `SE`, `DS`, and `RELREC` contribute phase, disposition, and source-declared relationships.
 
 The canonical rows remain the interoperability boundary. The visual study model
 is a deterministic, rebuildable projection over those rows.
 
+This is a retrospective interpretation workflow. Laboratory instruments,
+pathologists, and study systems generate and date-stamp observations upstream;
+SEND standardizes their exchange. This application integrates the completed
+handoff and never pretends to be the acquisition or diagnostic system.
+
 ### 4. Triage
 
-Start with the dose-by-organ matrix. Select the thymus lymphocyte finding and ask:
+Start with the dose-by-organ matrix. Select **PDS2014 adrenal-gland
+vacuolization** and ask:
 
 1. Is it absent or present in controls?
 2. Does incidence increase across treated groups?
@@ -73,16 +81,30 @@ does not establish causality.
 Open the Investigation Room and expand **AI workspace**. Ask “Is this finding
 plausibly treatment-related?” The answer canvas should contain:
 
-- exact MI, DM, TX, and LB citations;
+- exact canonical citations plus reconciled pathology, organ-weight, body-weight,
+  exposure, phase, and relationship projections;
 - a dose-response visualization;
 - a laboratory trajectory when one is governed;
 - semantic candidates and value-set clarification;
 - the evidence topology;
 - the resolver contract and measured execution trace.
 
+The cards are selected and ordered by the server response. Open the execution
+widget to inspect the actual winning MongoDB index and the keys/documents examined,
+not only the intended query shape. Semantic lexical search, Atlas-managed vector
+search, fusion, and any literature reranking are part of the same investigation
+response.
+
 Read the contract and execution separately. The contract says what was authorized
 and could run. The trace says what actually ran, what returned, how long it took,
 and what was skipped or fell back.
+
+Open **Biological coherence** to compare the target-organ incidence with organ
+measurements, systemic context, recovery phase, and source-declared links. The
+absence of laboratory reference intervals in this public package is displayed as
+an evidence gap; the application does not invent normal limits. Finish by
+selecting endpoint summaries and recording a human-owned target-organ,
+adversity, and reversibility assessment.
 
 ### 6. Meaning
 
@@ -115,6 +137,28 @@ Context Studio are build-time enablement systems rather than runtime dependencie
 > the governed semantic map and explicitly rebinds the question. Every answer
 > exposes both its authorization contract and the operations that truly executed.
 > The expert remains responsible for the final interpretation.
+
+## Demo Sherpa playback layer
+
+The in-product learning journey remains the authored source for the scientific
+story. Demo Sherpa adds the presenter-facing playback and editing layer around
+that story. The checked-in seed covers orientation, SEND evidence, signal
+triage, governed investigation, portfolio comparison, semantic resolution,
+solution architecture, and audit lineage.
+
+The seed is intentionally text-first:
+
+- narration is stored as ordered speech segments;
+- meaningful pauses are explicit silence segments;
+- each screen transition uses a stable host action and a visible-state
+  checkpoint;
+- a missing checkpoint pauses playback for review;
+- browser speech provides a no-service fallback;
+- generated voices can be added per segment later from Journey Studio.
+
+The host only owns the demo context, route guidance, initial journey, and stable
+UI markers under `components/sherpa/`. Recording, playback, Studio state, voice
+variants, and migration behavior remain inside the `demo-sherpa` package.
 
 ## Questions that should drive the next iteration
 

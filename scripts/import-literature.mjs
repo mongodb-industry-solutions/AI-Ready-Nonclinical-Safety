@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { MongoClient } from 'mongodb';
 
 const source = JSON.parse(await readFile(new URL('../data/literature-evidence.json', import.meta.url), 'utf8'));
+const semanticRuntime = JSON.parse(await readFile(new URL('../semantic/nonclinical-safety-runtime.json', import.meta.url), 'utf8'));
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required');
 
 const client = new MongoClient(process.env.MONGODB_URI);
@@ -12,7 +13,8 @@ try {
   const documents = database.collection('literature_documents');
   const chunks = database.collection('literature_chunks');
   const edges = database.collection('evidence_relationships');
-  const semanticReleaseId = process.env.SEMANTIC_RELEASE_ID || 'org.contextobjects.nonclinical-safety@0.3.0';
+  const semanticReleaseId = process.env.SEMANTIC_RELEASE_ID || semanticRuntime?.release?.releaseId;
+  if (!semanticReleaseId) throw new Error('The compiled semantic runtime does not declare release.releaseId');
   const chunkRows = source.documents.map((publication) => ({
     id: `${publication.id}-relevance`,
     publicationId: publication.id,

@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { investigate } from '@/lib/ai/investigator';
 import { loadSignalRecordEvidence } from '@/lib/data/evidence-repository';
+import { loadBiologicalCoherence } from '@/lib/data/coherence-repository';
+import { executeLiteratureQuery } from '@/lib/data/literature-query';
 import { loadStudyEvidence, StudyEvidenceNotFoundError } from '@/lib/data/study-repository';
 import { recordInvestigation } from '@/lib/data/review-store';
 import { loadActiveSemanticBundle } from '@/lib/semantics/repository';
+import { searchSemanticMap } from '@/lib/semantics/search';
 import type { DataQueryTrace } from '@/lib/contracts';
 
 const requestSchema = z.object({
@@ -40,8 +43,27 @@ export async function POST(request: Request) {
   if (!signal) {
     return NextResponse.json({ error: `Signal ${parsed.data.signalId} was not found in study ${parsed.data.studyId}` }, { status: 404 });
   }
-  const recordEvidence = await loadSignalRecordEvidence(evidence.study.id, evidence.study.snapshotId, signal, recordQuery);
-  const result = await investigate(evidence, parsed.data.signalId, parsed.data.question, parsed.data.profileId, recordEvidence);
+  const coherenceResolver = runtime.resolvers.find((item) => item.id === 'resolver.biological-coherence.v1');
+  const coherenceCapability = runtime.capabilities.find((item) => item.id === coherenceResolver?.capability);
+  const semanticCapability = runtime.capabilities.find((item) => item.id === 'inspect-semantic-model');
+  const literatureResolver = runtime.resolvers.find((item) => item.id === 'resolver.literature-evidence.v1');
+  const literatureCapability = runtime.capabilities.find((item) => item.id === literatureResolver?.capability);
+  const semanticQuery = `${signal.organ} ${signal.finding}. ${parsed.data.question}`;
+  const [recordEvidence, coherence, semanticGrounding, literatureEvidence] = await Promise.all([
+    loadSignalRecordEvidence(evidence.study.id, evidence.study.snapshotId, signal, recordQuery),
+    coherenceResolver && coherenceCapability?.allowedProfiles.includes(parsed.data.profileId)
+      ? loadBiologicalCoherence(evidence.study.id, evidence.study.snapshotId, signal, runtime.release.releaseId, coherenceResolver)
+      : undefined,
+    semanticCapability?.allowedProfiles.includes(parsed.data.profileId)
+      ? searchSemanticMap({ bundle: runtime, profileId: parsed.data.profileId, query: semanticQuery, limit: 8 })
+        .then((result) => ({ releaseId: runtime.release.releaseId, profileId: parsed.data.profileId, ...result }))
+      : undefined,
+    literatureResolver && literatureCapability?.allowedProfiles.includes(parsed.data.profileId)
+      ? executeLiteratureQuery({ bundle: runtime, signalId: signal.id, profileId: parsed.data.profileId, query: semanticQuery, limit: 8 })
+      : undefined,
+  ]);
+  if (coherence) dataOperations.push(...coherence.execution.dataOperations);
+  const result = await investigate(evidence, parsed.data.signalId, parsed.data.question, parsed.data.profileId, recordEvidence, coherence, semanticGrounding, literatureEvidence);
   const readCollections = [...new Set(dataOperations.filter((operation) => operation.source === 'mongodb' && operation.status === 'executed').map((operation) => operation.collection))];
   const predicates = dataOperations.reduce<Record<string, Array<Record<string, unknown>>>>((byCollection, operation) => {
     if (!byCollection[operation.collection]) byCollection[operation.collection] = [];
@@ -62,6 +84,15 @@ export async function POST(request: Request) {
       declaredStages: resolver.stages,
       executedStages: result.steps,
       dataOperations,
+      retrievalExecutions: {
+        ...(semanticGrounding ? { semantic: {
+          mode: semanticGrounding.mode,
+          query: semanticGrounding.query,
+          stages: semanticGrounding.stages,
+          managedEmbedding: semanticGrounding.managedEmbedding,
+        } } : {}),
+        ...(literatureEvidence ? { literature: literatureEvidence.execution } : {}),
+      },
       executedAt: new Date().toISOString(),
       boundScope: {
         studyId: evidence.study.id,

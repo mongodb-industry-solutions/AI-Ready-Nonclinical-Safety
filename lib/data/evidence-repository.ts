@@ -1,10 +1,21 @@
 import type { CanonicalEvidenceRecord, CanonicalRecordPage, DataQueryTrace, SafetySignal, SignalRecordEvidence } from '@/lib/contracts';
 import { solutionDatabase } from '@/lib/data/mongodb';
+import { summarizeMongoExplain } from '@/lib/data/mongodb-explain';
 
 type StoredRecord = CanonicalEvidenceRecord & {
   studyId: string;
   snapshotId: string;
   evidencePackageId?: string;
+};
+
+type DatasetDefinition = {
+  domain: string;
+  recordCount: number;
+};
+
+type SubjectTimelineInventory = {
+  subjectId: string;
+  domainCounts: Record<string, number>;
 };
 
 function escaped(value: string) {
@@ -60,57 +71,71 @@ export async function loadSignalRecordEvidence(
         ],
       };
     })();
-  const findingStartedAt = Date.now();
-  const findingRecords = await records.find({
+  const findingPredicate = {
     studyId,
     snapshotId,
     domain: 'MI',
     ...findingFilter,
-  }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(200).toArray();
-  onQuery?.({ id: 'finding-records', source: 'mongodb', collection: 'cdisc_records', operation: 'find', predicate: { studyId, snapshotId, domain: 'MI', signalId: signal.id }, status: 'executed', resultCount: findingRecords.length, durationMs: Date.now() - findingStartedAt });
+  };
+  const findingStartedAt = Date.now();
+  const findingRecords = await records.find(findingPredicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(200).toArray();
+  const findingDurationMs = Date.now() - findingStartedAt;
+  let findingPlan: DataQueryTrace['plan'];
+  if (onQuery) {
+    try {
+      findingPlan = summarizeMongoExplain(await records.find(findingPredicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(200).explain('executionStats'), findingRecords.length);
+    } catch {
+      // Evidence retrieval does not depend on explain privileges.
+    }
+  }
+  onQuery?.({ id: 'finding-records', source: 'mongodb', collection: 'cdisc_records', operation: 'find', predicate: { studyId, snapshotId, domain: 'MI', signalId: signal.id }, status: 'executed', resultCount: findingRecords.length, durationMs: findingDurationMs, ...(findingPlan ? { plan: findingPlan } : {}) });
 
   if (!findingRecords.length) return empty;
   const subjectIds = [...new Set(findingRecords.map((record) => String(record.facets?.subjectId || record.data?.USUBJID || '')).filter(Boolean))];
   const subjectScope = {
     studyId,
     snapshotId,
-    $or: [
-      { 'facets.subjectId': { $in: subjectIds } },
-      { 'data.USUBJID': { $in: subjectIds } },
-      { 'data.SUBJID': { $in: subjectIds } },
-    ],
+    'facets.subjectId': { $in: subjectIds },
   };
-  async function tracedRead<T>(id: string, collection: string, operation: 'find' | 'findOne', predicate: Record<string, unknown>, run: () => Promise<T>, count: (value: T) => number): Promise<T> {
+  async function tracedRead<T>(id: string, collection: string, operation: 'find' | 'findOne' | 'aggregate', predicate: Record<string, unknown>, run: () => Promise<T>, count: (value: T) => number, explain?: () => Promise<unknown>): Promise<T> {
     const startedAt = Date.now();
     const value = await run();
-    onQuery?.({ id, source: 'mongodb', collection, operation, predicate, status: 'executed', resultCount: count(value), durationMs: Date.now() - startedAt });
+    const durationMs = Date.now() - startedAt;
+    const resultCount = count(value);
+    let plan: DataQueryTrace['plan'];
+    if (onQuery && explain) {
+      try {
+        plan = summarizeMongoExplain(await explain(), resultCount);
+      } catch {
+        // Evidence retrieval does not depend on explain privileges.
+      }
+    }
+    onQuery?.({ id, source: 'mongodb', collection, operation, predicate, status: 'executed', resultCount, durationMs, ...(plan ? { plan } : {}) });
     return value;
   }
   const subjectPredicate = { studyId, snapshotId, subjectIds };
+  const demographicsPredicate = { ...subjectScope, domain: 'DM' };
+  const laboratoryPredicate = { ...subjectScope, domain: 'LB', $or: [{ 'facets.testCode': signal.correlatedLab }, { 'data.LBTESTCD': signal.correlatedLab }] };
+  const treatmentPredicate = { studyId, snapshotId, domain: 'TX' };
+  const artifactPredicate = { studyId, snapshotId };
+  const studyDomainPredicate = { studyId, snapshotId };
+  const subjectTimelinePredicate = { studyId, snapshotId, subjectId: { $in: subjectIds } };
   const [demographics, laboratory, treatment, artifacts, snapshot, studyDomainCounts, subjectDomainCounts] = await Promise.all([
-    tracedRead('subject-demographics', 'cdisc_records', 'find', { ...subjectPredicate, domain: 'DM' }, () => records.find({ ...subjectScope, domain: 'DM' }, { projection: { _id: 0 } }).toArray(), (rows) => rows.length),
+    tracedRead('subject-demographics', 'cdisc_records', 'find', { ...subjectPredicate, domain: 'DM' }, () => records.find(demographicsPredicate, { projection: { _id: 0 } }).toArray(), (rows) => rows.length, () => records.find(demographicsPredicate, { projection: { _id: 0 } }).explain('executionStats')),
     signal.correlatedLab
-      ? tracedRead('correlated-laboratory', 'cdisc_records', 'find', { ...subjectPredicate, domain: 'LB', testCode: signal.correlatedLab }, () => records.find({ ...subjectScope, domain: 'LB', $or: [{ 'facets.testCode': signal.correlatedLab }, { 'data.LBTESTCD': signal.correlatedLab }] }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(500).toArray(), (rows) => rows.length)
+      ? tracedRead('correlated-laboratory', 'cdisc_records', 'find', { ...subjectPredicate, domain: 'LB', testCode: signal.correlatedLab }, () => records.find(laboratoryPredicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(500).toArray(), (rows) => rows.length, () => records.find(laboratoryPredicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(500).explain('executionStats'))
       : Promise.resolve([]),
-    tracedRead('treatment-definitions', 'cdisc_records', 'find', { studyId, snapshotId, domain: 'TX' }, () => records.find({ studyId, snapshotId, domain: 'TX' }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(100).toArray(), (rows) => rows.length),
-    tracedRead('source-artifacts', 'source_artifacts', 'find', { studyId, snapshotId }, () => database.collection('source_artifacts').find(
-      { studyId, snapshotId },
+    tracedRead('treatment-definitions', 'cdisc_records', 'find', treatmentPredicate, () => records.find(treatmentPredicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(100).toArray(), (rows) => rows.length, () => records.find(treatmentPredicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(100).explain('executionStats')),
+    tracedRead('source-artifacts', 'source_artifacts', 'find', artifactPredicate, () => database.collection('source_artifacts').find(
+      artifactPredicate,
       { projection: { _id: 0, sourceId: 1, sourceName: 1, mediaType: 1, size: 1, digest: 1 } },
-    ).sort({ sourceName: 1 }).toArray(), (rows) => rows.length),
-    tracedRead('snapshot-metadata', 'study_snapshots', 'findOne', { studyId, snapshotId }, () => database.collection('study_snapshots').findOne(
-      { studyId, snapshotId },
+    ).sort({ sourceName: 1 }).toArray(), (rows) => rows.length, () => database.collection('source_artifacts').find(artifactPredicate, { projection: { _id: 0, sourceId: 1, sourceName: 1, mediaType: 1, size: 1, digest: 1 } }).sort({ sourceName: 1 }).explain('executionStats')),
+    tracedRead('snapshot-metadata', 'study_snapshots', 'findOne', artifactPredicate, () => database.collection('study_snapshots').findOne(
+      artifactPredicate,
       { projection: { _id: 0, evidencePackageId: 1, modelSchemaVersion: 1 } },
-    ), (row) => row ? 1 : 0),
-    records.aggregate<{ _id: string; count: number }>([
-      { $match: { studyId, snapshotId } },
-      { $group: { _id: '$domain', count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]).toArray(),
-    records.aggregate<{ _id: { subjectId: string; domain: string }; count: number }>([
-      { $match: subjectScope },
-      { $group: { _id: { subjectId: { $ifNull: ['$facets.subjectId', { $ifNull: ['$data.USUBJID', '$data.SUBJID'] }] }, domain: '$domain' }, count: { $sum: 1 } } },
-      { $sort: { '_id.subjectId': 1, '_id.domain': 1 } },
-    ]).toArray(),
+    ), (row) => row ? 1 : 0, () => database.collection('study_snapshots').find(artifactPredicate, { projection: { _id: 0, evidencePackageId: 1, modelSchemaVersion: 1 } }).limit(1).explain('executionStats')),
+    tracedRead('study-domain-inventory', 'dataset_definitions', 'find', studyDomainPredicate, () => database.collection<DatasetDefinition>('dataset_definitions').find(studyDomainPredicate, { projection: { _id: 0, domain: 1, recordCount: 1 } }).sort({ domain: 1 }).toArray(), (rows) => rows.length, () => database.collection<DatasetDefinition>('dataset_definitions').find(studyDomainPredicate, { projection: { _id: 0, domain: 1, recordCount: 1 } }).sort({ domain: 1 }).explain('executionStats')),
+    tracedRead('subject-domain-inventory', 'subject_timelines', 'find', { ...subjectPredicate, projection: 'domainCounts' }, () => database.collection<SubjectTimelineInventory>('subject_timelines').find(subjectTimelinePredicate, { projection: { _id: 0, subjectId: 1, domainCounts: 1 } }).sort({ subjectId: 1 }).toArray(), (rows) => rows.length, () => database.collection<SubjectTimelineInventory>('subject_timelines').find(subjectTimelinePredicate, { projection: { _id: 0, subjectId: 1, domainCounts: 1 } }).sort({ subjectId: 1 }).explain('executionStats')),
   ]);
 
   const bySubject = new Map(demographics.map((record) => [String(record.facets?.subjectId || record.data?.USUBJID), record]));
@@ -126,7 +151,7 @@ export async function loadSignalRecordEvidence(
       return {
         subjectId,
         treatmentGroup: String(demographicRecord?.facets?.treatmentGroup || demographicRecord?.data?.SPGRPCD || ''),
-        domainCounts: Object.fromEntries(subjectDomainCounts.filter((item) => item._id.subjectId === subjectId).map((item) => [item._id.domain, item.count])),
+        domainCounts: subjectDomainCounts.find((item) => item.subjectId === subjectId)?.domainCounts || {},
         demographicRecord: demographicRecord ? publicRecord(demographicRecord) : undefined,
         findingRecords: findingRecords.filter((record) => String(record.facets?.subjectId || record.data?.USUBJID) === subjectId).map(publicRecord),
         laboratoryRecords: laboratory.filter((record) => String(record.facets?.subjectId || record.data?.USUBJID) === subjectId).map(publicRecord),
@@ -135,8 +160,8 @@ export async function loadSignalRecordEvidence(
     treatmentRecords: treatment.map(publicRecord),
     sourceArtifacts: artifacts as unknown as SignalRecordEvidence['sourceArtifacts'],
     domainInventory: studyDomainCounts.map((item) => ({
-      domain: item._id,
-      studyRecords: item.count,
+      domain: item.domain,
+      studyRecords: item.recordCount,
     })),
     counts: { findings: findingRecords.length, laboratory: laboratory.length, subjects: subjectIds.length, artifacts: artifacts.length },
   };

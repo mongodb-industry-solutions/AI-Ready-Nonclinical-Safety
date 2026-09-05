@@ -1,6 +1,7 @@
 import type { DataQueryTrace, StudyEvidence } from '@/lib/contracts';
 import { demoEvidence } from '@/lib/data/demo';
 import { solutionDatabase } from '@/lib/data/mongodb';
+import { summarizeMongoExplain } from '@/lib/data/mongodb-explain';
 import { portfolioBenchmarks } from '@/lib/data/portfolio-benchmarks';
 
 type StudyEvidenceDocument = StudyEvidence & {
@@ -17,6 +18,8 @@ type EvidenceChunk = {
   sourceRef: string;
   metadata: Record<string, unknown>;
 };
+
+const PREFERRED_ATLAS_STUDY_ID = process.env.DEFAULT_STUDY_ID || 'PDS2014';
 
 export class StudyEvidenceNotFoundError extends Error {
   constructor(public readonly studyId: string) {
@@ -117,25 +120,36 @@ export async function loadStudyEvidence(studyId?: string, onQuery?: (trace: Data
 
   const query = studyId
     ? { 'study.id': studyId }
-    : { 'study.id': demoEvidence.study.id, 'study.snapshotId': demoEvidence.study.snapshotId };
+    : { 'study.id': PREFERRED_ATLAS_STUDY_ID };
+  let executedQuery = query;
   let stored = await collection.findOne(
     query,
     { projection: { _id: 0, importedAt: 0, importSource: 0 }, sort: { importedAt: -1 } },
   );
   if (!stored && !studyId) {
+    executedQuery = { 'study.id': demoEvidence.study.id };
     stored = await collection.findOne(
-      { 'study.id': demoEvidence.study.id },
+      executedQuery,
       { projection: { _id: 0, importedAt: 0, importSource: 0 }, sort: { importedAt: -1 } },
     );
   }
   if (!stored && !studyId) {
     await bootstrapDemoEvidence();
     stored = await collection.findOne(
-      { 'study.id': demoEvidence.study.id },
+      executedQuery,
       { projection: { _id: 0, importedAt: 0, importSource: 0 }, sort: { importedAt: -1 } },
     );
   }
-  onQuery?.({ id: 'study-evidence', source: 'mongodb', collection: 'study_evidence', operation: 'findOne', predicate: query, status: 'executed', resultCount: stored ? 1 : 0, durationMs: Date.now() - startedAt });
+  const durationMs = Date.now() - startedAt;
+  let plan: DataQueryTrace['plan'];
+  if (onQuery) {
+    try {
+      plan = summarizeMongoExplain(await collection.find(executedQuery, { projection: { _id: 0, importedAt: 0, importSource: 0 } }).sort({ importedAt: -1 }).limit(1).explain('executionStats'), stored ? 1 : 0);
+    } catch {
+      // Reading the study projection does not depend on explain privileges.
+    }
+  }
+  onQuery?.({ id: 'study-evidence', source: 'mongodb', collection: 'study_evidence', operation: 'findOne', predicate: executedQuery, status: 'executed', resultCount: stored ? 1 : 0, durationMs, ...(plan ? { plan } : {}) });
   if (stored) return stored as unknown as StudyEvidence;
   if (studyId) throw new StudyEvidenceNotFoundError(studyId);
   return demoEvidence;

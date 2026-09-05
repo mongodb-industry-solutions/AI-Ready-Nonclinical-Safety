@@ -86,6 +86,7 @@ function fixtureResult(
 ): { documents: RankedLiteratureDocument[]; execution: LiteratureQueryExecution } {
   const documents = allLiterature().filter((document) => document.matchedSignalIds.includes(signalId));
   const containment = documents.map((document) => ({ publicationId: document.id }));
+  const candidateStatus: RetrievalStageResult['status'] = documents.length ? 'executed' : 'skipped';
   return {
     documents: rankLiterature(documents, [{ lane: 'containment', candidates: containment }], query, 'portable-bundle'),
     execution: {
@@ -102,8 +103,8 @@ function fixtureResult(
         { id: 'vector', status: 'skipped', candidateCount: 0, durationMs: 0, detail: 'No connected embedding projection was used.' },
         { id: 'graph', status: 'skipped', candidateCount: 0, durationMs: 0, detail: 'The portable release supplies pre-linked evidence.' },
         { id: 'fuse', status: 'fallback', candidateCount: documents.length, durationMs: 0, detail: 'A single governed containment lane was ranked.' },
-        { id: 'rerank', status: 'executed', candidateCount: documents.length, durationMs: 0, detail: 'Evidence role and terminology overlap were applied.' },
-        { id: 'hydrate', status: 'executed', candidateCount: documents.length, durationMs: 0, detail: 'Attributed fixture metadata was returned.' },
+        { id: 'rerank', status: candidateStatus, candidateCount: documents.length, durationMs: 0, detail: documents.length ? 'Evidence role and terminology overlap were applied.' : 'No governed candidate was available to rerank.' },
+        { id: 'hydrate', status: candidateStatus, candidateCount: documents.length, durationMs: 0, detail: documents.length ? 'Attributed fixture metadata was returned.' : 'No governed candidate was available to hydrate.' },
       ],
     },
   };

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 import { MongoClient } from 'mongodb';
-import { projectStudyEvidence } from './lib/study-evidence-projector.mjs';
+import { projectOperationalEvidence, projectStudyEvidence } from './lib/study-evidence-projector.mjs';
 
 const arguments_ = process.argv.slice(2);
 const inputPath = arguments_.find((value) => !value.startsWith('--'));
@@ -117,17 +117,45 @@ function portfolioFindings(projection) {
   }));
 }
 
+const IMPORT_BATCH_SIZE = Math.max(50, Number.parseInt(process.env.IMPORT_BATCH_SIZE || '500', 10) || 500);
+const IMPORT_BATCH_RETRIES = Math.max(0, Number.parseInt(process.env.IMPORT_BATCH_RETRIES || '4', 10) || 4);
+
+function retryableImportError(error) {
+  return Boolean(
+    error?.hasErrorLabel?.('RetryableWriteError')
+    || error?.hasErrorLabel?.('ResetPool')
+    || /timed out|ECONNRESET|connection closed|server selection/i.test(String(error?.message || error)),
+  );
+}
+
 async function upsertMany(collection, documents) {
   if (!documents.length) return;
-  await collection.bulkWrite(documents.map((document) => ({
-    replaceOne: { filter: { _id: document._id }, replacement: document, upsert: true },
-  })), { ordered: false });
+  for (let offset = 0; offset < documents.length; offset += IMPORT_BATCH_SIZE) {
+    const batch = documents.slice(offset, offset + IMPORT_BATCH_SIZE);
+    let attempt = 0;
+    while (true) {
+      try {
+        await collection.bulkWrite(batch.map((document) => ({
+          replaceOne: { filter: { _id: document._id }, replacement: document, upsert: true },
+        })), { ordered: false });
+        break;
+      } catch (error) {
+        if (attempt >= IMPORT_BATCH_RETRIES || !retryableImportError(error)) throw error;
+        attempt += 1;
+        await new Promise((resolve) => setTimeout(resolve, 250 * (2 ** attempt)));
+      }
+    }
+  }
 }
 
 const input = JSON.parse(await readFile(inputPath, 'utf8'));
 const isPackage = input?.apiVersion === 'kehrnel.dev/cdisc-solution-evidence/v1';
 const packageDocument = isPackage ? validatePackage(input) : null;
 const projection = packageDocument ? projectStudyEvidence(packageDocument, { evidenceClass: selectedEvidenceClass }) : validateStudyEvidence(input);
+const semanticRuntime = JSON.parse(await readFile(new URL('../semantic/nonclinical-safety-runtime.json', import.meta.url), 'utf8'));
+const semanticReleaseId = semanticRuntime?.release?.releaseId;
+if (!semanticReleaseId) throw new Error('The compiled semantic runtime does not declare release.releaseId');
+const operational = packageDocument ? projectOperationalEvidence(packageDocument, { semanticReleaseId }) : null;
 
 const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
@@ -138,6 +166,11 @@ try {
     const { manifest, evidence, modelSchemaVersion } = packageDocument;
     const identity = { studyId: manifest.studyId, snapshotId: manifest.snapshotId };
     const stamp = { ...identity, modelSchemaVersion, evidencePackageId: manifest.packageId };
+    await database.collection('evidence_imports').updateOne(
+      { _id: manifest.packageId },
+      { $set: { ...stamp, apiVersion: packageDocument.apiVersion, counts: manifest.counts, contentDigest: manifest.contentDigest, status: 'loading', startedAt: new Date() } },
+      { upsert: true },
+    );
     await upsertMany(database.collection('study_snapshots'), [{
       _id: localId(manifest.studyId, manifest.snapshotId, 'snapshot'), ...stamp, ...evidence.snapshot, importState: 'verified',
     }]);
@@ -178,6 +211,7 @@ try {
     await database.collection('study_snapshots').createIndex({ studyId: 1, snapshotId: 1 }, { name: 'study_snapshot', unique: true });
     await database.collection('dataset_definitions').createIndex({ studyId: 1, snapshotId: 1, domain: 1 }, { name: 'dataset_domain', unique: true });
     await database.collection('cdisc_records').createIndexes([
+      { key: { studyId: 1, snapshotId: 1, sourceId: 1 }, name: 'record_source_identity', unique: true },
       { key: { studyId: 1, snapshotId: 1, domain: 1, rowOrdinal: 1 }, name: 'record_domain_order' },
       { key: { studyId: 1, snapshotId: 1, 'facets.subjectId': 1, domain: 1 }, name: 'subject_evidence' },
       { key: { studyId: 1, snapshotId: 1, 'facets.organ': 1, 'facets.finding': 1 }, name: 'finding_evidence' },
@@ -185,11 +219,43 @@ try {
     ]);
     await database.collection('subjects').createIndex({ studyId: 1, snapshotId: 1, subjectId: 1 }, { name: 'subject_identity', unique: true });
     await database.collection('source_artifacts').createIndex({ studyId: 1, snapshotId: 1, 'digest.value': 1 }, { name: 'artifact_digest' });
-    await database.collection('evidence_imports').updateOne(
-      { _id: manifest.packageId },
-      { $set: { ...stamp, apiVersion: packageDocument.apiVersion, counts: manifest.counts, contentDigest: manifest.contentDigest, status: 'complete', importedAt: new Date() } },
-      { upsert: true },
-    );
+    const operationalStamp = {
+      ...stamp,
+      projectionVersion: operational.projectionVersion,
+      semanticReleaseId: operational.semanticReleaseId,
+    };
+    const operationalCollections = [
+      ['study_endpoint_summaries', 'endpoint', operational.endpointSummaries],
+      ['measurement_series', 'series', operational.measurementSeries],
+      ['subject_timelines', 'timeline', operational.subjectTimelines],
+      ['evidence_relationships', 'relationship', operational.evidenceRelationships],
+    ];
+    for (const [collectionName, idPrefix, documents] of operationalCollections) {
+      const collection = database.collection(collectionName);
+      await collection.deleteMany(identity);
+      await upsertMany(collection, documents.map((document) => ({
+        _id: localId(manifest.studyId, manifest.snapshotId, `${idPrefix}:${document.id}`),
+        ...operationalStamp,
+        ...document,
+      })));
+    }
+    await database.collection('study_endpoint_summaries').createIndexes([
+      { key: { studyId: 1, snapshotId: 1, id: 1 }, name: 'endpoint_summary_identity', unique: true },
+      { key: { studyId: 1, snapshotId: 1, organ: 1, domain: 1, testCode: 1, sex: 1, phase: 1, 'group.code': 1 }, name: 'endpoint_summary_scope' },
+    ]);
+    await database.collection('measurement_series').createIndexes([
+      { key: { studyId: 1, snapshotId: 1, id: 1 }, name: 'measurement_series_identity', unique: true },
+      { key: { studyId: 1, snapshotId: 1, organ: 1, domain: 1, testCode: 1, sex: 1, phase: 1 }, name: 'measurement_series_scope' },
+    ]);
+    await database.collection('subject_timelines').createIndexes([
+      { key: { studyId: 1, snapshotId: 1, subjectId: 1 }, name: 'subject_timeline_identity', unique: true },
+      { key: { studyId: 1, snapshotId: 1, 'group.code': 1, sex: 1, 'events.phase': 1 }, name: 'subject_timeline_phase' },
+    ]);
+    await database.collection('evidence_relationships').createIndexes([
+      { key: { studyId: 1, snapshotId: 1, id: 1 }, name: 'evidence_relationship_identity', unique: true },
+      { key: { studyId: 1, snapshotId: 1, from: 1, predicate: 1, to: 1 }, name: 'evidence_relationship_from_to' },
+      { key: { studyId: 1, snapshotId: 1, subjectId: 1, authority: 1 }, name: 'evidence_relationship_subject' },
+    ]);
   }
 
   await database.collection('study_evidence').replaceOne(
@@ -219,8 +285,25 @@ try {
     { key: { organ: 1, species: 1, strain: 1, evidenceClass: 1 }, name: 'portfolio_semantic_scope' },
   ]);
 
+  if (packageDocument) {
+    const { manifest, modelSchemaVersion } = packageDocument;
+    await database.collection('evidence_imports').updateOne(
+      { _id: manifest.packageId },
+      { $set: {
+        studyId: manifest.studyId,
+        snapshotId: manifest.snapshotId,
+        modelSchemaVersion,
+        evidencePackageId: manifest.packageId,
+        semanticReleaseId,
+        operationalProjection: operational.reconciliation,
+        status: 'complete',
+        importedAt: new Date(),
+      } },
+    );
+  }
+
   const name = packageDocument
-    ? `${packageDocument.manifest.studyId}/${packageDocument.manifest.snapshotId}: ${packageDocument.manifest.counts.records} canonical records, ${packageDocument.manifest.counts.sourceArtifacts} source artifacts, plus a reconciled ${projection.provenance.projectionVersion} read model`
+    ? `${packageDocument.manifest.studyId}/${packageDocument.manifest.snapshotId}: ${packageDocument.manifest.counts.records} canonical records, ${packageDocument.manifest.counts.sourceArtifacts} source artifacts, ${operational.endpointSummaries.length} endpoint summaries, ${operational.measurementSeries.length} measurement series, ${operational.subjectTimelines.length} subject timelines, and ${operational.evidenceRelationships.length} evidence relationships`
     : `${projection.study.id}/${projection.study.snapshotId}: solution read model`;
   console.log(`Imported ${name}.`);
 } finally {

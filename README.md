@@ -26,18 +26,18 @@ problem, the shape, why it works, and **when not to use it**.
 - A study-wide dose-by-organ incidence matrix and organ signal landscape ranked for expert review.
 - A separate portfolio similarity atlas with interactive cross-study graphs, explainable retrieval lanes, and evidence-class boundaries.
 - Dose-response and longitudinal laboratory charts.
-- Cross-domain links between SEND DM, TX, MI, and LB records.
+- Cross-domain evidence across all 25 imported PDS2014 SEND datasets, including DM, TX, MI, MA, OM, BW/BG, LB, CL, EX, PC/PP, SE/DS, and source-declared RELREC links.
 - A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
 - A full-screen Investigation Room with an interactive evidence-path navigator and an optional AI-first canvas where the investigator composes typed graph, dose-response, laboratory, semantic-clarification, and resolver widgets while exposing citations.
-- An inspectable execution envelope for every investigation: the authorized deterministic resolver contract, immutable query scope, declared stages, and the stages that actually executed, fell back, or were skipped.
+- An inspectable execution envelope for every investigation: the authorized deterministic resolver contract, immutable query scope, server-selected typed widgets, real MongoDB `executionStats` (winning index, keys/documents examined, rows returned, and duration), and every structured, graph, semantic, vector, literature, fusion, and reranking stage that actually executed, fell back, or was skipped.
 - Record-level drilldown from a signal to its contributing evidence, followed by a paginated canonical explorer across every imported domain, subject or complete-study scope, and checksum-verified source artifact. Laboratory rows can be filtered by finding-linked test, source-supplied abnormality/range evidence, or unavailable reference range without inventing clinical thresholds.
 - A literature-evidence workspace that grounds SEND findings to attributed PubMed records, separates supporting context from alternative explanations, and exposes the hybrid retrieval path.
 - A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses, plus live hybrid search across the map itself.
-- Governed review actions stored separately from immutable SEND evidence.
+- A governed target-organ assessment that requires explicit endpoint citations and separately records target-organ conclusion, adversity, reversibility, rationale, semantic release, and approval state without mutating SEND evidence.
 - A live semantic change lab that shows a newly observed terminology value flowing through Change Streams, validation, compilation, profile projection, and map refresh.
 - A technical view explaining the boundary between the deployed solution and upstream HDL/Kehrnel enablement.
 
-The default demonstration uses deterministic aggregates from the public [PhUSE SENDConform FFU contribution](https://github.com/phuse-org/SENDConform), pinned to revision `eb438ce3f7cbd74eea77677f43b916dd46c802cd`. The connected vertical corpus has also been verified with three independent public studies from that revision: Nimble, Instem GLP003, and PointCross. A reproducible [public SEND evidence profile](docs/evidence/cdisc-public-study-profile.md) now covers those studies plus PDS2014 and selects PDS adrenal-gland vacuolization as the next cross-domain vertical. No large XPT files are committed.
+The default connected demonstration is the public **PDS2014** study from [PhUSE SENDConform](https://github.com/phuse-org/SENDConform), pinned to revision `eb438ce3f7cbd74eea77677f43b916dd46c802cd`. Its 25 datasets and 42,041 canonical records drive the adrenal-gland vacuolization vertical. The verified corpus also includes FFU, Nimble, Instem GLP003, and PointCross. A reproducible [public SEND evidence profile](docs/evidence/cdisc-public-study-profile.md) documents the selection. No large XPT files are committed.
 
 ## Quick Start
 
@@ -49,6 +49,30 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+### Demo Sherpa
+
+The application embeds Demo Sherpa from the committed
+`vendor/demo-sherpa-0.1.2.tgz` package, so local and container builds do not
+depend on a sibling checkout or private package registry. On first browser
+load, the host seeds an editable eight-step journey named **From SEND evidence
+to a defensible safety hypothesis**. A newer bundled seed migrates an older
+revision once; edits to the current revision are then preserved.
+
+The seed is deliberately text-first. Each step contains ordered narration
+segments, explicit pause units, stable host actions, and UI checkpoints. With
+no service configured, playback uses browser speech. To generate and retain
+segment audio later, configure the optional Sherpa catalog and speech endpoints
+from `.env.example`, then use **Nonclinical Safety Journey Studio**.
+
+The host integration lives under `components/sherpa/`; the application exposes
+stable `data-sherpa-action` and `data-sherpa-state` attributes for recording and
+checkpoint-gated replay. Set `NEXT_PUBLIC_SHERPA_ENABLED=false` to disable the
+floating guide without removing the integration.
+
+When the sibling Demo Sherpa package version changes, build and pack it from
+`../demo-sherpa`. This repository is registered in its `scripts/syncDemos.mjs`
+distribution list; running `make sync` there refreshes the vendored package.
 
 To persist the demonstration and investigation history in your own MongoDB deployment:
 
@@ -173,7 +197,7 @@ Without `MONGODB_URI`, the application provides a fully interactive experience f
 
 When `MONGODB_URI` is set, the application reads its own canonical evidence, operational read models, retrieval projections, and solution-state collections. The bundled public study summary is inserted idempotently only when no connected projection has been imported. A Kehrnel export populates `study_snapshots`, `dataset_definitions`, `cdisc_records`, `subjects`, `source_artifacts`, `validation_evidence`, and `lineage_events` without coupling the running solution to Kehrnel.
 
-The verified public corpus exercises 34,843 canonical records and 501 animals across four distinct studies. The study selector opens every imported observed study as a complete workspace; the portfolio atlas compares their bounded pathology projections alongside clearly separated synthetic benchmarks. Kehrnel exposes the additional source packages as `phuse-nimble-send`, `phuse-instem-send`, and `phuse-pointcross-send`, with source revision, license, and checksums retained in every export.
+The verified public corpus exercises **76,884 canonical records and 625 animals across five distinct studies**. PDS2014 contributes 42,041 records, 124 animals, and all 25 datasets. The study selector opens every imported observed study as a complete workspace; the portfolio atlas compares their bounded pathology projections alongside clearly separated synthetic benchmarks. Kehrnel exposes the source packages with revision, license, and checksums retained in every export.
 
 Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Its checked-in contract is [`contracts/cdisc-solution-evidence-v1.schema.json`](contracts/cdisc-solution-evidence-v1.schema.json). Download the generated JSON artifact, then import it:
 
@@ -186,13 +210,15 @@ npm run rebuild:portfolio
 npm run setup:indexes
 ```
 
-The importer verifies API and model versions, requires a published snapshot, recomputes the package SHA-256 digest, checks every manifest count, and performs idempotent upserts. It then deterministically derives the solution-owned `StudyEvidence` read model from canonical DM, TX, MI, and LB records. The projection carries exact source-record IDs and hashes, its own digest, the versioned projection rule IDs used to form business signals, and a reconciliation receipt against the package counts. There is no manually supplied second data model in connected mode. The older one-file `StudyEvidence` import remains supported only for lightweight fixture use.
+The importer verifies API and model versions, requires a published snapshot, recomputes the package SHA-256 digest, checks every manifest count, and performs bounded, retryable, idempotent upserts. It then deterministically derives a bounded `StudyEvidence` summary plus 4,584 endpoint summaries, 532 measurement series, 124 subject timelines, and 40,594 typed evidence relationships for PDS2014. Every projection carries exact source-record IDs, a deterministic digest, projection version, and the semantic release used to interpret it. Source-declared RELREC edges remain distinguishable from governed joins. There is no manually supplied second data model in connected mode.
 
 The index command creates the solution-owned Atlas Search and Vector Search definitions described in [`docs/atlas-indexes.md`](docs/atlas-indexes.md). It requires an Atlas database role permitted to manage search indexes.
 
 ## AI Retrieval Design
 
-The investigator is deliberately hybrid:
+The investigator is deliberately hybrid. These lanes execute inside one server-side
+investigation envelope; the browser does not invent or separately claim a retrieval
+plan:
 
 1. Bind tenant, study, and immutable snapshot.
 2. Execute exact governed aggregation for counts and measurements.
@@ -204,7 +230,7 @@ The investigator is deliberately hybrid:
 
 ### External literature evidence
 
-Literature is a separate contextual-evidence lane. The demonstration includes three verified PubMed records linked to the thymus finding by organ, morphology, species, study design, and explanatory role. It stores bibliographic metadata and application-authored relevance summaries only—never unlicensed article text.
+Literature is a separate contextual-evidence lane. The demonstration includes verified PubMed records linked only where organ, morphology, species, study design, and explanatory role match. It stores bibliographic metadata and application-authored relevance summaries only—never unlicensed article text—and shows zero results rather than borrowing unrelated evidence for the selected PDS finding.
 
 For a production corpus, source PDFs live in governed S3-compatible object storage. The solution stores parsed, section-aware chunks, semantic links, page or passage locators, content hashes, and access policy in MongoDB. Atlas Automated Embedding stores generated vectors in its reserved internal database rather than adding arrays to those application documents. Full text is ingested only from PMC Open Access or material for which the deployer has permission. PubMed identifiers and source links remain attached to every retrieved passage.
 

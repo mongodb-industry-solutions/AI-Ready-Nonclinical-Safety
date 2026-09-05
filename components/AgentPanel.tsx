@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Activity, Bot, Braces, CheckCircle2, ChevronRight, Database, GitBranch, Maximize2, Minimize2, SearchCode, Send, ShieldCheck, Sparkles } from 'lucide-react';
-import type { InvestigationResult, SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence, StudySummary } from '@/lib/contracts';
+import type { InvestigationResult, SafetySignal, SemanticGroundingResult, SemanticProfileId, SemanticRuntimeView, StudyEvidence, StudySummary } from '@/lib/contracts';
 import DoseResponseChart from '@/components/DoseResponseChart';
 import EvidenceGraph from '@/components/EvidenceGraph';
 import LabTrajectoryChart from '@/components/LabTrajectoryChart';
@@ -12,29 +12,6 @@ const prompts = [
   'Compare incidence and severity across doses.',
   'Show the cross-domain evidence and its lineage.',
 ];
-
-type SemanticHit = {
-  resourceType: string;
-  resourceId: string;
-  label: string;
-  excerpt: string;
-  score: number;
-  lanes: string[];
-};
-
-type SemanticSearchResponse = {
-  mode: string;
-  hits: SemanticHit[];
-  releaseId: string;
-  profileId: SemanticProfileId;
-  stages: Array<{ id: string; status: 'executed' | 'fallback' | 'skipped'; detail: string }>;
-  managedEmbedding: {
-    index: string;
-    sourcePath: string;
-    vectorStorage: string;
-    vectorFieldInSourceDocument: boolean;
-  };
-};
 
 interface AgentPanelProps {
   study: StudySummary;
@@ -47,10 +24,12 @@ interface AgentPanelProps {
   expanded?: boolean;
   onToggleExpanded?: () => void;
   onShowSource?: () => void;
+  onOpenCoherence?: () => void;
+  onOpenLiterature?: () => void;
   onOpenSemantic?: (focusId?: string) => void;
 }
 
-function semanticObjectForHit(hit: SemanticHit, runtime?: SemanticRuntimeView): string | undefined {
+function semanticObjectForHit(hit: SemanticGroundingResult['hits'][number], runtime?: SemanticRuntimeView): string | undefined {
   if (hit.resourceType === 'object') return hit.resourceId;
   if (hit.resourceType === 'valueSet') return runtime?.valueSets.find((item) => item.id === hit.resourceId)?.binding.split('.')[0];
   if (hit.resourceType === 'concept') return runtime?.taxonomy.concepts.find((item) => item.id === hit.resourceId)?.semanticObjects[0];
@@ -59,10 +38,10 @@ function semanticObjectForHit(hit: SemanticHit, runtime?: SemanticRuntimeView): 
   return undefined;
 }
 
-export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id, evidence, runtime, expanded = false, onToggleExpanded, onShowSource, onOpenSemantic }: AgentPanelProps) {
+export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id, evidence, runtime, expanded = false, onToggleExpanded, onShowSource, onOpenCoherence, onOpenLiterature, onOpenSemantic }: AgentPanelProps) {
   const [question, setQuestion] = useState(prompts[0]);
   const [result, setResult] = useState<InvestigationResult | null>(null);
-  const [semanticSearch, setSemanticSearch] = useState<SemanticSearchResponse | null>(null);
+  const [semanticSearch, setSemanticSearch] = useState<SemanticGroundingResult | null>(null);
   const [selectedMeaningId, setSelectedMeaningId] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,6 +49,18 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
   const findingConcepts = useMemo(() => runtime?.taxonomy.concepts.filter((concept) => concept.semanticObjects.includes('Finding')) || [], [runtime]);
   const findingValueSets = useMemo(() => runtime?.valueSets.filter((valueSet) => valueSet.binding.startsWith('Finding.')) || [], [runtime]);
   const selectedMeaning = semanticSearch?.hits.find((hit) => hit.resourceId === selectedMeaningId) || semanticSearch?.hits[0];
+  const widgetOrder = useMemo(() => new Map((result?.widgets || []).map((widget, index) => [widget.kind, index])), [result?.widgets]);
+  const coherenceIncidence = useMemo(() => {
+    const totals = new Map<number, { affected: number; examined: number }>();
+    for (const endpoint of result?.coherence?.targetOrgan.endpointSummaries || []) {
+      if (endpoint.domain !== 'MI' || endpoint.finding?.trim().toUpperCase() !== signal.finding.trim().toUpperCase() || endpoint.group?.dose === undefined || !endpoint.incidence) continue;
+      const current = totals.get(endpoint.group.dose) || { affected: 0, examined: 0 };
+      current.affected += endpoint.incidence.affected;
+      current.examined += endpoint.incidence.examined;
+      totals.set(endpoint.group.dose, current);
+    }
+    return [...totals.entries()].sort(([left], [right]) => left - right).map(([dose, value]) => ({ dose, ...value, rate: value.examined ? Math.round((value.affected / value.examined) * 100) : 0 }));
+  }, [result?.coherence, signal.finding]);
 
   async function ask(nextQuestion = question) {
     if (!enabled) return;
@@ -77,26 +68,28 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
     setError(null);
     setQuestion(nextQuestion);
     try {
-      const semanticQuery = `${signal.organ} ${signal.finding}. ${nextQuestion}`;
-      const [response, semanticResponse] = await Promise.all([
-        fetch('/api/investigations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ studyId: study.id, signalId: signal.id, profileId, question: nextQuestion }) }),
-        fetch(`/api/semantics/search?profile=${profileId}&q=${encodeURIComponent(semanticQuery)}&limit=8`, { cache: 'no-store' }).catch(() => null),
-      ]);
+      const response = await fetch('/api/investigations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ studyId: study.id, signalId: signal.id, profileId, question: nextQuestion }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'The investigation could not be authorized');
-      setResult(payload);
-      if (semanticResponse?.ok) {
-        const semanticPayload = await semanticResponse.json() as SemanticSearchResponse;
-        setSemanticSearch(semanticPayload);
-        setSelectedMeaningId(semanticPayload.hits[0]?.resourceId);
-      }
+      const investigation = payload as InvestigationResult;
+      setResult(investigation);
+      setSemanticSearch(investigation.semanticGrounding || null);
+      setSelectedMeaningId(investigation.semanticGrounding?.hits[0]?.resourceId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The investigation could not be authorized');
     } finally { setBusy(false); }
   }
 
-  function askWithMeaning(hit: SemanticHit) {
+  function askWithMeaning(hit: SemanticGroundingResult['hits'][number]) {
     void ask(`${question} Resolve the question using the governed ${hit.resourceType} “${hit.label}” (${hit.resourceId}) and state if that interpretation changes the conclusion.`);
+  }
+
+  function openCitation(domain: string, sourceRef: string) {
+    if (domain === 'SEMANTIC') {
+      const hit = semanticSearch?.hits.find((item) => item.sourceRef === sourceRef);
+      onOpenSemantic?.(hit ? semanticObjectForHit(hit, runtime) : undefined);
+    } else if (domain === 'LITERATURE') onOpenLiterature?.();
+    else onShowSource?.();
   }
 
   return <aside className={`agent-panel ${expanded ? 'agent-panel-expanded' : ''}`} id={id}>
@@ -109,7 +102,7 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
           <div className="chat-agent-label"><Bot size={13} /> Investigation</div>
           {!enabled ? <p>This semantic profile is not authorized to run the AI evidence investigator.</p> : error ? <p>{error}</p> : busy ? <div className="thinking"><i /><i /><i /> Planning governed retrieval…</div> : result ? <>
             <p>{result.answer}</p>
-            <div className="agent-citations">{result.citations.map((citation) => <button key={citation.sourceRef} title={`${citation.detail} · ${citation.sourceRef}`} onClick={onShowSource}>{citation.domain} · {citation.label}</button>)}</div>
+            <div className="agent-citations">{result.citations.map((citation, index) => <button key={`${citation.domain}:${citation.sourceRef}:${index}`} title={`${citation.detail} · ${citation.sourceRef}`} onClick={() => openCitation(citation.domain, citation.sourceRef)}>{citation.domain} · {citation.label}</button>)}</div>
             {semanticSearch?.hits.length ? <button className="meaning-link" onClick={() => onOpenSemantic?.(semanticObjectForHit(semanticSearch.hits[0], runtime))}><Braces size={12} /> Explore the governing meaning</button> : null}
           </> : <p>Select a suggested investigation or ask your own question. I will combine exact study queries, semantic evidence, graph expansion and citations.</p>}
         </div>
@@ -117,28 +110,49 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
       </div>
 
       {expanded && result && evidence && runtime && <div className="agent-visual-canvas">
-        <section className="agent-viz-card agent-dose-widget"><header><span><Activity size={14} /><b>Dose-response evidence</b></span><em>MI + DM + TX</em></header><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></section>
-        {lab && <section className="agent-viz-card agent-lab-widget"><header><span><Activity size={14} /><b>{lab.label} trajectory</b></span><em>LB + DM + TX</em></header><LabTrajectoryChart series={lab} /></section>}
-        <section className="agent-viz-card agent-semantic-widget">
+        {widgetOrder.has('dose-response') && <section style={{ order: widgetOrder.get('dose-response') }} className="agent-viz-card agent-dose-widget"><header><span><Activity size={14} /><b>Dose-response evidence</b></span><em>MI + DM + TX</em></header><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></section>}
+        {lab && widgetOrder.has('laboratory-trajectory') && <section style={{ order: widgetOrder.get('laboratory-trajectory') }} className="agent-viz-card agent-lab-widget"><header><span><Activity size={14} /><b>{lab.label} trajectory</b></span><em>LB + DM + TX</em></header><LabTrajectoryChart series={lab} /></section>}
+        {result.coherence?.available && widgetOrder.has('biological-coherence') && <section style={{ order: widgetOrder.get('biological-coherence') }} className="agent-viz-card agent-coherence-widget">
+          <header><span><MicroscopeIcon /><b>Biological coherence</b></span><em>{result.coherence.execution.resolverId}</em></header>
+          <div className="agent-coherence-body">
+            <div className="agent-incidence-mini">{coherenceIncidence.map((item) => <article key={item.dose}><div title={`${item.affected}/${item.examined} animals`}><i style={{ height: `${Math.max(item.rate, 2)}%` }} /></div><b>{item.rate}%</b><small>{item.dose} mg/kg</small></article>)}</div>
+            <div className="agent-coherence-lanes">
+              <span><b>{result.coherence.inventory.endpointSummaries}</b><small>target-organ endpoints</small></span>
+              <span><b>{result.coherence.targetOrgan.measurementSeries.length}</b><small>organ measurement series</small></span>
+              <span><b>{result.coherence.systemicContext.bodyWeightSeries.length}</b><small>body-weight series</small></span>
+              <span><b>{result.coherence.systemicContext.exposureSeries.length}</b><small>exposure series</small></span>
+            </div>
+          </div>
+          <footer><span><GitBranch size={12} /> {result.coherence.inventory.sourceDeclaredRelationships} source-declared links</span><span><CircleAlertIcon /> {result.coherence.systemicContext.laboratoryCoverage.sourceRangeSummaryCount ? 'Source ranges available' : 'No source laboratory ranges'}</span>{onOpenCoherence && <button onClick={onOpenCoherence}>Open full evidence <ChevronRight size={12} /></button>}</footer>
+        </section>}
+        {widgetOrder.has('semantic-grounding') && <section style={{ order: widgetOrder.get('semantic-grounding') }} className="agent-viz-card agent-semantic-widget">
           <header><span><Braces size={14} /><b>{result.confidence === 'strong-pattern' ? 'Semantic grounding' : 'Clarify the intended meaning'}</b></span><em>{semanticSearch?.mode || 'compiled map'}</em></header>
           <div className="semantic-hierarchy"><span>Evidence</span><ChevronRight size={11} />{findingConcepts.slice(0, 3).map((concept) => <span key={concept.id}>{concept.label}</span>)}</div>
           <div className="meaning-results">{semanticSearch?.hits.slice(0, 5).map((hit) => <button className={selectedMeaning?.resourceId === hit.resourceId ? 'active' : ''} key={`${hit.resourceType}:${hit.resourceId}`} onClick={() => setSelectedMeaningId(hit.resourceId)}><i>{hit.resourceType}</i><span><b>{hit.label}</b><small>{hit.lanes.join(' + ')} · {hit.score}</small></span></button>)}</div>
           {selectedMeaning && <div className="meaning-inspector"><p>{selectedMeaning.excerpt}</p><div><button onClick={() => askWithMeaning(selectedMeaning)}><Sparkles size={11} /> Ask using this meaning</button><button onClick={() => onOpenSemantic?.(semanticObjectForHit(selectedMeaning, runtime))}><Braces size={11} /> Open in semantic map</button></div></div>}
           <div className="value-set-strip">{findingValueSets.map((valueSet) => <article key={valueSet.id}><b>{valueSet.label}</b><small>{valueSet.authority} · {valueSet.version}</small><div>{valueSet.values.slice(0, 6).map((value) => <button key={value} onClick={() => setQuestion(`Does “${value}” mean the intended ${valueSet.binding} for this investigation?`)}>{value}</button>)}</div></article>)}</div>
           {semanticSearch && <div className="semantic-execution-mini"><span>{semanticSearch.releaseId}</span>{semanticSearch.stages.map((stage) => <i className={stage.status} title={stage.detail} key={stage.id}>{stage.id}</i>)}<em>{semanticSearch.managedEmbedding.vectorFieldInSourceDocument ? 'document vector' : 'Atlas-managed vector'}</em></div>}
-        </section>
-        <section className="agent-viz-card execution-contract-widget">
+        </section>}
+        {widgetOrder.has('execution-plan') && <section style={{ order: widgetOrder.get('execution-plan') }} className="agent-viz-card execution-contract-widget">
           <header><span><SearchCode size={14} /><b>Deterministic contract &amp; executed plan</b></span><em>{result.execution?.semanticReleaseId || runtime.release.releaseId}</em></header>
           {result.execution && <><div className="contract-summary"><span><small>RESOLVER</small><b>{result.execution.resolverId}</b></span><span><small>CAPABILITY</small><b>{result.execution.capabilityId}</b></span><span><small>EXECUTOR</small><b>{result.execution.executor}</b></span></div><div className="query-scope"><code>{JSON.stringify(result.execution.queryShape.predicates)}</code><span>READ {result.execution.queryShape.readCollections.join(' · ')}<small>AUDIT WRITE {result.execution.queryShape.auditWriteCollection}</small></span></div></>}
-          {result.execution && <div className="data-operation-list">{result.execution.dataOperations.map((operation) => <article key={operation.id}><span><Database size={11} /><b>{operation.collection}.{operation.operation}</b></span><code>{JSON.stringify(operation.predicate)}</code><em className={operation.status}>{operation.status} · {operation.resultCount} rows · {operation.durationMs} ms</em></article>)}</div>}
+          {result.execution && <div className="data-operation-list">{result.execution.dataOperations.map((operation) => <article key={operation.id}><span><Database size={11} /><b>{operation.collection}.{operation.operation}</b></span><code>{JSON.stringify(operation.predicate)}</code><em className={operation.status}>{operation.status} · {operation.resultCount} rows · {operation.durationMs} ms{operation.plan ? ` · ${operation.plan.documentsExamined ?? '—'} examined · ${operation.plan.indexes.join(', ') || 'COLLSCAN'}` : ''}</em></article>)}</div>}
           <div className="executed-plan">{(result.execution?.executedStages || result.steps).map((step, index, steps) => <article key={step.id}><i className={step.status}>{index + 1}</i><div><b>{step.label}</b><small>{step.engine} · {step.status}</small><p>{step.detail}</p></div>{index < steps.length - 1 && <ChevronRight size={12} />}</article>)}</div>
           <footer><CheckCircle2 size={12} /> Bound to immutable evidence · {result.execution?.policies.join(' · ') || 'read-only'}</footer>
-        </section>
-        <section className="agent-viz-card agent-evidence-widget"><header><span><GitBranch size={14} /><b>Evidence topology</b></span><em>interactive</em></header><EvidenceGraph evidence={evidence} signal={signal} immersive /></section>
+        </section>}
+        {widgetOrder.has('evidence-topology') && <section style={{ order: widgetOrder.get('evidence-topology') }} className="agent-viz-card agent-evidence-widget"><header><span><GitBranch size={14} /><b>Evidence topology</b></span><em>interactive</em></header><EvidenceGraph evidence={evidence} signal={signal} immersive /></section>}
       </div>}
       {expanded && !result && <div className="agent-workspace-empty"><Sparkles size={26} /><h2>Ask a question to compose the investigation canvas.</h2><p>The investigator will select visual widgets, expose its deterministic resolver contract, and bind semantic ambiguities to the active Context Studio release.</p></div>}
     </div>
     <div className="agent-prompts">{prompts.map((prompt) => <button key={prompt} disabled={!enabled} onClick={() => ask(prompt)}>{prompt}<ChevronRight size={12} /></button>)}</div>
     <form className="agent-input" onSubmit={(event) => { event.preventDefault(); if (question.trim()) ask(); }}><input disabled={!enabled} value={question} onChange={(event) => setQuestion(event.target.value)} aria-label="Ask the safety investigator" placeholder="Ask about dose, findings, labs, lineage, or meaning…" /><button disabled={busy || !enabled} aria-label="Send question"><Send size={15} /></button></form>
   </aside>;
+}
+
+function MicroscopeIcon() {
+  return <Activity size={14} />;
+}
+
+function CircleAlertIcon() {
+  return <ShieldCheck size={12} />;
 }

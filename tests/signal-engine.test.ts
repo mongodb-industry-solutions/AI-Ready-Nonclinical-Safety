@@ -19,4 +19,20 @@ describe('safety signal engine', () => {
     expect(reviewScore(signal, demoEvidence.doseGroups)).toBeGreaterThan(70);
     expect(signalSummary(signal, demoEvidence.doseGroups)).toContain('absent in controls');
   });
+
+  it('summarizes technical treatment groups as biological dose levels', () => {
+    const groups = [
+      { code: 'C-M', label: 'Control male', dose: 0, unit: 'mg/kg', animalCount: 10 },
+      { code: 'C-F', label: 'Control female', dose: 0, unit: 'mg/kg', animalCount: 10 },
+      { code: 'H-M', label: 'High male', dose: 200, unit: 'mg/kg', animalCount: 10 },
+      { code: 'H-F', label: 'High female', dose: 200, unit: 'mg/kg', animalCount: 10 },
+    ];
+    const repeatedGroupSignal = { ...signal, incidence: [0, 0, 5, 7] };
+
+    expect(treatedIncidence(repeatedGroupSignal, groups).pairs).toEqual([
+      { dose: 0, affected: 0, total: 20 },
+      { dose: 200, affected: 12, total: 20 },
+    ]);
+    expect(signalSummary(repeatedGroupSignal, groups)).toContain('0 mg/kg: 0/20, 200 mg/kg: 12/20');
+  });
 });

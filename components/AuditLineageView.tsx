@@ -37,7 +37,7 @@ export default function AuditLineageView({ evidence, runtime, canInvestigate, on
     { icon: Bot, label: 'Resolver execution', detail: `${runtime.capabilities.length} governed capabilities`, state: 'profile gated' },
   ];
 
-  return <section className="audit-page">
+  return <section className="audit-page" data-sherpa-state="audit-lineage">
     <div className="audit-hero">
       <div><div className="eyebrow">Trust, replayability and accountability</div><h1>Audit & evidence lineage</h1><p>Trace every investigation from the public SEND artifact through its immutable study snapshot, semantic contract, governed resolver, and human review action.</p></div>
       <button className="primary-action" disabled={!canInvestigate} onClick={onOpenInvestigation}><Play size={14} /> Open investigation room</button>

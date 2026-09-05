@@ -21,6 +21,7 @@ import AnatomicalSignalNavigator from '@/components/AnatomicalSignalNavigator';
 import CommandPalette from '@/components/CommandPalette';
 import MongoLeaf from '@/components/MongoLeaf';
 import ThemeToggle from '@/components/ThemeToggle';
+import NonclinicalSafetySherpa from '@/components/sherpa/NonclinicalSafetySherpa';
 
 type WorkspaceView = 'journey' | 'workspace' | 'portfolio' | 'semantics' | 'architecture' | 'audit';
 type Section = 'investigate' | 'model' | 'evidence';
@@ -100,7 +101,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const [selectedId, setSelectedId] = useState(initialEvidence.signals[0].id);
   const [graphOpen, setGraphOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
-  const [roomCanvas, setRoomCanvas] = useState<InvestigationCanvas>('evidence');
+  const [roomCanvas, setRoomCanvas] = useState<InvestigationCanvas>('coherence');
   const [recordFocus, setRecordFocus] = useState<EvidenceDomain>();
   const [semanticFocus, setSemanticFocus] = useState<string>();
   const [journeyStep, setJourneyStep] = useState(0);
@@ -140,7 +141,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   };
   const openInvestigation = () => {
     if (!canInvestigate) return;
-    setRoomCanvas('evidence');
+    setRoomCanvas('coherence');
     setRecordFocus(undefined);
     setView('workspace');
     setRoomOpen(true);
@@ -189,7 +190,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
     openView(destination);
   }
 
-  return <div className="app-shell">
+  return <div className="app-shell" data-sherpa-state="app-ready">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark"><MongoLeaf size={26} /></span><div><strong>Safety Intelligence</strong><small>MongoDB Solution Library</small></div></div>
       <nav className="primary-nav">
@@ -199,6 +200,8 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
           return <button
             key={section.id}
             aria-label={section.label}
+            data-sherpa-action={section.id === 'investigate' ? 'open-signal-workspace' : section.id === 'model' ? 'open-semantic-model' : 'open-audit-lineage'}
+            data-sherpa-expected-state={section.id === 'investigate' ? 'signal-workspace' : section.id === 'model' ? 'semantic-model' : 'audit-lineage'}
             aria-current={active ? 'page' : undefined}
             className={active ? 'active' : ''}
             onClick={() => openView(section.views[0])}
@@ -206,6 +209,8 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
         })}
         <button
           aria-label="Investigation room"
+          data-sherpa-action="open-investigation-room"
+          data-sherpa-expected-state="investigation-room"
           className={roomOpen ? 'active' : ''}
           disabled={!canInvestigate}
           title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'}
@@ -214,7 +219,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
       </nav>
       <div className="nav-divider" />
       <nav className="secondary-nav">
-        <button aria-label="Guided journey" className={view === 'journey' ? 'active' : ''} onClick={() => openView('journey')}>
+        <button aria-label="Guided journey" data-sherpa-action="open-learning-journey" data-sherpa-expected-state="learning-journey" className={view === 'journey' ? 'active' : ''} onClick={() => openView('journey')}>
           <BookOpenCheck size={16} /><span>Guided journey</span><em>{journeyStep + 1}/7</em>
         </button>
       </nav>
@@ -241,6 +246,8 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
               key={item}
               type="button"
               aria-label={meta.label}
+              data-sherpa-action={item === 'portfolio' ? 'open-portfolio' : item === 'architecture' ? 'open-architecture' : undefined}
+              data-sherpa-expected-state={item === 'portfolio' ? 'portfolio' : item === 'architecture' ? 'architecture' : undefined}
               aria-current={view === item ? 'page' : undefined}
               className={view === item ? 'active' : ''}
               disabled={disabled}
@@ -263,7 +270,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
           <article className="accent-metric"><span>Top review signal</span><strong>{ranked[0].score}</strong><small>heuristic priority, not a conclusion</small></article>
         </section>
 
-        <section className="panel matrix-panel" id="signals">
+        <section className="panel matrix-panel" id="signals" data-sherpa-state="signal-workspace">
           <div className="panel-heading"><div><span className="panel-kicker">Study-wide visual triage</span><h2>Dose × organ signal matrix</h2><p>Scan every finding at once. Select a row to synchronize the charts, evidence graph, and AI investigator.</p></div><div className="matrix-callout"><Activity size={14} /><span><b>{ranked.filter((item) => item.reviewPriority === 'high').length}</b> priority signal</span></div></div>
           <SignalMatrix groups={evidence.doseGroups} signals={ranked} selectedId={signal.id} onSelect={setSelectedId} />
         </section>
@@ -309,5 +316,6 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
       />
       {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} initialCanvas={roomCanvas} recordFocus={recordFocus} onClose={() => setRoomOpen(false)} onOpenSemantic={openSemantic} />}
     </main>
+    <NonclinicalSafetySherpa />
   </div>;
 }

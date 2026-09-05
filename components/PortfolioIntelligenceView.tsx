@@ -42,7 +42,7 @@ export default function PortfolioIntelligenceView({ evidence, evidenceSet, profi
   }, [evidence.study.id, initial, profileId, signalId]);
 
   const selected = result.matches.find((item) => item.id === selectedId) || result.matches[0];
-  return <div className="portfolio-view">
+  return <div className="portfolio-view" data-sherpa-state="portfolio">
     <section className="portfolio-hero">
       <div><span className="eyebrow">Cross-study portfolio intelligence</span><h1>Evidence similarity atlas</h1><p>Compare a governed SEND finding with portfolio evidence through semantic, dose-pattern, severity and Atlas Automated Embedding lanes—without confusing synthetic test scenarios with observed evidence.</p></div>
       <div className="portfolio-query">

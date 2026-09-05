@@ -3,9 +3,10 @@
 import { ArrowUpRight, Link2 } from 'lucide-react';
 import type { SafetySignal, StudyEvidence } from '@/lib/contracts';
 
-export type EvidenceDomain = 'MI' | 'DM' | 'TX' | 'LB';
+export type EvidenceDomain = 'MI' | 'DM' | 'TX' | 'LB' | 'MA' | 'OM' | 'BW' | 'BG' | 'CL' | 'EX' | 'PC' | 'PP';
+type EvidenceAssemblyDomain = 'MI' | 'DM' | 'TX' | 'LB';
 
-const domainMeaning: Record<EvidenceDomain, { title: string; contribution: string }> = {
+const domainMeaning: Record<EvidenceAssemblyDomain, { title: string; contribution: string }> = {
   MI: { title: 'Microscopic findings', contribution: 'organ, morphology & severity' },
   DM: { title: 'Demographics', contribution: 'subject identity & study group' },
   TX: { title: 'Trial sets', contribution: 'dose, vehicle & exposure design' },
@@ -13,7 +14,7 @@ const domainMeaning: Record<EvidenceDomain, { title: string; contribution: strin
 };
 
 export default function EvidenceAssembly({ evidence, signal, onInspect }: { evidence: StudyEvidence; signal: SafetySignal; onInspect: (domain: EvidenceDomain) => void }) {
-  const domains: Array<{ code: EvidenceDomain; value: string }> = [
+  const domains: Array<{ code: EvidenceAssemblyDomain; value: string }> = [
     { code: 'MI', value: `${signal.affectedAnimals} affected animals` },
     { code: 'DM', value: `${evidence.study.animalCount} study animals` },
     { code: 'TX', value: `${evidence.doseGroups.length} dose groups` },

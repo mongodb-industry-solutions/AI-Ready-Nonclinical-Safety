@@ -18,7 +18,7 @@ type SemanticSearchResult = {
   managedEmbedding: { index: string; sourcePath: string; vectorStorage: string; vectorFieldInSourceDocument: false };
 };
 
-const initialSemanticQuery = 'Which concepts, archetypes and resolvers govern a thymus lymphocyte finding?';
+const initialSemanticQuery = 'Which concepts, archetypes and resolvers govern adrenal-gland vacuolization and its target-organ assessment?';
 
 function ModelNode({ data }: NodeProps<Node<ModelNodeData>>) {
   return <div className={`model-node model-${data.kind} ${data.updated ? 'model-updated' : ''}`}>
@@ -147,7 +147,7 @@ export default function SemanticModelExplorer({ runtime, focusId, onRuntimeChang
     }
   }
 
-  return <section className="model-explorer">
+  return <section className="model-explorer" data-sherpa-state="semantic-model">
     <header className="model-hero">
       <div><span className="panel-kicker">Compiled by Context Studio · portable runtime {runtime.release.version}</span><h1>Meaning is portable. Placement is explicit.</h1><p>Explore taxonomy and terminology, archetype composition, retrieval projections, and every physical representation without confusing storage with semantics.</p></div>
       <div className="release-live"><Radio size={14} /><span><b>LIVE SEMANTICS · {streamState}</b><small>{runtime.release.releaseId}</small></span></div>

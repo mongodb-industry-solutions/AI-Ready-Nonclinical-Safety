@@ -1,24 +1,16 @@
-import type { SemanticProfileId, SemanticRuntimeBundle } from '@/lib/contracts';
+import type { SemanticGroundingResult, SemanticProfileId, SemanticRuntimeBundle, SemanticSearchHit } from '@/lib/contracts';
 import { solutionDatabase } from '@/lib/data/mongodb';
 import { materializeSemanticBundle, type SemanticSearchDocument } from '@/lib/semantics/materialization';
 
 type Candidate = { _id: string; score?: number };
 
-export interface SemanticSearchHit {
-  resourceType: SemanticSearchDocument['resourceType'];
-  resourceId: string;
-  label: string;
-  excerpt: string;
-  score: number;
-  lanes: Array<'lexical' | 'vector'>;
-  sourceRef: string;
-}
-
 function tokens(value: string): Set<string> {
   return new Set(value.toLowerCase().match(/[a-z0-9]+/g)?.filter((token) => token.length > 2) || []);
 }
 
-function fixtureSearch(bundle: SemanticRuntimeBundle, profileId: SemanticProfileId, query: string, limit: number) {
+type SemanticSearchExecution = Omit<SemanticGroundingResult, 'releaseId' | 'profileId'>;
+
+function fixtureSearch(bundle: SemanticRuntimeBundle, profileId: SemanticProfileId, query: string, limit: number): Omit<SemanticSearchExecution, 'query' | 'managedEmbedding'> {
   const queryTokens = tokens(query);
   const searchDocuments = materializeSemanticBundle(bundle).searchDocuments
     .filter((document) => document.profileId === profileId)
@@ -93,7 +85,7 @@ export async function searchSemanticMap({
   profileId: SemanticProfileId;
   query: string;
   limit?: number;
-}) {
+}): Promise<SemanticSearchExecution> {
   const boundedQuery = query.trim().slice(0, 500);
   const boundedLimit = Math.min(Math.max(limit, 1), 20);
   const managedEmbedding = {

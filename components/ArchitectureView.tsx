@@ -27,6 +27,7 @@ const apiContracts = [
   { method: 'GET', path: '/api/literature', title: 'Hybrid literature retrieval', input: 'signalId, profile, q, limit', output: 'Ranked evidence + execution telemetry', policy: 'Licensed corpus; context, not causality' },
   { method: 'GET', path: '/api/portfolio/similarity', title: 'Portfolio similarity', input: 'studyId, signalId, profile', output: 'Cross-study matches + per-lane scores', policy: 'Evidence-class boundary; vector runs only when available' },
   { method: 'GET · POST', path: '/api/reviews', title: 'Expert review actions', input: 'studyId, snapshotId, signalId, decision', output: 'Append-only review record', policy: 'Action authorization; evidence unchanged' },
+  { method: 'GET · POST', path: '/api/target-organ-assessments', title: 'Target-organ assessment', input: 'organ, conclusion, adversity, reversibility, citedEndpointIds', output: 'Content-addressed assessment receipt', policy: 'Human-owned; citations required; append-only' },
   { method: 'GET', path: '/api/semantics', title: 'Profile semantic projection', input: 'profile', output: 'Filtered runtime bundle', policy: 'Object, field, capability and action masks' },
   { method: 'GET', path: '/api/semantics/search', title: 'Hybrid semantic retrieval', input: 'q, profile, limit', output: 'Ranked concepts, archetypes, resolvers, bindings and edges', policy: 'Release- and profile-scoped; Atlas-managed embeddings' },
   { method: 'GET · SSE', path: '/api/semantics/stream', title: 'Live semantics', input: 'profile, Last-Event-ID', output: 'Resume-safe semantic events', policy: 'Snapshot first; Change Stream updates' },
@@ -47,7 +48,7 @@ export default function ArchitectureView({ evidence, runtime, onBack }: Architec
   const [lens, setLens] = useState<ArchitectureLens>('blueprint');
   const [selectedApi, setSelectedApi] = useState(1);
 
-  return <section className="architecture-page architecture-v2">
+  return <section className="architecture-page architecture-v2" data-sherpa-state="architecture">
     <button className="back-link" onClick={onBack}>← Back to study workspace</button>
     <div className="architecture-title-row">
       <div className="architecture-title"><div className="eyebrow">Reference solution architecture</div><h1>CDISC meaning, operationalized for AI.</h1><p>CDISC SEND remains the governed evidence and traceability anchor. MongoDB turns that standard into a connected document, search, vector, graph, and agent-ready operating model without changing what the source evidence means.</p></div>

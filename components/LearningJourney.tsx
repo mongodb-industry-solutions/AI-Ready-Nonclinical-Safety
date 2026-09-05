@@ -42,6 +42,7 @@ const glossary = [
   ['Control', 'A comparison group that does not receive the active test article.'],
   ['SEND', 'CDISC Standard for Exchange of Nonclinical Data.'],
   ['Resolver', 'A governed contract that binds intent and meaning to an executable retrieval plan.'],
+  ['Target organ', 'An organ judged by an expert to be affected by the test article after integrating multiple evidence lanes.'],
 ];
 
 export default function LearningJourney({
@@ -63,7 +64,7 @@ export default function LearningJourney({
   const ChapterIcon = chapter.icon;
   const signal = evidence.signals[0];
 
-  return <section className="learning-journey">
+  return <section className="learning-journey" data-sherpa-state="learning-journey">
     <header className="journey-hero">
       <div><span className="eyebrow">Guided product journey · no domain expertise required</span><h1>From study data to a defensible safety hypothesis</h1><p>Follow one real investigation from the scientist&apos;s question down to SEND records, semantics, MongoDB queries, AI orchestration, and audit evidence.</p></div>
       <div className="journey-progress"><strong>{activeStep + 1}</strong><span>of {chapters.length}</span><div><i style={{ width: `${((activeStep + 1) / chapters.length) * 100}%` }} /></div></div>
@@ -81,13 +82,21 @@ export default function LearningJourney({
           <section className="lesson-callout"><Microscope size={20} /><div><b>The business question</b><p>Before first-in-human studies, experts must understand whether findings in animals are related to treatment, whether they increase with dose, whether other measurements support them, and how relevant they may be to people.</p></div></section>
           <div className="journey-flow">{[['1', 'Observe', 'A pathologist records a finding'], ['2', 'Compare', 'Controls versus dose groups'], ['3', 'Connect', 'Labs, subjects, prior evidence'], ['4', 'Interpret', 'Expert weighs biological relevance'], ['5', 'Defend', 'Every statement retains provenance']].map(([number, label, detail], index) => <article key={label}><i>{number}</i><b>{label}</b><small>{detail}</small>{index < 4 && <ArrowRight size={14} />}</article>)}</div>
           <section className="lesson-definition"><strong>What this application is</strong><p>A nonclinical safety investigation cockpit. It helps an expert find, connect, explain, and review evidence; it does not replace the expert or produce an autonomous regulatory conclusion.</p></section>
+          <section className="lesson-definition"><strong>Where it sits in the study lifecycle</strong><p>The public SEND package is a standardized handoff assembled after observations have been captured by laboratory, clinical, pathology, and study systems. This product is for retrospective integration and expert interpretation—not specimen acquisition, instrument control, pathology image diagnosis, or SEND authoring.</p></section>
         </div>}
 
         {activeStep === 1 && <div className="role-learning-grid">{runtime.profiles.map((profile) => { const role = roleIntent[profile.id]; const active = runtime.activeProfile.id === profile.id; return <button className={active ? 'active' : ''} key={profile.id} onClick={() => onChangeProfile(profile.id)}><span><UsersRound size={15} /><em>{active ? 'Active lens' : 'Try this lens'}</em></span><h3>{profile.label}</h3><blockquote>{role.question}</blockquote><p>{role.responsibility}</p><small>{profile.grants.length} grants · {profile.maskedFields.length ? `${profile.maskedFields.length} masked field rules` : 'no field masks'}</small></button>; })}</div>}
 
         {activeStep === 2 && <div className="study-lesson">
           <section className="study-facts"><span><small>STUDY</small><b>{evidence.study.id}</b></span><span><small>ANIMALS</small><b>{evidence.study.animalCount}</b></span><span><small>DOSE GROUPS</small><b>{evidence.doseGroups.length}</b></span><span><small>CANONICAL ROWS</small><b>{evidence.study.recordCount.toLocaleString()}</b></span></section>
-          <div className="domain-learning-map">{[{ code: 'DM', title: 'Demographics', copy: 'Who is the animal and to which group does it belong?' }, { code: 'TX', title: 'Trial sets', copy: 'What treatment and dose define each group?' }, { code: 'MI', title: 'Microscopic findings', copy: 'What was observed, in which tissue, and at what severity?' }, { code: 'LB', title: 'Laboratory tests', copy: 'How did measurements change over study time?' }].map((domain) => <article key={domain.code}><i>{domain.code}</i><div><b>{domain.title}</b><p>{domain.copy}</p><small>{evidence.study.domainCounts[domain.code] || 0} records in this snapshot</small></div></article>)}</div>
+          <div className="domain-learning-map">{[
+            { code: 'DM+TX', domains: ['DM', 'TX'], title: 'Identity & study design', copy: 'Who is each animal, which cohort does it belong to, and what dose defines that cohort?' },
+            { code: 'MI+MA+OM', domains: ['MI', 'MA', 'OM'], title: 'Target-organ evidence', copy: 'What was seen microscopically and macroscopically, and did organ measurements change?' },
+            { code: 'BW+BG+FW', domains: ['BW', 'BG', 'FW'], title: 'Systemic tolerance', copy: 'How did body weight, weight gain, and food consumption evolve over time?' },
+            { code: 'LB+CL', domains: ['LB', 'CL'], title: 'Clinical context', copy: 'What laboratory and clinical observations accompany the pathology pattern?' },
+            { code: 'EX+PC+PP', domains: ['EX', 'PC', 'PP'], title: 'Dose & exposure', copy: 'What was administered and what systemic concentration or PK parameters were measured?' },
+            { code: 'SE+DS', domains: ['SE', 'DS'], title: 'Phase & disposition', copy: 'Which records belong to main, terminal, or recovery phases, and when did subjects leave the study?' },
+          ].map((domain) => <article key={domain.code}><i>{domain.code}</i><div><b>{domain.title}</b><p>{domain.copy}</p><small>{domain.domains.reduce((count, item) => count + (evidence.study.domainCounts[item] || 0), 0).toLocaleString()} records across {domain.domains.join(', ')}</small></div></article>)}</div>
           <section className="lesson-callout"><Database size={20} /><div><b>Why the document model matters</b><p>Canonical SEND rows remain directly interoperable. Rebuildable study, graph, search, and semantic projections make the investigator fast without changing the underlying evidence.</p></div></section>
         </div>}
 
@@ -99,7 +108,7 @@ export default function LearningJourney({
 
         {activeStep === 4 && <div className="investigation-lesson">
           <div className="investigation-method">{[['01', 'Bind', 'Lock study, snapshot, signal, and role.'], ['02', 'Retrieve', 'Read exact SEND rows and relevant semantic or literature context.'], ['03', 'Connect', 'Traverse dose, subject, finding, lab, and source evidence.'], ['04', 'Evaluate', 'Compare incidence, severity, coherence, and alternatives.'], ['05', 'Explain', 'Compose a cited hypothesis and disclose every executed step.']].map(([number, title, copy]) => <article key={number}><i>{number}</i><div><b>{title}</b><p>{copy}</p></div></article>)}</div>
-          <section className="agent-preview"><Bot size={24} /><div><small>EXAMPLE QUESTION</small><h3>Is this thymus finding plausibly treatment-related?</h3><p>The full-screen investigator answers with charts and graphs, not text alone, and separates the declared resolver from measured execution.</p></div></section>
+          <section className="agent-preview"><Bot size={24} /><div><small>EXAMPLE QUESTION</small><h3>Is {signal.organ.toLowerCase()} {signal.finding.toLowerCase()} plausibly treatment-related?</h3><p>The full-screen investigator composes dose, target-organ, measurement, graph, and semantic widgets from real query results. The expert can then cite endpoints and record a governed target-organ, adversity, and reversibility assessment.</p></div></section>
         </div>}
 
         {activeStep === 5 && <div className="semantics-lesson">

@@ -18,6 +18,14 @@ const domainFocusCopy: Record<EvidenceDomain, { title: string; detail: string }>
   DM: { title: 'Demographics', detail: 'The subject identity and treatment-group binding used for denominators and joins.' },
   TX: { title: 'Trial sets', detail: 'The governed group definitions that supply dose, unit, vehicle and exposure context.' },
   LB: { title: 'Laboratory tests', detail: 'Longitudinal measurements used as biological context; they do not create the pathology finding.' },
+  MA: { title: 'Macroscopic findings', detail: 'Gross pathology observations at necropsy, including specimen and source-declared qualifiers.' },
+  OM: { title: 'Organ measurements', detail: 'Absolute and normalized organ measurements linked to subject, group, sex, day and phase.' },
+  BW: { title: 'Body weights', detail: 'Longitudinal animal-level body weights used as systemic context.' },
+  BG: { title: 'Body-weight gain', detail: 'Interval change in body weight, preserved with its source dates and units.' },
+  CL: { title: 'Clinical observations', detail: 'In-life clinical observations linked to an animal and study day.' },
+  EX: { title: 'Exposure administrations', detail: 'Administered treatment, dose, route and timing for each subject.' },
+  PC: { title: 'Toxicokinetic concentrations', detail: 'Measured systemic analyte concentrations by subject, time point and specimen.' },
+  PP: { title: 'Toxicokinetic parameters', detail: 'Derived exposure parameters such as Cmax and AUC with source lineage.' },
 };
 
 const domainLabels: Record<string, string> = {

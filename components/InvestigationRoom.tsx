@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Activity, BookOpen, Bot, CheckCircle2, ChevronRight, Database, Download, GitBranch, LayoutDashboard, Network, Save, ShieldCheck, X } from 'lucide-react';
+import { Activity, BookOpen, Bot, CheckCircle2, ChevronRight, Database, Download, GitBranch, LayoutDashboard, Microscope, Network, Save, ShieldCheck, X } from 'lucide-react';
 import type { LiteratureDocument, ReviewActionRecord, SafetySignal, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import AgentPanel from '@/components/AgentPanel';
 import DoseResponseChart from '@/components/DoseResponseChart';
@@ -10,8 +10,9 @@ import LabTrajectoryChart from '@/components/LabTrajectoryChart';
 import LiteratureEvidencePanel from '@/components/LiteratureEvidencePanel';
 import RecordEvidencePanel from '@/components/RecordEvidencePanel';
 import type { EvidenceDomain } from '@/components/EvidenceAssembly';
+import BiologicalCoherencePanel from '@/components/BiologicalCoherencePanel';
 
-export type InvestigationCanvas = 'evidence' | 'records' | 'dose' | 'literature' | 'semantics';
+export type InvestigationCanvas = 'coherence' | 'evidence' | 'records' | 'dose' | 'literature' | 'semantics';
 type EvidenceContextStep = 'study' | 'treatment' | 'subject' | 'finding' | 'laboratory' | 'artifact';
 
 function stepForDomain(domain?: EvidenceDomain): EvidenceContextStep {
@@ -24,6 +25,7 @@ function stepForDomain(domain?: EvidenceDomain): EvidenceContextStep {
 export default function InvestigationRoom({ evidence, signal, runtime, literature, initialCanvas = 'evidence', recordFocus, onClose, onOpenSemantic }: { evidence: StudyEvidence; signal: SafetySignal; runtime: SemanticRuntimeView; literature: LiteratureDocument[]; initialCanvas?: InvestigationCanvas; recordFocus?: EvidenceDomain; onClose: () => void; onOpenSemantic: (focusId?: string) => void }) {
   const [canvas, setCanvas] = useState<InvestigationCanvas>(initialCanvas);
   const [contextStep, setContextStep] = useState<EvidenceContextStep>(stepForDomain(recordFocus));
+  const [recordDomain, setRecordDomain] = useState<EvidenceDomain | undefined>(recordFocus);
   const [action, setAction] = useState(runtime.actions[0]?.id || 'annotate');
   const [note, setNote] = useState('');
   const [saved, setSaved] = useState<ReviewActionRecord | null>(null);
@@ -59,12 +61,13 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
   function navigateContext(step: EvidenceContextStep) {
     setInvestigatorExpanded(false);
     setContextStep(step);
+    setRecordDomain(step === 'treatment' ? 'TX' : step === 'subject' ? 'DM' : step === 'laboratory' ? 'LB' : step === 'finding' ? 'MI' : undefined);
     setCanvas('records');
   }
 
   function navigateCanvas(next: InvestigationCanvas) {
     setCanvas(next);
-    if (next === 'evidence' || next === 'semantics') setContextStep('finding');
+    if (next === 'evidence' || next === 'coherence' || next === 'semantics') setContextStep('finding');
     else if (next === 'dose') setContextStep(signal.correlatedLab ? 'laboratory' : 'treatment');
     else if (next === 'literature') setContextStep('artifact');
     else setContextStep(stepForDomain(recordFocus));
@@ -75,7 +78,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
       : contextStep === 'subject' ? { scope: 'subject' as const, domain: 'DM' as EvidenceDomain }
         : contextStep === 'laboratory' ? { scope: 'subject' as const, domain: 'LB' as EvidenceDomain }
           : contextStep === 'artifact' ? { scope: 'study' as const, section: 'artifacts' as const }
-            : { scope: 'subject' as const, domain: 'MI' as EvidenceDomain };
+          : { scope: 'subject' as const, domain: recordDomain || 'MI' as EvidenceDomain };
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
@@ -101,7 +104,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
     const link = document.createElement('a'); link.href = url; link.download = `${evidence.study.id}-${signal.id}-evidence-brief.json`; link.click(); URL.revokeObjectURL(url);
   }
 
-  return <div className={`investigation-room ${investigatorExpanded ? 'investigator-focus' : ''}`} role="dialog" aria-modal="true" aria-label="AI safety investigation room">
+  return <div className={`investigation-room ${investigatorExpanded ? 'investigator-focus' : ''}`} data-sherpa-state="investigation-room" role="dialog" aria-modal="true" aria-label="AI safety investigation room">
     <header className="room-header">
       <div className="room-title"><span><Bot size={18} /></span><div><nav className="room-breadcrumb" aria-label="Breadcrumb"><button type="button" onClick={onClose}><LayoutDashboard size={11} /> Study workspace</button><ChevronRight size={11} /><em>Investigation room</em></nav><strong>{signal.organ} · {signal.finding}</strong></div></div>
       <div className="room-state"><ShieldCheck size={14} /><span>Snapshot-bound</span><i /> <Network size={14} /><span>{runtime.activeProfile.label}</span><i /><span>{runtime.release.version}</span></div>
@@ -116,10 +119,11 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
         <div className="live-contract"><Activity size={13} /><span><b>Change Stream ready</b><small>Snapshot + cursor + typed events</small></span></div>
       </aside>
       <main className="room-stage">
-        <nav className="room-tabs"><button className={canvas === 'evidence' ? 'active' : ''} onClick={() => navigateCanvas('evidence')}><GitBranch size={14} /> Evidence network</button><button className={canvas === 'records' ? 'active' : ''} onClick={() => navigateCanvas('records')}><Database size={14} /> Source records</button><button className={canvas === 'dose' ? 'active' : ''} onClick={() => navigateCanvas('dose')}><Activity size={14} /> Dose & lab response</button><button className={canvas === 'literature' ? 'active' : ''} onClick={() => navigateCanvas('literature')}><BookOpen size={14} /> Literature evidence <em>{literature.length}</em></button><button className={canvas === 'semantics' ? 'active' : ''} onClick={() => navigateCanvas('semantics')}><Network size={14} /> Agent plan</button></nav>
+        <nav className="room-tabs"><button className={canvas === 'coherence' ? 'active' : ''} onClick={() => navigateCanvas('coherence')}><Microscope size={14} /> Biological coherence</button><button className={canvas === 'evidence' ? 'active' : ''} onClick={() => navigateCanvas('evidence')}><GitBranch size={14} /> Evidence network</button><button className={canvas === 'records' ? 'active' : ''} onClick={() => navigateCanvas('records')}><Database size={14} /> Source records</button><button className={canvas === 'dose' ? 'active' : ''} onClick={() => navigateCanvas('dose')}><Activity size={14} /> Dose &amp; response</button><button className={canvas === 'literature' ? 'active' : ''} onClick={() => navigateCanvas('literature')}><BookOpen size={14} /> Literature <em>{literature.length}</em></button><button className={canvas === 'semantics' ? 'active' : ''} onClick={() => navigateCanvas('semantics')}><Network size={14} /> Agent plan</button></nav>
         <section className="room-widget">
+          {canvas === 'coherence' && <BiologicalCoherencePanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} runtime={runtime} onShowSource={(domain) => { setInvestigatorExpanded(false); setRecordDomain(domain); setContextStep(stepForDomain(domain)); setCanvas('records'); }} onOpenSemantic={onOpenSemantic} />}
           {canvas === 'evidence' && <EvidenceGraph evidence={evidence} signal={signal} immersive />}
-          {canvas === 'records' && <RecordEvidencePanel key={contextStep} study={evidence.study} doseGroups={evidence.doseGroups} signal={signal} focusDomain={recordContext.domain} initialScope={recordContext.scope} initialSection={recordContext.section} />}
+          {canvas === 'records' && <RecordEvidencePanel key={`${contextStep}:${recordContext.domain || ''}`} study={evidence.study} doseGroups={evidence.doseGroups} signal={signal} focusDomain={recordContext.domain} initialScope={recordContext.scope} initialSection={recordContext.section} />}
           {canvas === 'dose' && <div className="room-charts"><div><span className="panel-kicker">Finding incidence</span><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div>{lab ? <div><span className="panel-kicker">{lab.label} trajectory</span><LabTrajectoryChart series={lab} /></div> : <div className="no-lab-context"><Activity size={23} /><div><b>No asserted laboratory correlate</b><p>The evidence graph does not create an LB relationship where none is governed.</p></div></div>}</div>}
           {canvas === 'literature' && <LiteratureEvidencePanel signal={signal} documents={literature} profileId={runtime.activeProfile.id} />}
           {canvas === 'semantics' && <div className="resolver-board"><header><span className="panel-kicker">Compiled resolver graph</span><h2>Authorized tools for {runtime.activeProfile.label}</h2></header>{runtime.capabilities.map((capability, index) => <article key={capability.id}><i>{index + 1}</i><div><b>{capability.label}</b><p>{capability.description}</p><span>{capability.engines.join(' + ')}</span></div></article>)}</div>}
@@ -130,7 +134,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
           {saved && <div className="saved-action"><CheckCircle2 size={14} /><span><b>{saved.status}</b><small>{saved.id}</small></span></div>}
         </section>
       </main>
-      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} evidence={evidence} runtime={runtime} expanded={investigatorExpanded} onToggleExpanded={() => setInvestigatorExpanded((expanded) => !expanded)} onShowSource={() => { setInvestigatorExpanded(false); setContextStep('subject'); setCanvas('records'); }} onOpenSemantic={onOpenSemantic} />
+      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} evidence={evidence} runtime={runtime} expanded={investigatorExpanded} onToggleExpanded={() => setInvestigatorExpanded((expanded) => !expanded)} onShowSource={() => { setInvestigatorExpanded(false); setContextStep('subject'); setCanvas('records'); }} onOpenCoherence={() => { setInvestigatorExpanded(false); setContextStep('finding'); setCanvas('coherence'); }} onOpenLiterature={() => { setInvestigatorExpanded(false); setContextStep('artifact'); setCanvas('literature'); }} onOpenSemantic={onOpenSemantic} />
     </div>
   </div>;
 }

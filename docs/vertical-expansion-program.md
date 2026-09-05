@@ -3,7 +3,7 @@
 ## Decision
 
 Deepen one retrospective target-organ safety assessment before adding more product
-surfaces. The first vertical must connect pathology, organ weight, body weight,
+surfaces. The first vertical connects pathology, organ weight, body weight,
 clinical pathology, clinical observations, exposure, study phase, recovery,
 literature, and governed expert interpretation. A NOAEL workbench follows only
 after those evidence relationships are reproducible and visible.
@@ -12,7 +12,20 @@ This is a post-study evidence investigation product. It is not a laboratory
 acquisition system, pathology image-analysis system, SEND authoring tool, or
 autonomous toxicology decision maker.
 
-## Evidence already available
+## Implemented vertical baseline
+
+The connected default is now PDS2014: 25 datasets, 42,041 canonical records,
+124 subjects, 4,584 endpoint summaries, 532 measurement series, 124 subject
+timelines, and 40,594 typed evidence relationships. Adrenal-gland vacuolization
+is the first target-organ investigation. The active Context Studio semantic
+release is `org.contextobjects.nonclinical-safety@0.4.1`.
+
+The Investigation Room executes the biological-coherence resolver against those
+persisted projections, shows the real MongoDB predicates/counts/timings, and
+supports an append-only cited target-organ assessment. The public source does not
+provide laboratory reference intervals, so the UI presents that as a known gap.
+
+## Evidence reconnaissance
 
 The pinned `phuse-org/SENDConform` revision contains substantially more data than
 the current examples ingest:
@@ -23,12 +36,12 @@ the current examples ingest:
 | Nimble | 18 | 5 |
 | Instem | 25 | 5 |
 | PointCross | 28 | 5 |
-| PDS | 25 | not catalogued |
+| PDS | 25 | 25 |
 
-The Kehrnel solution-evidence exporter is already domain-neutral: it exports every
-dataset and record present in a published snapshot. The current restriction is
-primarily the curated example catalog, followed by this solution's projector,
-which derives business views only from DM, TX, MI, LB, and limited TS metadata.
+The Kehrnel solution-evidence exporter is domain-neutral and now exports every PDS
+dataset and record present in the published snapshot. The solution preserves all
+domains canonically, then derives bounded business views across pathology,
+measurements, phase, exposure, and typed relationships.
 
 ## Architectural ownership
 
@@ -117,6 +130,17 @@ evidence chain. The preferred journey is:
     bindings, executed physical plan, review history, and provenance.
 
 ## Delivery gates
+
+Status at semantic release 0.4.1:
+
+| Gate | Status | Evidence |
+|---|---|---|
+| 0 · reconnaissance | Complete | Machine-readable five-study coverage report and observed PDS candidate |
+| 1 · supply path | Complete on feature branches | Checksum-pinned PDS catalog, all-domain export, 42,041-record handoff |
+| 2 · operational projections | Complete baseline | Four reconciled projection families plus workload indexes |
+| 3 · investigation room | Complete baseline | Biological-coherence workspace, filters, source navigation, server-selected typed widgets, and measured `executionStats` |
+| 4 · agent and semantics | Implemented with runtime boundary | Compiled 0.4.1 resolver; exact, graph, semantic lexical/vector, literature, fusion, and rerank telemetry share one envelope; deterministic path always available; Magenta activates when configured |
+| 5 · assessment and evaluation | Partial | Cited target-organ assessment implemented; expert evaluation and NOAEL remain |
 
 ### Gate 0 — data reconnaissance
 

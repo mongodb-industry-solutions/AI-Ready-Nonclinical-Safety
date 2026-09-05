@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { projectStudyEvidence, STUDY_EVIDENCE_PROJECTION_VERSION } from '../scripts/lib/study-evidence-projector.mjs';
+import { OPERATIONAL_EVIDENCE_PROJECTION_VERSION, projectOperationalEvidence, projectStudyEvidence, STUDY_EVIDENCE_PROJECTION_VERSION } from '../scripts/lib/study-evidence-projector.mjs';
 
 const record = (domain, sourceId, data, facets = {}) => ({
   domain,
@@ -144,5 +144,38 @@ describe('canonical SEND study evidence projector', () => {
     expect(projection.signals.some((signal) => signal.finding === 'NORMAL')).toBe(false);
     expect(projection.signals.some((signal) => signal.finding === 'Microscopic Examination')).toBe(false);
     expect(new Set(projection.signals.map((signal) => signal.projectionRuleId))).toEqual(new Set(['signal.observed-microscopy-grouping.v1']));
+  });
+
+  it('builds reconciled operational projections with explicit source-declared and inferred relationships', () => {
+    const operationalPackage = structuredClone(packageDocument);
+    operationalPackage.evidence.records.find((item) => item.sourceId === 'mi-thymus').data.MISEQ = 1;
+    operationalPackage.evidence.records.push(
+      record('MA', 'ma-thymus', { USUBJID: 'S-2', MASEQ: 2, MASPEC: 'THYMUS', MATESTCD: 'GROSPATH', MATEST: 'Gross Pathological Examination', MASTRESC: 'SMALL', MADY: 29 }, { subjectId: 'S-2', organ: 'THYMUS', finding: 'SMALL', studyDay: 29, testCode: 'GROSPATH' }),
+      record('RELREC', 'rel-mi', { USUBJID: 'S-2', RELID: 'R1', RDOMAIN: 'MI', IDVAR: 'MISEQ', IDVARVAL: '1' }, { subjectId: 'S-2' }),
+      record('RELREC', 'rel-ma', { USUBJID: 'S-2', RELID: 'R1', RDOMAIN: 'MA', IDVAR: 'MASEQ', IDVARVAL: '2' }, { subjectId: 'S-2' }),
+    );
+    operationalPackage.manifest.counts.records = operationalPackage.evidence.records.length;
+    operationalPackage.evidence.datasets = ['DM', 'TX', 'MI', 'LB', 'MA', 'RELREC'].map((domain) => ({
+      domain,
+      recordCount: operationalPackage.evidence.records.filter((item) => item.domain === domain).length,
+      standard: { family: 'SEND', implementationGuide: 'SENDIG', implementationGuideVersion: '3.0' },
+    }));
+
+    const first = projectOperationalEvidence(operationalPackage, { semanticReleaseId: 'org.contextobjects.nonclinical-safety@0.4.0' });
+    const second = projectOperationalEvidence(operationalPackage, { semanticReleaseId: 'org.contextobjects.nonclinical-safety@0.4.0' });
+    expect(first).toEqual(second);
+    expect(first.projectionVersion).toBe(OPERATIONAL_EVIDENCE_PROJECTION_VERSION);
+    expect(first.reconciliation).toMatchObject({ status: 'reconciled', subjectCount: 2, checks: { allReferencesResolve: true, oneTimelinePerSubject: true } });
+    expect(first.endpointSummaries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ endpointType: 'categorical', domain: 'MI', organ: 'THYMUS' }),
+      expect.objectContaining({ endpointType: 'numeric', domain: 'LB', testCode: 'LYM' }),
+    ]));
+    expect(first.subjectTimelines).toHaveLength(2);
+    expect(first.subjectTimelines.find((item) => item.subjectId === 'S-2')?.domainCounts).toEqual({ LB: 1, MA: 1, MI: 1 });
+    expect(first.evidenceRelationships).toEqual(expect.arrayContaining([
+      expect.objectContaining({ authority: 'source-declared', relationId: 'R1', predicate: 'source:relatedRecord' }),
+      expect.objectContaining({ authority: 'governed-inference', ruleId: 'relationship.subject-treatment-group.v1' }),
+    ]));
+    expect(first.endpointSummaries.every((item) => item.semanticReleaseId === 'org.contextobjects.nonclinical-safety@0.4.0' && item.projectionDigest.startsWith('sha256:'))).toBe(true);
   });
 });
