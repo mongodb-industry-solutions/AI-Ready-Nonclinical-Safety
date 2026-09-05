@@ -1,4 +1,4 @@
-import type { BiologicalCoherenceResponse, Citation, InvestigationResult, InvestigationWidget, LiteratureQueryResponse, SemanticGroundingResult, SemanticProfileId, SignalRecordEvidence, StudyEvidence } from '@/lib/contracts';
+import type { BiologicalCoherenceResponse, Citation, InvestigationResult, InvestigationWidget, LiteratureQueryResponse, PortfolioSimilarityResult, SemanticGroundingResult, SemanticProfileId, SignalRecordEvidence, StudyEvidence } from '@/lib/contracts';
 import { signalSummary } from '@/lib/analysis/signal-engine';
 import { agentHealth } from '@/lib/ai/agent-health';
 
@@ -51,6 +51,7 @@ export async function investigate(
   coherence?: BiologicalCoherenceResponse,
   semanticGrounding?: SemanticGroundingResult,
   literatureEvidence?: Omit<LiteratureQueryResponse, 'source' | 'plan'>,
+  portfolioContext?: PortfolioSimilarityResult,
 ): Promise<InvestigationResult> {
   const signal = evidence.signals.find((candidate) => candidate.id === signalId) || evidence.signals[0];
   const magentaUrl = process.env.INTERNAL_AGENT_URL?.replace(/\/$/, '');
@@ -61,6 +62,9 @@ export async function investigate(
       : []),
     ...(coherence?.available
       ? [{ id: 'biological-coherence', kind: 'biological-coherence' as const, title: 'Biological coherence', sourceDomains: ['MI', 'MA', 'OM', 'BW', 'BG', 'FW', 'LB', 'CL', 'EX', 'PC', 'PP', 'SE', 'DS', 'RELREC'] }]
+      : []),
+    ...(portfolioContext?.matches.length
+      ? [{ id: 'portfolio-context', kind: 'portfolio-context' as const, title: 'Cross-study context', sourceDomains: ['MI', 'DM', 'TX', 'PORTFOLIO'] }]
       : []),
     { id: 'semantic-grounding', kind: 'semantic-grounding', title: 'Semantic grounding', sourceDomains: ['SEMANTIC'] },
     { id: 'execution-plan', kind: 'execution-plan', title: 'Deterministic contract & executed plan', sourceDomains: ['MONGODB'] },
@@ -79,6 +83,12 @@ export async function investigate(
       label: document.title,
       detail: `${document.evidenceRole} · PMID ${document.pmid} · rank ${document.retrieval.rank}`,
       sourceRef: document.url,
+    })) || []),
+    ...(portfolioContext?.matches.slice(0, 2).map((match) => ({
+      domain: 'PORTFOLIO',
+      label: `${match.study.id} · ${match.signal.organ} ${match.signal.finding}`,
+      detail: `${match.score}% contextual similarity · ${match.evidenceClass} · not pooled historical-control evidence`,
+      sourceRef: match.id,
     })) || []),
   ];
   // Recorded so the UI can state why the deterministic path answered, instead of
@@ -123,6 +133,10 @@ export async function investigate(
               execution: literatureEvidence.execution,
               documents: literatureEvidence.documents.slice(0, 8),
             } : undefined,
+            portfolioContext: portfolioContext ? {
+              execution: portfolioContext.execution,
+              matches: portfolioContext.matches.slice(0, 5),
+            } : undefined,
           },
         }),
         cache: 'no-store',
@@ -140,6 +154,7 @@ export async function investigate(
           coherence,
           semanticGrounding,
           literatureEvidence,
+          portfolioContext,
         } as InvestigationResult;
       }
       fallbackReason = `The agent returned HTTP ${response.status}.`;
@@ -165,18 +180,23 @@ export async function investigate(
   const literatureContext = literatureEvidence?.documents.length
     ? ` ${literatureEvidence.documents.length} signal-bound literature artifacts were retrieved and reranked for contextual review.`
     : ' No literature artifact is currently bound to this exact signal, so literature is not used as supporting evidence.';
+  const portfolioSummary = portfolioContext?.matches[0];
+  const portfolioNarrative = portfolioSummary
+    ? ` Cross-study retrieval found ${portfolioContext.matches.length} contextual comparators. The leading match is ${portfolioSummary.study.id}: ${portfolioSummary.signal.organ} ${portfolioSummary.signal.finding} (${portfolioSummary.score}% fused similarity); it is not pooled as a historical control.`
+    : ' No authorized cross-study comparator was retrieved.';
   const semanticStageStatus = semanticGrounding?.hits.length
     ? (semanticGrounding.mode === 'atlas-hybrid' ? 'complete' : 'fallback')
     : 'skipped';
   const literatureStageStatus = literatureEvidence?.documents.length ? 'complete' : 'skipped';
 
   return {
-    answer: `${structured}${labContext}${coherenceContext}${semanticContext}${literatureContext} These observations support expert review; they are not an automatic target-organ, causal, adversity, or regulatory conclusion.`,
+    answer: `${structured}${labContext}${coherenceContext}${semanticContext}${literatureContext}${portfolioNarrative} These observations support expert review; they are not an automatic target-organ, causal, adversity, or regulatory conclusion.`,
     confidence: signal.reviewPriority === 'high' ? 'strong-pattern' : 'review',
     provider: 'deterministic',
     coherence,
     semanticGrounding,
     literatureEvidence,
+    portfolioContext,
     fallbackReason,
     citations: sourceCitations.length ? sourceCitations : [
       { domain: 'MI', label: `${signal.affectedAnimals} affected animals`, detail: signal.finding, sourceRef: `${evidence.study.snapshotId}:MI` },
@@ -190,6 +210,7 @@ export async function investigate(
       { id: 'coherence', label: 'Resolve biological coherence', engine: 'structured', status: coherence?.available ? 'complete' : 'fallback', detail: coherence?.available ? `${coherence.inventory.endpointSummaries} target-organ endpoints · ${coherence.inventory.measurementSeries} measurement series` : 'Operational evidence projections were not available' },
       { id: 'retrieve', label: 'Retrieve semantic evidence', engine: 'vector', status: semanticStageStatus, detail: semanticGrounding ? `${semanticGrounding.mode} · ${semanticGrounding.hits.length} profile-scoped meanings · ${semanticGrounding.managedEmbedding.vectorFieldInSourceDocument ? 'document vector' : 'Atlas-managed vector'}` : 'No authorized semantic retrieval was executed' },
       { id: 'expand', label: 'Expand cross-domain graph', engine: 'graph', status: 'complete', detail: coherence?.available ? `${coherence.inventory.sourceDeclaredRelationships} source-declared relationships kept distinct from governed joins` : signal.correlatedLab ? `MI finding → animal → ${signal.correlatedLab} laboratory series` : 'MI finding → animal → treatment group' },
+      { id: 'compare', label: 'Retrieve cross-study context', engine: 'rerank', status: portfolioContext?.matches.length ? 'complete' : 'skipped', detail: portfolioContext?.matches.length ? `${portfolioContext.matches.length} contextual comparators · ${portfolioContext.execution.mode} · evidence boundaries retained` : 'No authorized comparator corpus was available' },
       { id: 'rerank', label: 'Rerank literature evidence', engine: 'rerank', status: literatureStageStatus, detail: literatureEvidence?.documents.length ? `${literatureEvidence.documents.length} governed documents · ${literatureEvidence.execution.mode} · reciprocal-rank fusion and domain reranking` : 'No signal-bound literature candidate was available to rerank' },
       { id: 'synthesize', label: 'Compose cited review hypothesis', engine: 'synthesis', status: 'complete', detail: 'No autonomous mutation or regulatory conclusion' },
     ],

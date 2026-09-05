@@ -9,6 +9,12 @@ type StudyEvidenceDocument = StudyEvidence & {
   importSource: 'bundled-demo' | 'kehrnel-export' | 'solution-api';
 };
 
+type StudySnapshotPointer = {
+  _id: string;
+  studyId: string;
+  activeSnapshotId: string;
+};
+
 type EvidenceChunk = {
   chunkId: string;
   studyId: string;
@@ -20,6 +26,28 @@ type EvidenceChunk = {
 };
 
 const PREFERRED_ATLAS_STUDY_ID = process.env.DEFAULT_STUDY_ID || 'PDS2014';
+
+function importedAtValue(document: Pick<StudyEvidenceDocument, 'importedAt'>) {
+  const value = document.importedAt instanceof Date ? document.importedAt.getTime() : new Date(document.importedAt).getTime();
+  return Number.isFinite(value) ? value : 0;
+}
+
+export function selectActiveStudyEvidence(
+  documents: StudyEvidenceDocument[],
+  pointers: ReadonlyMap<string, string>,
+): StudyEvidenceDocument[] {
+  const grouped = new Map<string, StudyEvidenceDocument[]>();
+  for (const document of documents) {
+    const group = grouped.get(document.study.id) || [];
+    group.push(document);
+    grouped.set(document.study.id, group);
+  }
+  return [...grouped.values()].map((versions) => {
+    const activeSnapshotId = pointers.get(versions[0].study.id);
+    return versions.find((document) => document.study.snapshotId === activeSnapshotId)
+      || [...versions].sort((left, right) => importedAtValue(right) - importedAtValue(left))[0];
+  }).sort((left, right) => left.study.id.localeCompare(right.study.id));
+}
 
 export class StudyEvidenceNotFoundError extends Error {
   constructor(public readonly studyId: string) {
@@ -118,9 +146,14 @@ export async function loadStudyEvidence(studyId?: string, onQuery?: (trace: Data
     return demoEvidence;
   }
 
-  const query = studyId
-    ? { 'study.id': studyId }
-    : { 'study.id': PREFERRED_ATLAS_STUDY_ID };
+  const selectedStudyId = studyId || PREFERRED_ATLAS_STUDY_ID;
+  const database = await solutionDatabase();
+  const pointerStartedAt = Date.now();
+  const pointer = await database?.collection<StudySnapshotPointer>('study_snapshot_pointers').findOne({ _id: selectedStudyId });
+  onQuery?.({ id: 'active-study-snapshot', source: 'mongodb', collection: 'study_snapshot_pointers', operation: 'findOne', predicate: { _id: selectedStudyId }, status: 'executed', resultCount: pointer ? 1 : 0, durationMs: Date.now() - pointerStartedAt });
+  const query = pointer?.activeSnapshotId
+    ? { 'study.id': selectedStudyId, 'study.snapshotId': pointer.activeSnapshotId }
+    : { 'study.id': selectedStudyId };
   let executedQuery = query;
   let stored = await collection.findOne(
     query,
@@ -155,15 +188,42 @@ export async function loadStudyEvidence(studyId?: string, onQuery?: (trace: Data
   return demoEvidence;
 }
 
-export async function loadPortfolioEvidence(): Promise<StudyEvidence[]> {
+export async function loadPortfolioEvidence(onQuery?: (trace: DataQueryTrace) => void): Promise<StudyEvidence[]> {
   const collection = await evidenceCollection();
-  if (!collection) return [{ ...demoEvidence, study: { ...demoEvidence.study, evidenceClass: 'observed-public' } }, ...portfolioBenchmarks];
+  if (!collection) {
+    const portable = [{ ...demoEvidence, study: { ...demoEvidence.study, evidenceClass: 'observed-public' as const } }, ...portfolioBenchmarks];
+    onQuery?.({ id: 'portfolio-evidence', source: 'portable-bundle', collection: 'study_evidence', operation: 'fixture-read', predicate: {}, status: 'fallback', resultCount: portable.length, durationMs: 0 });
+    return portable;
+  }
 
   await bootstrapDemoEvidence();
-  const stored = await collection.find(
+  const database = await solutionDatabase();
+  const pointerStartedAt = Date.now();
+  const pointerDocuments = database
+    ? await database.collection<StudySnapshotPointer>('study_snapshot_pointers').find({}).toArray()
+    : [];
+  onQuery?.({ id: 'active-study-snapshots', source: 'mongodb', collection: 'study_snapshot_pointers', operation: 'find', predicate: {}, status: 'executed', resultCount: pointerDocuments.length, durationMs: Date.now() - pointerStartedAt });
+  const pointers = new Map(pointerDocuments.map((item) => [item.studyId, item.activeSnapshotId]));
+  const evidenceStartedAt = Date.now();
+  const versions = await collection.find(
     {},
-    { projection: { _id: 0, importedAt: 0, importSource: 0 }, sort: { 'study.id': 1 } },
-  ).toArray() as unknown as StudyEvidence[];
+    { projection: { _id: 0 }, sort: { 'study.id': 1, importedAt: -1 } },
+  ).toArray() as unknown as StudyEvidenceDocument[];
+  let plan: DataQueryTrace['plan'];
+  if (onQuery) {
+    try {
+      plan = summarizeMongoExplain(await collection.find({}, { projection: { _id: 0 } }).sort({ 'study.id': 1, importedAt: -1 }).explain('executionStats'), versions.length);
+    } catch {
+      // Portfolio selection remains usable when explain is unavailable.
+    }
+  }
+  onQuery?.({ id: 'portfolio-evidence', source: 'mongodb', collection: 'study_evidence', operation: 'find', predicate: { selection: 'active-snapshot-pointer-or-latest' }, status: 'executed', resultCount: versions.length, durationMs: Date.now() - evidenceStartedAt, ...(plan ? { plan } : {}) });
+  const stored = selectActiveStudyEvidence(versions, pointers).map((document) => {
+    const evidence: Partial<StudyEvidenceDocument> = { ...document };
+    delete evidence.importedAt;
+    delete evidence.importSource;
+    return evidence as StudyEvidence;
+  });
   const identities = new Set(stored.map((item) => `${item.study.id}:${item.study.snapshotId}`));
   const benchmarks = portfolioBenchmarks.filter((item) => !identities.has(`${item.study.id}:${item.study.snapshotId}`));
   return [...stored.map((item) => ({ ...item, study: { ...item.study, evidenceClass: item.study.evidenceClass || (item.study.id === demoEvidence.study.id ? 'observed-public' : 'sponsor-observed') } })), ...benchmarks];

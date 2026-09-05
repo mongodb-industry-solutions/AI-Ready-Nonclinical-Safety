@@ -52,6 +52,7 @@ export function comparePortfolio(
   limit = 8,
   semanticReleaseId = defaultReleaseId,
   vectorScores: ReadonlyMap<string, number> | null = null,
+  dataOperations: PortfolioSimilarityResult['execution']['dataOperations'] = [],
 ): PortfolioSimilarityResult {
   const queryEvidence = evidenceSet.find((item) => item.study.id === studyId);
   if (!queryEvidence) throw new Error(`Study ${studyId} is not available in the portfolio corpus`);
@@ -87,6 +88,9 @@ export function comparePortfolio(
       : item.semantic * 0.42 + item.incidence * 0.40 + item.severity * 0.18;
     const score = Math.round(100 * (domainScore * 0.72 + ((ranks.get(id) || 0) / maxRrf) * 0.28));
     const sameOrgan = item.signal.organ === querySignal.organ;
+    const sharedDomains = queryEvidence.study.domains.filter((domain) => item.evidence.study.domains.includes(domain));
+    const speciesKnown = Boolean(queryEvidence.study.species && item.evidence.study.species);
+    const strainKnown = Boolean(queryEvidence.study.strain && item.evidence.study.strain);
     return {
       id,
       study: item.evidence.study,
@@ -99,6 +103,13 @@ export function comparePortfolio(
         { id: 'incidence', label: 'Dose pattern', score: Math.round(item.incidence * 100), status: 'executed', detail: 'Normalized group incidence shape; dose-grid independent' },
         { id: 'severity', label: 'Severity profile', score: Math.round(item.severity * 100), status: 'executed', detail: 'Cosine similarity across ordered severity proportions' },
         { id: 'vector', label: 'Vector meaning', score: item.vector == null ? null : Math.round(item.vector * 100), status: item.vector == null ? 'skipped' : 'executed', detail: item.vector == null ? 'The automated-embedding candidate set did not include this finding' : 'Atlas Automated Embedding similarity over the governed finding text projection' },
+      ],
+      comparability: [
+        { id: 'target-organ', label: 'Target organ', status: sameOrgan ? 'matched' : 'different', detail: sameOrgan ? `Both findings resolve to ${querySignal.organ}` : `${querySignal.organ} compared with ${item.signal.organ}` },
+        { id: 'species', label: 'Species', status: !speciesKnown ? 'unknown' : queryEvidence.study.species === item.evidence.study.species ? 'matched' : 'different', detail: speciesKnown ? `${queryEvidence.study.species} ↔ ${item.evidence.study.species}` : 'Species was not supplied for both studies' },
+        { id: 'strain', label: 'Strain', status: !strainKnown ? 'unknown' : queryEvidence.study.strain === item.evidence.study.strain ? 'matched' : 'different', detail: strainKnown ? `${queryEvidence.study.strain} ↔ ${item.evidence.study.strain}` : 'Strain was not supplied for both studies' },
+        { id: 'implementation-guide', label: 'SEND profile', status: queryEvidence.study.implementationGuide === item.evidence.study.implementationGuide ? 'matched' : 'partial', detail: `${queryEvidence.study.implementationGuide} ↔ ${item.evidence.study.implementationGuide}` },
+        { id: 'domain-overlap', label: 'Evidence coverage', status: sharedDomains.length === queryEvidence.study.domains.length && sharedDomains.length === item.evidence.study.domains.length ? 'matched' : 'partial', detail: `${sharedDomains.length} shared domains · ${queryEvidence.study.domains.length} query / ${item.evidence.study.domains.length} comparator` },
       ],
       explanation: sameOrgan
         ? `Same target organ; dose pattern is ${Math.round(item.incidence * 100)}% similar after normalization.`
@@ -121,7 +132,8 @@ export function comparePortfolio(
       mode: vectorExecuted ? 'explainable-hybrid-vector' : 'explainable-hybrid',
       semanticReleaseId,
       vectorLane: vectorExecuted ? 'executed' : 'skipped-no-vector-candidates',
-      boundary: 'Synthetic benchmarks support product evaluation only; they never become observed or historical-control evidence.',
+      boundary: 'Cross-study matches are contextual comparators, not pooled historical controls. Species, strain, SEND profile, domain coverage, and evidence class remain visible; synthetic benchmarks never become observed evidence.',
+      dataOperations,
     },
   };
 }

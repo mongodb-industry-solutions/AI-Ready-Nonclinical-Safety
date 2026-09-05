@@ -46,7 +46,7 @@ export default function BiologicalCoherencePanel({ study, signal, profileId, run
   signal: SafetySignal;
   profileId: SemanticProfileId;
   runtime?: SemanticRuntimeView;
-  onShowSource: (domain: EvidenceDomain) => void;
+  onShowSource: (domain: EvidenceDomain, filter?: 'all' | 'outside-range' | 'linked-test' | 'unassessed', scope?: 'subject' | 'study', testCode?: string) => void;
   onOpenSemantic: (focusId?: string) => void;
 }) {
   const theme = useThemeTokens();
@@ -168,7 +168,27 @@ export default function BiologicalCoherencePanel({ study, signal, profileId, run
         <div className="coherence-chart">
           {theme && organChart.rows.length ? <ResponsiveContainer width="100%" height="100%"><LineChart data={organChart.rows} margin={{ top: 9, right: 8, left: -12, bottom: 0 }}><CartesianGrid stroke={theme.grid} strokeDasharray="3 4" vertical={false} /><XAxis dataKey="dose" tick={{ fill: theme.tick, fontSize: 11 }} axisLine={{ stroke: theme.axis }} tickLine={false} /><YAxis tick={{ fill: theme.tick, fontSize: 11 }} axisLine={false} tickLine={false} /><Tooltip contentStyle={theme.tooltip} /><Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10 }} />{organChart.keys.map((key, index) => <Line key={key} type="monotone" dataKey={key} stroke={theme.series[index % theme.series.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />)}</LineChart></ResponsiveContainer> : <div className="coherence-no-data">No organ measurement series in this filter.</div>}
         </div>
-        <footer><span><b>Mean ± source range</b>{selectedMeasurement?.unit || 'source unit'}</span><button onClick={() => onShowSource('OM')}><Database size={12} /> Inspect OM</button></footer>
+        <footer><span><b>Group mean</b>{selectedMeasurement?.unit || 'source unit'}</span><button onClick={() => onShowSource('OM')}><Database size={12} /> Inspect OM</button></footer>
+      </article>
+
+      <article className="coherence-card laboratory-abnormality-card">
+        <header><div><span>LB · source-supplied limits</span><h3>Laboratory abnormality context</h3></div><button onClick={() => onShowSource('LB', result.systemicContext.laboratoryCoverage.sourceRangeSummaryCount ? 'outside-range' : 'all', 'study')}><Database size={13} /> Inspect canonical LB</button></header>
+        {result.systemicContext.laboratoryAbnormalities.length ? <>
+          <div className="laboratory-abnormality-summary">
+            <span><b>{result.systemicContext.laboratoryCoverage.outsideRangeResultCount}</b><small>outside-range source rows</small></span>
+            <span><b>{result.systemicContext.laboratoryCoverage.signalSubjectCount}</b><small>selected-signal animals with an abnormal result</small></span>
+            <p>These observations are study-wide biological context. Subject overlap is shown explicitly; no pathology-to-laboratory causal link is inferred.</p>
+          </div>
+          <div className="laboratory-abnormality-list">
+            {result.systemicContext.laboratoryAbnormalities.map((item) => <button key={`${item.testCode}:${item.unit || ''}`} onClick={() => onShowSource('LB', 'outside-range', 'study', item.testCode)}>
+              <span className="laboratory-test-code">{item.testCode}</span>
+              <span><b>{item.test}</b><small>{item.subjectCount} subjects · {item.outsideRangeResults} results{item.unit ? ` · ${item.unit}` : ''}</small></span>
+              <span className="laboratory-directions"><i>{item.directionCounts.low} low</i><i>{item.directionCounts.high} high</i>{item.directionCounts.sourceFlagged > 0 && <i>{item.directionCounts.sourceFlagged} flagged</i>}</span>
+              <span className={item.signalSubjectCount ? 'laboratory-overlap present' : 'laboratory-overlap'}>{item.signalSubjectCount ? `${item.signalSubjectCount} signal subject${item.signalSubjectCount === 1 ? '' : 's'}` : 'no subject overlap'}</span>
+              <ChevronRight size={13} />
+            </button>)}
+          </div>
+        </> : <div className="laboratory-abnormality-empty"><CircleAlert size={18} /><span><b>No governed abnormality classification</b><small>{result.systemicContext.laboratoryCoverage.interpretation}</small></span></div>}
       </article>
 
       <article className="coherence-card evidence-lanes">

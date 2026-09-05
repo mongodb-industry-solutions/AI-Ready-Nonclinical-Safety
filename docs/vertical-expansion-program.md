@@ -14,16 +14,28 @@ autonomous toxicology decision maker.
 
 ## Implemented vertical baseline
 
-The connected default is now PDS2014: 25 datasets, 42,041 canonical records,
-124 subjects, 4,584 endpoint summaries, 532 measurement series, 124 subject
-timelines, and 40,594 typed evidence relationships. Adrenal-gland vacuolization
-is the first target-organ investigation. The active Context Studio semantic
-release is `org.contextobjects.nonclinical-safety@0.4.1`.
+The connected runtime now activates five complete public SEND snapshots through
+an immutable pointer model. Their aggregate active corpus is 109,748 canonical
+records, 625 subjects, 11,640 endpoint summaries, 1,113 measurement series, 625
+subject timelines, and 98,444 typed evidence relationships:
+
+| Study | Canonical records | SEND domains | Endpoint summaries | Measurement series | Subjects |
+|---|---:|---:|---:|---:|---:|
+| PDS2014 | 42,041 | 25 | 4,584 | 532 | 124 |
+| GLP003 | 35,892 | 25 | 3,363 | 242 | 241 |
+| PC201708 | 18,749 | 28 | 1,711 | 238 | 150 |
+| Nimort-01 | 3,046 | 18 | 378 | 16 | 100 |
+| PhUSE FFU | 10,020 | 25 | 1,604 | 85 | 10 |
 
 The Investigation Room executes the biological-coherence resolver against those
-persisted projections, shows the real MongoDB predicates/counts/timings, and
-supports an append-only cited target-organ assessment. The public source does not
-provide laboratory reference intervals, so the UI presents that as a known gap.
+persisted projections, shows the real MongoDB predicates, index use, counts, and
+timings, and supports an append-only cited target-organ assessment. PDS2014 does
+not supply laboratory reference intervals, so the UI presents that as a known
+gap. Nimort-01 does supply ranges: the resolver currently hydrates 38 canonical
+outside-range rows across albumin, potassium, and chloride and reports overlap
+with animals in the selected pathology signal. These values remain source facts,
+not solution-invented thresholds. The active Context Studio semantic release is
+`org.contextobjects.nonclinical-safety@0.4.1`.
 
 ## Evidence reconnaissance
 
@@ -32,16 +44,17 @@ the current examples ingest:
 
 | Study | XPT domains at the pinned revision | Current Kehrnel example |
 |---|---:|---:|
-| FFU Contribution to FDA | 25 | 4 |
-| Nimble | 18 | 5 |
-| Instem | 25 | 5 |
-| PointCross | 28 | 5 |
+| FFU Contribution to FDA | 25 | 25 |
+| Nimble | 18 | 18 |
+| Instem | 25 | 25 |
+| PointCross | 28 | 28 |
 | PDS | 25 | 25 |
 
-The Kehrnel solution-evidence exporter is domain-neutral and now exports every PDS
-dataset and record present in the published snapshot. The solution preserves all
-domains canonically, then derives bounded business views across pathology,
-measurements, phase, exposure, and typed relationships.
+The Kehrnel solution-evidence exporter is domain-neutral and exports every dataset
+and record present in each published snapshot. The solution preserves all domains
+canonically, then derives bounded business views across pathology, measurements,
+phase, exposure, and typed relationships. Instem is represented by GLP003 and
+PointCross by PC201708 in the active solution corpus.
 
 ## Architectural ownership
 
@@ -135,10 +148,10 @@ Status at semantic release 0.4.1:
 
 | Gate | Status | Evidence |
 |---|---|---|
-| 0 · reconnaissance | Complete | Machine-readable five-study coverage report and observed PDS candidate |
-| 1 · supply path | Complete on feature branches | Checksum-pinned PDS catalog, all-domain export, 42,041-record handoff |
-| 2 · operational projections | Complete baseline | Four reconciled projection families plus workload indexes |
-| 3 · investigation room | Complete baseline | Biological-coherence workspace, filters, source navigation, server-selected typed widgets, and measured `executionStats` |
+| 0 · reconnaissance | Complete | Five-study coverage measured from complete public SEND packages |
+| 1 · supply path | Complete on feature branches | All-domain checksum-pinned examples and 109,748-record active corpus |
+| 2 · operational projections | Complete baseline | Five immutable active snapshots, reconciled projections, portfolio corpus, and workload indexes |
+| 3 · investigation room | Complete baseline | Biological coherence, source-range abnormality resolution, cross-study widgets, source navigation, and measured query traces |
 | 4 · agent and semantics | Implemented with runtime boundary | Compiled 0.4.1 resolver; exact, graph, semantic lexical/vector, literature, fusion, and rerank telemetry share one envelope; deterministic path always available; Magenta activates when configured |
 | 5 · assessment and evaluation | Partial | Cited target-organ assessment implemented; expert evaluation and NOAEL remain |
 

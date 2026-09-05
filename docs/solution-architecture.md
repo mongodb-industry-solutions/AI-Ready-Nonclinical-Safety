@@ -48,6 +48,8 @@ flowchart LR
 
 Healthcare Data Lab, Kehrnel, and Context Studio produce versioned inputs. They are intentionally absent from the production request path. The running application owns its MongoDB database, API, Magenta service, policies, and user experience.
 
+The deployed public corpus currently contains five complete SEND snapshots: PDS2014, GLP003, PC201708, Nimort-01, and the PhUSE FFU study. Together their active snapshots contain 109,748 canonical records for 625 animals, 11,640 endpoint summaries, 1,113 measurement series, 625 subject timelines, and 98,444 typed relationships. `study_snapshot_pointers` activates one immutable snapshot per study only after its canonical and operational reconciliation succeeds; older snapshots remain retained and are never silently overwritten.
+
 ## Where CDISC is used
 
 | SEND source | Canonical authority | Operational projection | Purpose |
@@ -57,6 +59,11 @@ Healthcare Data Lab, Kehrnel, and Context Studio produce versioned inputs. They 
 | DM | `cdisc_records` domain DM | `subjects`, group membership in projections | Animal identity, sex, and group |
 | MI | `cdisc_records` domain MI | `study_evidence.signals[]` | Organ, morphology, severity, and incidence |
 | LB | `cdisc_records` domain LB | `study_evidence.labSeries` | Longitudinal measurements and units |
+| BW / BG / FW | `cdisc_records` by domain | `measurement_series`, `subject_timelines` | Body-weight and food-consumption context |
+| MA / OM | `cdisc_records` by domain | `study_endpoint_summaries`, `measurement_series` | Macroscopic and organ-weight context |
+| CL / VS / EG | `cdisc_records` by domain | `study_endpoint_summaries`, `subject_timelines` | Clinical-observation and physiological context |
+| EX / PC / PP | `cdisc_records` by domain | `measurement_series`, `subject_timelines` | Administered dose and systemic-exposure context |
+| SE / DS / RELREC | `cdisc_records` by domain | `subject_timelines`, `evidence_relationships` | Phase, disposition, and source-declared relationships |
 | XPT + Define-XML | `source_artifacts` plus object storage | Artifact ledger and citations | Definitions, replayability, and integrity |
 
 The primary read model embeds data that the safety workspace reads together:
@@ -78,6 +85,8 @@ The detailed [CDISC document-model decision](cdisc-document-model-decision.md) d
 The solution projector is intentionally owned here rather than in Kehrnel. Kehrnel knows how to preserve and export standards-conformant evidence; this application knows which microscopic observations form a safety-review signal, which laboratory series are biologically relevant, and how the user experience consumes them. The boundary keeps reusable data infrastructure independent from product-specific scientific policy.
 
 The visual read model is not an access boundary. The Source records workspace resolves a selected signal to its immediate evidence thread and also exposes a paginated canonical-record API across every domain present in the immutable snapshot. Users can switch between one subject and the complete study, inspect every non-empty canonical field, distinguish canonical data from retrieval facets, and trace each row to its source artifact and hash. Laboratory filters identify the test explicitly linked to the finding and detect values outside source-supplied reference limits or abnormality flags. If the source provides neither, the result is labelled `reference range unavailable`; the solution never invents a threshold.
+
+Laboratory abnormality is resolved in two auditable steps: endpoint summaries identify only tests whose source data contains abnormality flags or supplied ranges with outliers, then the resolver hydrates the exact bounded LB source-record identities and evaluates their original result and limit fields. The Investigation Room displays low, high, and source-flagged counts plus overlap with animals in the selected pathology signal. Clicking an abnormality opens those canonical LB rows directly. A normal range is never inferred from cohort statistics.
 
 For the current observed-study projector, a pathology incidence is the number of distinct `MI.USUBJID` values matching the normalized specimen and finding, divided within each treatment group by animals derived from `DM`. Dose is resolved through the subject's `DM.SPGRPCD` binding to its `TX` trial-set definition; it is not duplicated into the immutable MI or LB rows. An LB record becomes contextual evidence only through an explicit versioned rule such as `correlatedLab`; simple co-occurrence does not establish a biological relationship or causality.
 
@@ -110,6 +119,8 @@ The browser only calls solution-owned APIs. It does not connect directly to Kehr
 6. Let Magenta synthesize a cited hypothesis for expert acceptance, revision, or rejection.
 
 Exact CDISC-derived measurements remain authoritative. Vector similarity finds context; it never substitutes generated text for incidence, dose, severity, or laboratory values.
+
+Cross-study results are deliberately labelled contextual comparators. Every match exposes target-organ, species, strain, SEND-profile, domain-overlap, and evidence-class comparability alongside the four retrieval lanes. The returned `dataOperations` are the actual MongoDB and Atlas operations executed for that answer. This is not a pooled historical-control service: study design, route, duration, laboratory, and other cohort qualifications are not silently normalized away.
 
 ## Why the document model matters
 

@@ -695,10 +695,15 @@ function canonicalRecordRef(record) {
 function buildEvidenceRelationships(records, contexts, semanticReleaseId) {
   const relationships = [];
   const recordByDeclaredKey = new Map();
+  const demographicSourceIdsBySubject = new Map();
   for (const record of records) {
     const sequence = recordSequence(record);
     const id = subjectId(record);
     if (sequence && id) recordByDeclaredKey.set(endpointKey([record.domain, id, sequence]), record);
+    if (record.domain === 'DM' && id) {
+      if (!demographicSourceIdsBySubject.has(id)) demographicSourceIdsBySubject.set(id, []);
+      demographicSourceIdsBySubject.get(id).push(record.sourceId);
+    }
   }
   const relrecGroups = new Map();
   for (const record of records.filter((item) => item.domain === 'RELREC')) {
@@ -746,7 +751,7 @@ function buildEvidenceRelationships(records, contexts, semanticReleaseId) {
       ruleId: 'relationship.subject-treatment-group.v1',
       subjectId: id,
       groupCode: context.groupCode,
-      sourceRecordIds: records.filter((record) => record.domain === 'DM' && subjectId(record) === id).map((record) => record.sourceId),
+      sourceRecordIds: demographicSourceIdsBySubject.get(id) || [],
     }, semanticReleaseId));
   }
   for (const record of records.filter((item) => DOMAIN_SEMANTIC_OBJECT[item.domain] && subjectId(item))) {

@@ -6,7 +6,7 @@
   },
   "method": {
     "description": "Direct XPT decoding from one pinned source revision; SHA-256 calculated over downloaded bytes.",
-    "factsVsInterpretation": "Domain and column metrics are observed facts. Candidate evidence chains are coverage heuristics and require expert review."
+    "factsVsInterpretation": "Domain and column metrics are observed facts. referenceRangeEvidence reports declared columns, not populated values; the runtime separately measures non-empty source values before rendering limits. Candidate evidence chains are coverage heuristics and require expert review."
   },
   "recommendation": {
     "studyId": "pds",
@@ -17,7 +17,7 @@
       "124 animals with both sexes and terminal plus recovery cohorts",
       "dose-stratified microscopic incidence in both sexes",
       "absolute, body-weight-relative, and brain-weight-relative organ weights",
-      "source-supplied laboratory reference-limit fields",
+      "standard laboratory reference-limit columns declared but unpopulated in the canonical PDS rows",
       "clinical observations and longitudinal body weight",
       "PC and PP exposure evidence",
       "112 RELREC rows including source-declared MA-to-MI relationships"

@@ -52,3 +52,12 @@ The active Context Studio release is materialized as polymorphic `semantic_resou
 `GET /api/semantics/search` runs both lanes and applies reciprocal-rank fusion. Source map documents never contain a vector or empty vector placeholder. Atlas owns the generated values in `__mdb_internal_search`, and a new immutable semantic release produces a new bounded search projection.
 
 Automated Embedding is an Atlas Preview feature and requires the applicable Atlas enablement, model access and billing configuration. `ATLAS_AUTO_EMBED_MODEL` selects the index-time model and defaults to `voyage-4`.
+
+## Operational evidence indexes
+
+`npm run setup:indexes` also ensures conventional compound indexes used by the
+biological-coherence resolver. `endpoint_summary_domain` supports complete
+snapshot-and-domain scans such as laboratory coverage; `measurement_series_domain`
+supports body-weight and exposure retrieval without relying on an organ-prefixed
+index. The importer creates the same definitions, so a new environment is correct
+whether indexes are established before or during data loading.

@@ -3,11 +3,13 @@ import { z } from 'zod';
 import { investigate } from '@/lib/ai/investigator';
 import { loadSignalRecordEvidence } from '@/lib/data/evidence-repository';
 import { loadBiologicalCoherence } from '@/lib/data/coherence-repository';
+import { loadPortfolioVectorScores } from '@/lib/data/portfolio-query';
 import { executeLiteratureQuery } from '@/lib/data/literature-query';
-import { loadStudyEvidence, StudyEvidenceNotFoundError } from '@/lib/data/study-repository';
+import { loadPortfolioEvidence, loadStudyEvidence, StudyEvidenceNotFoundError } from '@/lib/data/study-repository';
 import { recordInvestigation } from '@/lib/data/review-store';
 import { loadActiveSemanticBundle } from '@/lib/semantics/repository';
 import { searchSemanticMap } from '@/lib/semantics/search';
+import { comparePortfolio } from '@/lib/analysis/portfolio-similarity';
 import type { DataQueryTrace } from '@/lib/contracts';
 
 const requestSchema = z.object({
@@ -48,8 +50,18 @@ export async function POST(request: Request) {
   const semanticCapability = runtime.capabilities.find((item) => item.id === 'inspect-semantic-model');
   const literatureResolver = runtime.resolvers.find((item) => item.id === 'resolver.literature-evidence.v1');
   const literatureCapability = runtime.capabilities.find((item) => item.id === literatureResolver?.capability);
+  const portfolioResolver = runtime.resolvers.find((item) => item.id === 'resolver.similar-findings.v1');
+  const portfolioCapability = runtime.capabilities.find((item) => item.id === portfolioResolver?.capability);
   const semanticQuery = `${signal.organ} ${signal.finding}. ${parsed.data.question}`;
-  const [recordEvidence, coherence, semanticGrounding, literatureEvidence] = await Promise.all([
+  const portfolioPromise = portfolioResolver && portfolioCapability?.allowedProfiles.includes(parsed.data.profileId)
+    ? (async () => {
+      const operations: DataQueryTrace[] = [];
+      const portfolioEvidence = await loadPortfolioEvidence((trace) => operations.push(trace));
+      const vectorScores = await loadPortfolioVectorScores(signal, 100, (trace) => operations.push(trace));
+      return comparePortfolio(portfolioEvidence, evidence.study.id, signal.id, 5, runtime.release.releaseId, vectorScores, operations);
+    })()
+    : Promise.resolve(undefined);
+  const [recordEvidence, coherence, semanticGrounding, literatureEvidence, portfolioContext] = await Promise.all([
     loadSignalRecordEvidence(evidence.study.id, evidence.study.snapshotId, signal, recordQuery),
     coherenceResolver && coherenceCapability?.allowedProfiles.includes(parsed.data.profileId)
       ? loadBiologicalCoherence(evidence.study.id, evidence.study.snapshotId, signal, runtime.release.releaseId, coherenceResolver)
@@ -61,9 +73,11 @@ export async function POST(request: Request) {
     literatureResolver && literatureCapability?.allowedProfiles.includes(parsed.data.profileId)
       ? executeLiteratureQuery({ bundle: runtime, signalId: signal.id, profileId: parsed.data.profileId, query: semanticQuery, limit: 8 })
       : undefined,
+    portfolioPromise,
   ]);
   if (coherence) dataOperations.push(...coherence.execution.dataOperations);
-  const result = await investigate(evidence, parsed.data.signalId, parsed.data.question, parsed.data.profileId, recordEvidence, coherence, semanticGrounding, literatureEvidence);
+  if (portfolioContext) dataOperations.push(...portfolioContext.execution.dataOperations);
+  const result = await investigate(evidence, parsed.data.signalId, parsed.data.question, parsed.data.profileId, recordEvidence, coherence, semanticGrounding, literatureEvidence, portfolioContext);
   const readCollections = [...new Set(dataOperations.filter((operation) => operation.source === 'mongodb' && operation.status === 'executed').map((operation) => operation.collection))];
   const predicates = dataOperations.reduce<Record<string, Array<Record<string, unknown>>>>((byCollection, operation) => {
     if (!byCollection[operation.collection]) byCollection[operation.collection] = [];
@@ -92,6 +106,11 @@ export async function POST(request: Request) {
           managedEmbedding: semanticGrounding.managedEmbedding,
         } } : {}),
         ...(literatureEvidence ? { literature: literatureEvidence.execution } : {}),
+        ...(portfolioContext ? { portfolio: {
+          mode: portfolioContext.execution.mode,
+          vectorLane: portfolioContext.execution.vectorLane,
+          boundary: portfolioContext.execution.boundary,
+        } } : {}),
       },
       executedAt: new Date().toISOString(),
       boundScope: {

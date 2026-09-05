@@ -197,7 +197,7 @@ Without `MONGODB_URI`, the application provides a fully interactive experience f
 
 When `MONGODB_URI` is set, the application reads its own canonical evidence, operational read models, retrieval projections, and solution-state collections. The bundled public study summary is inserted idempotently only when no connected projection has been imported. A Kehrnel export populates `study_snapshots`, `dataset_definitions`, `cdisc_records`, `subjects`, `source_artifacts`, `validation_evidence`, and `lineage_events` without coupling the running solution to Kehrnel.
 
-The verified public corpus exercises **76,884 canonical records and 625 animals across five distinct studies**. PDS2014 contributes 42,041 records, 124 animals, and all 25 datasets. The study selector opens every imported observed study as a complete workspace; the portfolio atlas compares their bounded pathology projections alongside clearly separated synthetic benchmarks. Kehrnel exposes the source packages with revision, license, and checksums retained in every export.
+The verified active public corpus exercises **109,748 canonical records and 625 animals across five complete studies**. PDS2014 contributes 42,041 records, 124 animals, and all 25 datasets; FFU, Nimble, Instem GLP003, and PointCross now also use their complete published domain sets. The study selector opens every active immutable snapshot as a complete workspace; the portfolio atlas compares their bounded pathology projections alongside clearly separated synthetic benchmarks. `study_snapshot_pointers` activates a new immutable version only after import and reconciliation succeed. Kehrnel exposes the source packages with revision, license, checksums, and validation findings retained in every export.
 
 Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Its checked-in contract is [`contracts/cdisc-solution-evidence-v1.schema.json`](contracts/cdisc-solution-evidence-v1.schema.json). Download the generated JSON artifact, then import it:
 
@@ -210,7 +210,19 @@ npm run rebuild:portfolio
 npm run setup:indexes
 ```
 
-The importer verifies API and model versions, requires a published snapshot, recomputes the package SHA-256 digest, checks every manifest count, and performs bounded, retryable, idempotent upserts. It then deterministically derives a bounded `StudyEvidence` summary plus 4,584 endpoint summaries, 532 measurement series, 124 subject timelines, and 40,594 typed evidence relationships for PDS2014. Every projection carries exact source-record IDs, a deterministic digest, projection version, and the semantic release used to interpret it. Source-declared RELREC edges remain distinguishable from governed joins. There is no manually supplied second data model in connected mode.
+Published snapshot identifiers are immutable by default. A controlled staging
+migration may pass `--replace-snapshot` to rebuild one exact study/snapshot
+mirror from a newly verified package. Replacement is refused when an
+investigation, review action, or target-organ assessment already references the
+snapshot, and the prior package receipt is retained as superseded.
+
+```bash
+npm run import:study -- ./path/to/solution-evidence-package.json --replace-snapshot
+```
+
+The importer verifies API and model versions, requires a published snapshot, recomputes the package SHA-256 digest, checks every manifest count, and performs bounded, retryable, idempotent upserts. Across the five active studies it deterministically derives 11,640 endpoint summaries, 1,113 measurement series, 625 subject timelines, and 98,444 typed evidence relationships. Every projection carries exact source-record IDs, a deterministic digest, projection version, and the semantic release used to interpret it. Source-declared RELREC edges remain distinguishable from governed joins. There is no manually supplied second data model in connected mode.
+
+Laboratory abnormality is source-governed: the resolver hydrates canonical LB rows only when the source supplies limits or an abnormality flag, reports low/high/flagged counts and overlap with selected pathology animals, and lets the investigator open those exact rows. PDS declares standard range columns but leaves them unpopulated; Nimort-01 provides the current live example. Cohort statistics are never converted into invented normal limits.
 
 The index command creates the solution-owned Atlas Search and Vector Search definitions described in [`docs/atlas-indexes.md`](docs/atlas-indexes.md). It requires an Atlas database role permitted to manage search indexes.
 
@@ -242,7 +254,7 @@ The agent is read-only. It cannot publish snapshots, create validation waivers, 
 
 ### Portfolio similarity
 
-`GET /api/portfolio/similarity` authorizes `retrieve-similar-findings` against the active semantic profile and compares the selected finding only with other study snapshots. The resolver executes semantic/concept, normalized dose-incidence, severity, and Atlas Automated Embedding lanes. Candidate lists are fused with reciprocal-rank fusion and then domain-reranked. The response exposes every lane score and whether Vector Search actually ran.
+`GET /api/portfolio/similarity` authorizes `retrieve-similar-findings` against the active semantic profile and compares the selected finding only with other study snapshots. The resolver executes semantic/concept, normalized dose-incidence, severity, and Atlas Automated Embedding lanes. Candidate lists are fused with reciprocal-rank fusion and then domain-reranked. The response exposes every lane score, target-organ/species/strain/SEND/domain comparability, whether Vector Search actually ran, and the exact data-operation traces used for the answer.
 
 The shipped benchmark corpus is for evaluating the workflow, never for historical-control or scientific inference. When real sponsor or public study packages are imported, the same resolver compares their solution-owned projections without changing the UI contract. Compound and SMILES similarity are intentionally absent until a governed compound identity and structure source are available.
 
@@ -275,7 +287,7 @@ npm run build
 
 1. **Single-study SEND investigation** — implemented foundation.
 2. **Connected Atlas AI retrieval** — executable containment, Atlas Search, Atlas Automated Embedding, graph expansion, fusion, reranking and visible plan telemetry are implemented; expert-labeled retrieval evaluation remains.
-3. **Cross-study portfolio intelligence** — implemented across four observed public SEND studies plus segregated synthetic benchmarks, with explainable target-organ, species, dose-pattern, severity and vector-ready comparisons. Compound/SMILES similarity remains deferred until governed compound identities and structures are supplied.
+3. **Cross-study portfolio intelligence** — implemented across five complete observed public SEND studies plus segregated synthetic benchmarks, with explainable target-organ, species, strain, SEND-profile, domain-coverage, dose-pattern, severity, and Atlas Automated Embedding comparisons. Comparators remain contextual and are never silently pooled as historical controls. Compound/SMILES similarity remains deferred until governed compound identities and structures are supplied.
 4. **Translational safety bridge** — governed connections from nonclinical SEND to clinical SDTM and ADaM evidence.
 
 ## Safety and Scope

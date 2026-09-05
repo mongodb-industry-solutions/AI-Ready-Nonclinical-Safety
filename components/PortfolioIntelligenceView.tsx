@@ -71,6 +71,7 @@ export default function PortfolioIntelligenceView({ evidence, evidenceSet, profi
         <h2>{selected.signal.organ}</h2><p className="match-finding">{selected.signal.finding}</p>
         <div className="match-study"><FlaskConical size={13} /><span><b>{selected.study.title}</b><small>{selected.study.compoundName ? `${selected.study.compoundName} · ` : ''}{selected.study.species || 'Species not supplied'} · {selected.study.strain || 'strain not supplied'} · {selected.study.snapshotId}</small></span></div>
         <p className="match-explanation">{selected.explanation}</p>
+        <div className="match-comparability"><span>Study comparability</span>{selected.comparability.map((dimension) => <div className={dimension.status} title={dimension.detail} key={dimension.id}><i /><span><b>{dimension.label}</b><small>{dimension.detail}</small></span><em>{dimension.status}</em></div>)}</div>
         <div className="lane-stack">{selected.lanes.map((lane) => <div key={lane.id} className={lane.status === 'skipped' ? 'skipped' : ''}><header><span>{lane.label}</span><b>{lane.score === null ? 'not run' : `${lane.score}%`}</b></header><i><span style={{ width: `${lane.score || 0}%` }} /></i><small>{lane.detail}</small></div>)}</div>
       </aside>}
     </section>
@@ -86,6 +87,15 @@ export default function PortfolioIntelligenceView({ evidence, evidenceSet, profi
       </button>)}
     </section>
 
+    <section className="portfolio-execution panel">
+      <header><div><span className="panel-kicker">Executed resolver evidence</span><h2>Actual query operations</h2></div><span>{result.execution.mode} · {result.execution.vectorLane}</span></header>
+      <div>{result.execution.dataOperations.length ? result.execution.dataOperations.map((operation) => <article key={operation.id}><span><DatabaseIcon /><b>{operation.collection}.{operation.operation}</b></span><code>{JSON.stringify(operation.predicate)}</code><em className={operation.status}>{operation.status} · {operation.resultCount} rows · {operation.durationMs} ms{operation.plan ? ` · ${operation.plan.documentsExamined ?? '—'} examined · ${operation.plan.indexes.join(', ') || 'COLLSCAN'}` : ''}</em></article>) : <p>The portable preview calculated the same deterministic lanes; no MongoDB operation was executed.</p>}</div>
+    </section>
+
     <section className="portfolio-boundary"><GitCompareArrows size={17} /><div><b>Evidence boundary enforced</b><p>{result.execution.boundary}</p></div><span>SMILES deferred until governed compound identity exists</span></section>
   </div>;
+}
+
+function DatabaseIcon() {
+  return <CircleDot size={11} />;
 }

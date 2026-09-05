@@ -107,6 +107,12 @@ export interface PortfolioSimilarityMatch {
   score: number;
   rank: number;
   lanes: SimilarityLaneScore[];
+  comparability: Array<{
+    id: 'species' | 'strain' | 'implementation-guide' | 'domain-overlap' | 'target-organ';
+    label: string;
+    status: 'matched' | 'partial' | 'different' | 'unknown';
+    detail: string;
+  }>;
   explanation: string;
 }
 
@@ -124,6 +130,7 @@ export interface PortfolioSimilarityResult {
     semanticReleaseId: string;
     vectorLane: 'executed' | 'skipped-no-vector-candidates';
     boundary: string;
+    dataOperations: DataQueryTrace[];
   };
 }
 
@@ -278,6 +285,19 @@ export interface OperationalEvidenceRelationship {
   projectionDigest: string;
 }
 
+export interface LaboratoryAbnormalitySummary {
+  testCode: string;
+  test: string;
+  unit?: string;
+  outsideRangeResults: number;
+  subjectCount: number;
+  signalSubjectCount: number;
+  directionCounts: { low: number; high: number; sourceFlagged: number };
+  observedRange?: { min: number; max: number };
+  suppliedLimits?: { lowest?: number; highest?: number };
+  sourceRecordIds: string[];
+}
+
 export interface BiologicalCoherenceResponse {
   available: boolean;
   studyId: string;
@@ -296,8 +316,11 @@ export interface BiologicalCoherenceResponse {
       endpointSummaryCount: number;
       sourceRangeSummaryCount: number;
       outsideRangeSummaryCount: number;
+      outsideRangeResultCount: number;
+      signalSubjectCount: number;
       interpretation: string;
     };
+    laboratoryAbnormalities: LaboratoryAbnormalitySummary[];
   };
   relationships: OperationalEvidenceRelationship[];
   filters: { sexes: string[]; phases: string[] };
@@ -336,7 +359,7 @@ export interface InvestigationStep {
 
 export interface InvestigationWidget {
   id: string;
-  kind: 'dose-response' | 'laboratory-trajectory' | 'biological-coherence' | 'semantic-grounding' | 'execution-plan' | 'evidence-topology';
+  kind: 'dose-response' | 'laboratory-trajectory' | 'biological-coherence' | 'portfolio-context' | 'semantic-grounding' | 'execution-plan' | 'evidence-topology';
   title: string;
   sourceDomains: string[];
 }
@@ -356,6 +379,7 @@ export interface InvestigationExecutionContract {
   retrievalExecutions: {
     semantic?: Pick<SemanticGroundingResult, 'mode' | 'query' | 'stages' | 'managedEmbedding'>;
     literature?: LiteratureQueryExecution;
+    portfolio?: Pick<PortfolioSimilarityResult['execution'], 'mode' | 'vectorLane' | 'boundary'>;
   };
   executedAt: string;
   boundScope: {
@@ -390,6 +414,8 @@ export interface InvestigationResult {
   semanticGrounding?: SemanticGroundingResult;
   /** Governed literature containment, hybrid retrieval, fusion, and reranking result. */
   literatureEvidence?: Omit<LiteratureQueryResponse, 'source' | 'plan'>;
+  /** Cross-study context remains observational and is never pooled as a historical control. */
+  portfolioContext?: PortfolioSimilarityResult;
   /** Why the deterministic investigator answered. Absent when Magenta responded. */
   fallbackReason?: string;
   execution?: InvestigationExecutionContract;

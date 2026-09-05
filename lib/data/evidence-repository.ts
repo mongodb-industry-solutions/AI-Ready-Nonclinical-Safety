@@ -170,7 +170,7 @@ export async function loadSignalRecordEvidence(
 export async function loadCanonicalRecordPage(
   studyId: string,
   snapshotId: string,
-  options: { domain: string; scope: 'subject' | 'study'; subjectId?: string; filter: CanonicalRecordPage['filter']; linkedTestCode?: string; offset: number; limit: number },
+  options: { domain: string; scope: 'subject' | 'study'; subjectId?: string; filter: CanonicalRecordPage['filter']; linkedTestCode?: string; testCode?: string; offset: number; limit: number },
 ): Promise<CanonicalRecordPage> {
   const database = await solutionDatabase();
   const base = {
@@ -217,7 +217,11 @@ export async function loadCanonicalRecordPage(
   if (options.domain === 'LB' && options.filter === 'linked-test' && options.linkedTestCode) filterPredicate = {
     $or: [{ 'facets.testCode': options.linkedTestCode }, { 'data.LBTESTCD': options.linkedTestCode }],
   };
-  const predicate = filterPredicate ? { $and: [scopePredicate, filterPredicate] } : scopePredicate;
+  const testPredicate = options.domain === 'LB' && options.testCode
+    ? { $or: [{ 'facets.testCode': options.testCode }, { 'data.LBTESTCD': options.testCode }] }
+    : undefined;
+  const constraints = [scopePredicate, filterPredicate, testPredicate].filter((item): item is Record<string, unknown> => Boolean(item));
+  const predicate = constraints.length > 1 ? { $and: constraints } : constraints[0];
   const collection = database.collection<StoredRecord>('cdisc_records');
   const [total, rows] = await Promise.all([
     collection.countDocuments(predicate),

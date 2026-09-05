@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Activity, BookOpen, Bot, CheckCircle2, ChevronRight, Database, Download, GitBranch, LayoutDashboard, Microscope, Network, Save, ShieldCheck, X } from 'lucide-react';
-import type { LiteratureDocument, ReviewActionRecord, SafetySignal, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
+import type { CanonicalRecordPage, LiteratureDocument, ReviewActionRecord, SafetySignal, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import AgentPanel from '@/components/AgentPanel';
 import DoseResponseChart from '@/components/DoseResponseChart';
 import EvidenceGraph from '@/components/EvidenceGraph';
@@ -22,10 +22,13 @@ function stepForDomain(domain?: EvidenceDomain): EvidenceContextStep {
   return 'finding';
 }
 
-export default function InvestigationRoom({ evidence, signal, runtime, literature, initialCanvas = 'evidence', recordFocus, onClose, onOpenSemantic }: { evidence: StudyEvidence; signal: SafetySignal; runtime: SemanticRuntimeView; literature: LiteratureDocument[]; initialCanvas?: InvestigationCanvas; recordFocus?: EvidenceDomain; onClose: () => void; onOpenSemantic: (focusId?: string) => void }) {
+export default function InvestigationRoom({ evidence, signal, runtime, literature, initialCanvas = 'evidence', recordFocus, onClose, onOpenSemantic, onOpenPortfolio }: { evidence: StudyEvidence; signal: SafetySignal; runtime: SemanticRuntimeView; literature: LiteratureDocument[]; initialCanvas?: InvestigationCanvas; recordFocus?: EvidenceDomain; onClose: () => void; onOpenSemantic: (focusId?: string) => void; onOpenPortfolio: () => void }) {
   const [canvas, setCanvas] = useState<InvestigationCanvas>(initialCanvas);
   const [contextStep, setContextStep] = useState<EvidenceContextStep>(stepForDomain(recordFocus));
   const [recordDomain, setRecordDomain] = useState<EvidenceDomain | undefined>(recordFocus);
+  const [recordFilter, setRecordFilter] = useState<CanonicalRecordPage['filter']>('all');
+  const [recordScopeOverride, setRecordScopeOverride] = useState<'subject' | 'study'>();
+  const [recordTestCode, setRecordTestCode] = useState<string>();
   const [action, setAction] = useState(runtime.actions[0]?.id || 'annotate');
   const [note, setNote] = useState('');
   const [saved, setSaved] = useState<ReviewActionRecord | null>(null);
@@ -62,6 +65,9 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
     setInvestigatorExpanded(false);
     setContextStep(step);
     setRecordDomain(step === 'treatment' ? 'TX' : step === 'subject' ? 'DM' : step === 'laboratory' ? 'LB' : step === 'finding' ? 'MI' : undefined);
+    setRecordFilter('all');
+    setRecordScopeOverride(undefined);
+    setRecordTestCode(undefined);
     setCanvas('records');
   }
 
@@ -73,12 +79,13 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
     else setContextStep(stepForDomain(recordFocus));
   }
 
-  const recordContext: { scope: 'subject' | 'study'; domain?: EvidenceDomain; section?: 'records' | 'artifacts' } = contextStep === 'study' ? { scope: 'study' as const }
+  const defaultRecordContext: { scope: 'subject' | 'study'; domain?: EvidenceDomain; section?: 'records' | 'artifacts' } = contextStep === 'study' ? { scope: 'study' as const }
     : contextStep === 'treatment' ? { scope: 'study' as const, domain: 'TX' as EvidenceDomain }
       : contextStep === 'subject' ? { scope: 'subject' as const, domain: 'DM' as EvidenceDomain }
         : contextStep === 'laboratory' ? { scope: 'subject' as const, domain: 'LB' as EvidenceDomain }
           : contextStep === 'artifact' ? { scope: 'study' as const, section: 'artifacts' as const }
           : { scope: 'subject' as const, domain: recordDomain || 'MI' as EvidenceDomain };
+  const recordContext = { ...defaultRecordContext, ...(recordScopeOverride ? { scope: recordScopeOverride } : {}) };
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
@@ -121,9 +128,9 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
       <main className="room-stage">
         <nav className="room-tabs"><button className={canvas === 'coherence' ? 'active' : ''} onClick={() => navigateCanvas('coherence')}><Microscope size={14} /> Biological coherence</button><button className={canvas === 'evidence' ? 'active' : ''} onClick={() => navigateCanvas('evidence')}><GitBranch size={14} /> Evidence network</button><button className={canvas === 'records' ? 'active' : ''} onClick={() => navigateCanvas('records')}><Database size={14} /> Source records</button><button className={canvas === 'dose' ? 'active' : ''} onClick={() => navigateCanvas('dose')}><Activity size={14} /> Dose &amp; response</button><button className={canvas === 'literature' ? 'active' : ''} onClick={() => navigateCanvas('literature')}><BookOpen size={14} /> Literature <em>{literature.length}</em></button><button className={canvas === 'semantics' ? 'active' : ''} onClick={() => navigateCanvas('semantics')}><Network size={14} /> Agent plan</button></nav>
         <section className="room-widget">
-          {canvas === 'coherence' && <BiologicalCoherencePanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} runtime={runtime} onShowSource={(domain) => { setInvestigatorExpanded(false); setRecordDomain(domain); setContextStep(stepForDomain(domain)); setCanvas('records'); }} onOpenSemantic={onOpenSemantic} />}
+          {canvas === 'coherence' && <BiologicalCoherencePanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} runtime={runtime} onShowSource={(domain, filter = 'all', scope, testCode) => { setInvestigatorExpanded(false); setRecordDomain(domain); setRecordFilter(filter); setRecordScopeOverride(scope); setRecordTestCode(testCode); setContextStep(stepForDomain(domain)); setCanvas('records'); }} onOpenSemantic={onOpenSemantic} />}
           {canvas === 'evidence' && <EvidenceGraph evidence={evidence} signal={signal} immersive />}
-          {canvas === 'records' && <RecordEvidencePanel key={`${contextStep}:${recordContext.domain || ''}`} study={evidence.study} doseGroups={evidence.doseGroups} signal={signal} focusDomain={recordContext.domain} initialScope={recordContext.scope} initialSection={recordContext.section} />}
+          {canvas === 'records' && <RecordEvidencePanel key={`${contextStep}:${recordContext.domain || ''}:${recordFilter}:${recordContext.scope}:${recordTestCode || ''}`} study={evidence.study} doseGroups={evidence.doseGroups} signal={signal} focusDomain={recordContext.domain} initialScope={recordContext.scope} initialSection={recordContext.section} initialFilter={recordFilter} initialTestCode={recordTestCode} />}
           {canvas === 'dose' && <div className="room-charts"><div><span className="panel-kicker">Finding incidence</span><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div>{lab ? <div><span className="panel-kicker">{lab.label} trajectory</span><LabTrajectoryChart series={lab} /></div> : <div className="no-lab-context"><Activity size={23} /><div><b>No asserted laboratory correlate</b><p>The evidence graph does not create an LB relationship where none is governed.</p></div></div>}</div>}
           {canvas === 'literature' && <LiteratureEvidencePanel signal={signal} documents={literature} profileId={runtime.activeProfile.id} />}
           {canvas === 'semantics' && <div className="resolver-board"><header><span className="panel-kicker">Compiled resolver graph</span><h2>Authorized tools for {runtime.activeProfile.label}</h2></header>{runtime.capabilities.map((capability, index) => <article key={capability.id}><i>{index + 1}</i><div><b>{capability.label}</b><p>{capability.description}</p><span>{capability.engines.join(' + ')}</span></div></article>)}</div>}
@@ -134,7 +141,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
           {saved && <div className="saved-action"><CheckCircle2 size={14} /><span><b>{saved.status}</b><small>{saved.id}</small></span></div>}
         </section>
       </main>
-      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} evidence={evidence} runtime={runtime} expanded={investigatorExpanded} onToggleExpanded={() => setInvestigatorExpanded((expanded) => !expanded)} onShowSource={() => { setInvestigatorExpanded(false); setContextStep('subject'); setCanvas('records'); }} onOpenCoherence={() => { setInvestigatorExpanded(false); setContextStep('finding'); setCanvas('coherence'); }} onOpenLiterature={() => { setInvestigatorExpanded(false); setContextStep('artifact'); setCanvas('literature'); }} onOpenSemantic={onOpenSemantic} />
+      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} evidence={evidence} runtime={runtime} expanded={investigatorExpanded} onToggleExpanded={() => setInvestigatorExpanded((expanded) => !expanded)} onShowSource={() => { setInvestigatorExpanded(false); setRecordScopeOverride(undefined); setRecordTestCode(undefined); setContextStep('subject'); setCanvas('records'); }} onOpenCoherence={() => { setInvestigatorExpanded(false); setContextStep('finding'); setCanvas('coherence'); }} onOpenLiterature={() => { setInvestigatorExpanded(false); setContextStep('artifact'); setCanvas('literature'); }} onOpenPortfolio={onOpenPortfolio} onOpenSemantic={onOpenSemantic} />
     </div>
   </div>;
 }

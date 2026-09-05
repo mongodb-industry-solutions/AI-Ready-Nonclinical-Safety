@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { investigate } from '@/lib/ai/investigator';
 import type { CanonicalEvidenceRecord, SemanticGroundingResult, SignalRecordEvidence } from '@/lib/contracts';
+import { comparePortfolio } from '@/lib/analysis/portfolio-similarity';
 import { demoEvidence } from '@/lib/data/demo';
+import { portfolioBenchmarks } from '@/lib/data/portfolio-benchmarks';
 
 function record(domain: string, sourceId: string): CanonicalEvidenceRecord {
   return {
@@ -64,5 +66,32 @@ describe('AI safety investigator provenance', () => {
     expect(result.steps.find((step) => step.id === 'retrieve')).toMatchObject({ status: 'complete' });
     expect(result.semanticGrounding?.managedEmbedding.vectorFieldInSourceDocument).toBe(false);
     expect(result.citations).toEqual(expect.arrayContaining([expect.objectContaining({ domain: 'SEMANTIC', sourceRef: 'semantic:lymphocyte-depletion' })]));
+  });
+
+  it('exposes contextual portfolio evidence without presenting it as a historical control', async () => {
+    const portfolio = comparePortfolio(
+      [demoEvidence, portfolioBenchmarks[0]],
+      demoEvidence.study.id,
+      demoEvidence.signals[0].id,
+    );
+
+    const result = await investigate(
+      demoEvidence,
+      demoEvidence.signals[0].id,
+      'Which findings are similar in other studies?',
+      'toxicologist',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      portfolio,
+    );
+
+    expect(result.widgets).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'portfolio-context' })]));
+    expect(result.citations).toEqual(expect.arrayContaining([expect.objectContaining({ domain: 'PORTFOLIO' })]));
+    expect(result.answer).toContain('not pooled as a historical control');
+    expect(result.portfolioContext?.matches[0].comparability).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'target-organ' }),
+    ]));
   });
 });

@@ -21,11 +21,13 @@ export async function GET(request: Request, context: { params: Promise<{ studyId
   const requestedFilter = searchParams.get('filter') || 'all';
   const filter = (['all', 'outside-range', 'linked-test', 'unassessed'].includes(requestedFilter) ? requestedFilter : 'all') as 'all' | 'outside-range' | 'linked-test' | 'unassessed';
   const linkedTestCode = searchParams.get('linkedTestCode') || undefined;
+  const testCode = searchParams.get('testCode')?.trim().toUpperCase() || undefined;
   const offset = Math.max(0, Number.parseInt(searchParams.get('offset') || '0', 10) || 0);
   const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get('limit') || '20', 10) || 20));
 
   if (!/^[A-Z0-9]{1,8}$/.test(domain)) return NextResponse.json({ error: 'A valid domain is required' }, { status: 400 });
+  if (testCode && !/^[A-Z0-9_]{1,16}$/.test(testCode)) return NextResponse.json({ error: 'A valid laboratory test code is required' }, { status: 400 });
   if (scope === 'subject' && !subjectId) return NextResponse.json({ error: 'subjectId is required for subject scope' }, { status: 400 });
 
-  return NextResponse.json(await loadCanonicalRecordPage(studyId, evidence.study.snapshotId, { domain, scope, subjectId, filter, linkedTestCode, offset, limit }));
+  return NextResponse.json(await loadCanonicalRecordPage(studyId, evidence.study.snapshotId, { domain, scope, subjectId, filter, linkedTestCode, testCode, offset, limit }));
 }

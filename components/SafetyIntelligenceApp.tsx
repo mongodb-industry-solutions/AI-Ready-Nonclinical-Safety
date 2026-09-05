@@ -294,7 +294,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
               <EvidenceAssembly evidence={evidence} signal={signal} onInspect={inspectEvidenceDomain} />
             </article>
           </section>
-          <AgentPanel id="agent" study={evidence.study} signal={signal} profileId={semantics.activeProfile.id} enabled={canInvestigate} runtime={semantics} onOpenSemantic={openSemantic} />
+          <AgentPanel id="agent" study={evidence.study} signal={signal} profileId={semantics.activeProfile.id} enabled={canInvestigate} runtime={semantics} onOpenSemantic={openSemantic} onOpenPortfolio={() => openView('portfolio')} />
         </div>
         <section className="panel graph-panel graph-wide" id="graph">
               <div className="panel-heading"><div><span className="panel-kicker">Interactive evidence network</span><h2>{signal.organ}: from dose assignment to source artifact</h2><p>Follow the highlighted path, select any node for context, or expand the graph for investigation mode.</p></div><div className="graph-actions"><button className="text-action" onClick={() => openSemantic('Finding')}>See data model <Braces size={13} /></button><button className="secondary-action graph-expand" onClick={() => setGraphOpen(true)}><Expand size={13} /> Expand graph</button></div></div>
@@ -314,7 +314,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
         onOpenView={openView}
         onOpenSemantic={openSemantic}
       />
-      {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} initialCanvas={roomCanvas} recordFocus={recordFocus} onClose={() => setRoomOpen(false)} onOpenSemantic={openSemantic} />}
+      {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} initialCanvas={roomCanvas} recordFocus={recordFocus} onClose={() => setRoomOpen(false)} onOpenSemantic={openSemantic} onOpenPortfolio={() => { setRoomOpen(false); openView('portfolio'); }} />}
     </main>
     <NonclinicalSafetySherpa />
   </div>;

@@ -16,6 +16,12 @@ const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
 try {
   const database = client.db(process.env.MONGODB_DATABASE || 'nonclinical_safety_solution');
+  await database.collection('study_endpoint_summaries').createIndexes([
+    { key: { studyId: 1, snapshotId: 1, domain: 1, testCode: 1 }, name: 'endpoint_summary_domain' },
+  ]);
+  await database.collection('measurement_series').createIndexes([
+    { key: { studyId: 1, snapshotId: 1, domain: 1, testCode: 1, sex: 1, phase: 1 }, name: 'measurement_series_domain' },
+  ]);
   const collection = database.collection('evidence_chunks');
   const existing = new Set((await collection.listSearchIndexes().toArray()).map((index) => index.name));
 
@@ -157,7 +163,7 @@ try {
     await semantic.updateSearchIndex(semanticAutoEmbedName, semanticAutoEmbedDefinition);
   }
 
-  console.log(`Atlas indexes requested: ${searchName}, ${evidenceAutoEmbedName}, ${literatureSearchName}, ${literatureAutoEmbedName}, ${portfolioSearchName}, ${portfolioAutoEmbedName}, ${semanticSearchName}, ${semanticAutoEmbedName}`);
+  console.log(`Atlas indexes requested: ${searchName}, ${evidenceAutoEmbedName}, ${literatureSearchName}, ${literatureAutoEmbedName}, ${portfolioSearchName}, ${portfolioAutoEmbedName}, ${semanticSearchName}, ${semanticAutoEmbedName}; operational indexes ensured: endpoint_summary_domain, measurement_series_domain`);
 } finally {
   await client.close();
 }

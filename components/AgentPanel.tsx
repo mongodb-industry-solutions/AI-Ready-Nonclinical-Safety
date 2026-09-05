@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Activity, Bot, Braces, CheckCircle2, ChevronRight, Database, GitBranch, Maximize2, Minimize2, SearchCode, Send, ShieldCheck, Sparkles } from 'lucide-react';
+import { Activity, Bot, Braces, CheckCircle2, ChevronRight, Database, GitBranch, GitCompareArrows, Maximize2, Minimize2, SearchCode, Send, ShieldCheck, Sparkles } from 'lucide-react';
 import type { InvestigationResult, SafetySignal, SemanticGroundingResult, SemanticProfileId, SemanticRuntimeView, StudyEvidence, StudySummary } from '@/lib/contracts';
 import DoseResponseChart from '@/components/DoseResponseChart';
 import EvidenceGraph from '@/components/EvidenceGraph';
@@ -10,6 +10,7 @@ import LabTrajectoryChart from '@/components/LabTrajectoryChart';
 const prompts = [
   'Is this finding plausibly treatment-related?',
   'Compare incidence and severity across doses.',
+  'Find the closest observed findings in other studies.',
   'Show the cross-domain evidence and its lineage.',
 ];
 
@@ -26,6 +27,7 @@ interface AgentPanelProps {
   onShowSource?: () => void;
   onOpenCoherence?: () => void;
   onOpenLiterature?: () => void;
+  onOpenPortfolio?: () => void;
   onOpenSemantic?: (focusId?: string) => void;
 }
 
@@ -38,7 +40,7 @@ function semanticObjectForHit(hit: SemanticGroundingResult['hits'][number], runt
   return undefined;
 }
 
-export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id, evidence, runtime, expanded = false, onToggleExpanded, onShowSource, onOpenCoherence, onOpenLiterature, onOpenSemantic }: AgentPanelProps) {
+export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id, evidence, runtime, expanded = false, onToggleExpanded, onShowSource, onOpenCoherence, onOpenLiterature, onOpenPortfolio, onOpenSemantic }: AgentPanelProps) {
   const [question, setQuestion] = useState(prompts[0]);
   const [result, setResult] = useState<InvestigationResult | null>(null);
   const [semanticSearch, setSemanticSearch] = useState<SemanticGroundingResult | null>(null);
@@ -89,6 +91,7 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
       const hit = semanticSearch?.hits.find((item) => item.sourceRef === sourceRef);
       onOpenSemantic?.(hit ? semanticObjectForHit(hit, runtime) : undefined);
     } else if (domain === 'LITERATURE') onOpenLiterature?.();
+    else if (domain === 'PORTFOLIO') onOpenPortfolio?.();
     else onShowSource?.();
   }
 
@@ -125,6 +128,17 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
           </div>
           <footer><span><GitBranch size={12} /> {result.coherence.inventory.sourceDeclaredRelationships} source-declared links</span><span><CircleAlertIcon /> {result.coherence.systemicContext.laboratoryCoverage.sourceRangeSummaryCount ? 'Source ranges available' : 'No source laboratory ranges'}</span>{onOpenCoherence && <button onClick={onOpenCoherence}>Open full evidence <ChevronRight size={12} /></button>}</footer>
         </section>}
+        {result.portfolioContext?.matches.length && widgetOrder.has('portfolio-context') ? <section style={{ order: widgetOrder.get('portfolio-context') }} className="agent-viz-card agent-portfolio-widget">
+          <header><span><GitCompareArrows size={14} /><b>Cross-study context</b></span><em>{result.portfolioContext.execution.mode}</em></header>
+          <div className="agent-portfolio-query"><span><small>QUERY FINDING</small><b>{result.portfolioContext.query.signal.organ} · {result.portfolioContext.query.signal.finding}</b></span><span><small>CORPUS</small><b>{result.portfolioContext.corpus.studies} studies · {result.portfolioContext.corpus.findings} findings</b></span></div>
+          <div className="agent-portfolio-matches">{result.portfolioContext.matches.slice(0, 4).map((match) => <button key={match.id} onClick={onOpenPortfolio}>
+            <span className="agent-match-rank">#{match.rank}</span><span><b>{match.study.id} · {match.signal.organ}</b><small>{match.signal.finding}</small></span>
+            <span className="agent-match-lanes">{match.lanes.map((lane) => <i key={lane.id} title={lane.detail}><em>{lane.label}</em><span><b style={{ width: `${lane.score || 0}%` }} /></span></i>)}</span>
+            <strong>{match.score}%</strong><ChevronRight size={12} />
+          </button>)}</div>
+          <div className="agent-comparability">{result.portfolioContext.matches[0]?.comparability.map((dimension) => <span className={dimension.status} title={dimension.detail} key={dimension.id}><i />{dimension.label}<b>{dimension.status}</b></span>)}</div>
+          <footer><ShieldCheck size={12} /><span>{result.portfolioContext.execution.boundary}</span>{onOpenPortfolio && <button onClick={onOpenPortfolio}>Open similarity atlas <ChevronRight size={12} /></button>}</footer>
+        </section> : null}
         {widgetOrder.has('semantic-grounding') && <section style={{ order: widgetOrder.get('semantic-grounding') }} className="agent-viz-card agent-semantic-widget">
           <header><span><Braces size={14} /><b>{result.confidence === 'strong-pattern' ? 'Semantic grounding' : 'Clarify the intended meaning'}</b></span><em>{semanticSearch?.mode || 'compiled map'}</em></header>
           <div className="semantic-hierarchy"><span>Evidence</span><ChevronRight size={11} />{findingConcepts.slice(0, 3).map((concept) => <span key={concept.id}>{concept.label}</span>)}</div>

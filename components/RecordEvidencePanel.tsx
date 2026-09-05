@@ -62,14 +62,15 @@ function laboratoryAssessment(record: CanonicalEvidenceRecord) {
   return { status: 'unassessed', label: 'reference range unavailable' };
 }
 
-export default function RecordEvidencePanel({ study, doseGroups, signal, focusDomain, initialScope = 'subject', initialSection }: { study: StudySummary; doseGroups: DoseGroup[]; signal: SafetySignal; focusDomain?: EvidenceDomain; initialScope?: 'subject' | 'study'; initialSection?: 'records' | 'artifacts' }) {
+export default function RecordEvidencePanel({ study, doseGroups, signal, focusDomain, initialScope = 'subject', initialSection, initialFilter = 'all', initialTestCode }: { study: StudySummary; doseGroups: DoseGroup[]; signal: SafetySignal; focusDomain?: EvidenceDomain; initialScope?: 'subject' | 'study'; initialSection?: 'records' | 'artifacts'; initialFilter?: CanonicalRecordPage['filter']; initialTestCode?: string }) {
   const [result, setResult] = useState<SignalRecordEvidence | null>(null);
   const [selected, setSelected] = useState(0);
   const [loading, setLoading] = useState(true);
   const [recordScope, setRecordScope] = useState<'subject' | 'study'>(initialScope);
   const [recordDomain, setRecordDomain] = useState<string>(focusDomain || 'MI');
   const [recordOffset, setRecordOffset] = useState(0);
-  const [recordFilter, setRecordFilter] = useState<CanonicalRecordPage['filter']>('all');
+  const [recordFilter, setRecordFilter] = useState<CanonicalRecordPage['filter']>(initialFilter);
+  const [recordTestCode, setRecordTestCode] = useState<string | undefined>(initialTestCode);
   const [recordPage, setRecordPage] = useState<CanonicalRecordPage | null>(null);
   const [recordLoading, setRecordLoading] = useState(false);
 
@@ -92,6 +93,12 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
     return () => controller.abort();
   }, [focusDomain, signal.id, study.id]);
 
+  useEffect(() => {
+    setRecordFilter(initialFilter);
+    setRecordTestCode(initialTestCode);
+    setRecordOffset(0);
+  }, [focusDomain, initialFilter, initialTestCode]);
+
   const selectedSubjectId = result?.subjects[selected]?.subjectId;
   useEffect(() => {
     if (!result?.available || !recordDomain || (recordScope === 'subject' && !selectedSubjectId)) return;
@@ -99,6 +106,7 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
     const parameters = new URLSearchParams({ domain: recordDomain, scope: recordScope, filter: recordFilter, offset: String(recordOffset), limit: String(pageSize) });
     if (selectedSubjectId) parameters.set('subjectId', selectedSubjectId);
     if (signal.correlatedLab) parameters.set('linkedTestCode', signal.correlatedLab);
+    if (recordTestCode) parameters.set('testCode', recordTestCode);
     setRecordLoading(true);
     fetch(`/api/studies/${encodeURIComponent(study.id)}/records?${parameters}`, { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
@@ -109,7 +117,7 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
       .catch(() => { if (!controller.signal.aborted) setRecordPage(null); })
       .finally(() => { if (!controller.signal.aborted) setRecordLoading(false); });
     return () => controller.abort();
-  }, [recordDomain, recordFilter, recordOffset, recordScope, result?.available, selectedSubjectId, signal.correlatedLab, study.id]);
+  }, [recordDomain, recordFilter, recordOffset, recordScope, recordTestCode, result?.available, selectedSubjectId, signal.correlatedLab, study.id]);
 
   useEffect(() => {
     if (!result?.available || initialSection !== 'artifacts') return;
@@ -153,9 +161,9 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
           <header><div><span className="panel-kicker">Complete supportive source</span><h3>Canonical record explorer</h3><p>The cards above explain the visual claim. This explorer exposes every stored row without changing its canonical fields.</p></div><div className="record-scope" aria-label="Canonical record scope"><button className={recordScope === 'subject' ? 'active' : ''} onClick={() => { setRecordScope('subject'); setRecordOffset(0); }}>This subject</button><button className={recordScope === 'study' ? 'active' : ''} onClick={() => { setRecordScope('study'); setRecordOffset(0); }}>Entire study</button></div></header>
           <nav className="record-domain-tabs" aria-label="Available canonical domains">{result.domainInventory.map((item) => {
             const count = recordScope === 'subject' ? (subject.domainCounts[item.domain] || 0) : item.studyRecords;
-            return <button key={item.domain} className={recordDomain === item.domain ? 'active' : ''} disabled={count === 0} onClick={() => { setRecordDomain(item.domain); setRecordFilter('all'); setRecordOffset(0); }}><b>{item.domain}</b><span>{domainLabels[item.domain] || 'Canonical domain'}</span><em>{count.toLocaleString()}</em></button>;
+            return <button key={item.domain} className={recordDomain === item.domain ? 'active' : ''} disabled={count === 0} onClick={() => { setRecordDomain(item.domain); setRecordFilter('all'); setRecordTestCode(undefined); setRecordOffset(0); }}><b>{item.domain}</b><span>{domainLabels[item.domain] || 'Canonical domain'}</span><em>{count.toLocaleString()}</em></button>;
           })}</nav>
-          {recordDomain === 'LB' && <div className="laboratory-filters"><span>Laboratory evidence</span><button className={recordFilter === 'all' ? 'active' : ''} onClick={() => { setRecordFilter('all'); setRecordOffset(0); }}>All results</button><button className={recordFilter === 'outside-range' ? 'active' : ''} onClick={() => { setRecordFilter('outside-range'); setRecordOffset(0); }}>Outside supplied limits</button>{signal.correlatedLab && <button className={recordFilter === 'linked-test' ? 'active' : ''} onClick={() => { setRecordFilter('linked-test'); setRecordOffset(0); }}>Linked test · {signal.correlatedLab}</button>}<button className={recordFilter === 'unassessed' ? 'active' : ''} onClick={() => { setRecordFilter('unassessed'); setRecordOffset(0); }}>Range unavailable</button></div>}
+          {recordDomain === 'LB' && <div className="laboratory-filters"><span>Laboratory evidence</span><button className={recordFilter === 'all' && !recordTestCode ? 'active' : ''} onClick={() => { setRecordFilter('all'); setRecordTestCode(undefined); setRecordOffset(0); }}>All results</button><button className={recordFilter === 'outside-range' ? 'active' : ''} onClick={() => { setRecordFilter('outside-range'); setRecordTestCode(undefined); setRecordOffset(0); }}>Outside supplied limits</button>{recordTestCode && <button className="active" onClick={() => { setRecordTestCode(undefined); setRecordOffset(0); }}>Test · {recordTestCode} ×</button>}{signal.correlatedLab && <button className={recordFilter === 'linked-test' ? 'active' : ''} onClick={() => { setRecordFilter('linked-test'); setRecordTestCode(undefined); setRecordOffset(0); }}>Linked test · {signal.correlatedLab}</button>}<button className={recordFilter === 'unassessed' ? 'active' : ''} onClick={() => { setRecordFilter('unassessed'); setRecordTestCode(undefined); setRecordOffset(0); }}>Range unavailable</button></div>}
           <div className="canonical-records">
             <div className="canonical-records-heading"><span><Rows3 size={13} /><b>{domainLabels[recordDomain] || recordDomain}</b></span><small>{recordPage ? `${recordPage.total.toLocaleString()} ${recordScope === 'subject' ? `rows for ${selectedSubjectId}` : 'rows in the study'}` : 'Resolving records'}</small></div>
             {recordLoading ? <div className="canonical-record-state"><LoaderCircle className="spin" size={16} /> Loading canonical rows…</div> : !recordPage?.records.length ? <div className="canonical-record-state empty"><Database size={16} /> {recordFilter === 'all' ? `No ${recordDomain} rows exist in this scope. The absence is preserved explicitly.` : 'No rows match this evidence filter. No threshold or relationship has been inferred.'}</div> : <div className="canonical-record-list">{recordPage.records.map((record) => <details key={record.sourceId}>

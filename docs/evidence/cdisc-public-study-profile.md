@@ -10,8 +10,14 @@ Pinned source: [`phuse-org/SENDConform@eb438ce3f`](https://github.com/phuse-org/
 Use **PDS2014 adrenal-gland vacuolization** as the first deep vertical.
 It is the strongest public candidate because it combines a sex-stratified dose
 response, terminal and recovery cohorts, absolute and relative organ weights,
-source laboratory reference limits, clinical observations, exposure data, and
+laboratory observations, clinical observations, exposure data, and
 source-declared MA↔MI relationships in one 124-animal study.
+
+The PDS Define-XML/data shape declares standard laboratory range and normality
+columns, but its 11,700 canonical LB rows do not populate those values. The
+runtime therefore labels reference limits unavailable. Nimort-01 is the only
+current public snapshot with populated range/normality values and is used to
+demonstrate source-defined abnormality resolution.
 
 Observed microscopic incidence:
 
@@ -32,13 +38,17 @@ and adversity with rationale.
 
 ## Coverage
 
-| Study | Domains | Rows | Subjects across domains | RELREC rows | Reference-range domains | Recovery evidence |
+| Study | Domains | Rows | Subjects across domains | RELREC rows | Declared reference-range columns | Recovery evidence |
 |---|---:|---:|---:|---:|---|---|
 | FFU Contribution to FDA | 25 | 10,020 | 10 | 0 | none observed | none observed |
 | Nimble | 18 | 3,046 | 100 | 0 | LB | none observed |
 | Instem | 25 | 35,892 | 241 | 43 | LB | yes |
 | PointCross | 28 | 18,749 | 150 | 80 | none observed | yes |
 | PDS | 25 | 42,041 | 124 | 112 | LB | yes |
+
+“Declared” means the source dataset exposes one or more standard range/normality
+columns. It does not mean a row contains a value; the solution measures populated
+values separately before displaying a reference band or abnormality.
 
 ## Domain inventory
 

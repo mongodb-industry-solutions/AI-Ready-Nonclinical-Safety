@@ -8,10 +8,11 @@ const arguments_ = process.argv.slice(2);
 const inputPath = arguments_.find((value) => !value.startsWith('--'));
 const evidenceClassArgument = arguments_.find((value) => value.startsWith('--evidence-class='));
 const selectedEvidenceClass = evidenceClassArgument?.split('=')[1];
+const replaceSnapshot = arguments_.includes('--replace-snapshot');
 const allowedEvidenceClasses = ['observed-public', 'synthetic-benchmark', 'sponsor-observed'];
-if (!inputPath) throw new Error('Usage: npm run import:study -- <solution-evidence-package.json|study-evidence.json> [--evidence-class=synthetic-benchmark]');
+if (!inputPath) throw new Error('Usage: npm run import:study -- <solution-evidence-package.json|study-evidence.json> [--evidence-class=synthetic-benchmark] [--replace-snapshot]');
 if (selectedEvidenceClass && !allowedEvidenceClasses.includes(selectedEvidenceClass)) throw new Error(`Unsupported evidence class: ${selectedEvidenceClass}`);
-if (arguments_.some((value) => value !== inputPath && value !== evidenceClassArgument)) throw new Error('A separate business projection is not accepted; package imports derive and reconcile StudyEvidence automatically');
+if (arguments_.some((value) => value !== inputPath && value !== evidenceClassArgument && value !== '--replace-snapshot')) throw new Error('A separate business projection is not accepted; package imports derive and reconcile StudyEvidence automatically');
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required');
 
 function canonicalJson(value) {
@@ -166,6 +167,44 @@ try {
     const { manifest, evidence, modelSchemaVersion } = packageDocument;
     const identity = { studyId: manifest.studyId, snapshotId: manifest.snapshotId };
     const stamp = { ...identity, modelSchemaVersion, evidencePackageId: manifest.packageId };
+    const existingSnapshot = await database.collection('study_snapshots').findOne(identity, { projection: { evidencePackageId: 1 } });
+    if (existingSnapshot?.evidencePackageId && existingSnapshot.evidencePackageId !== manifest.packageId && !replaceSnapshot) {
+      throw new Error(`Snapshot ${manifest.studyId}/${manifest.snapshotId} is already bound to ${existingSnapshot.evidencePackageId}; publish a new snapshot id or use --replace-snapshot for a guarded staging migration`);
+    }
+    if (replaceSnapshot) {
+      const protectedCollections = ['investigations', 'review_actions', 'target_organ_assessments'];
+      const protectedCounts = await Promise.all(protectedCollections.map(async (collectionName) => ({
+        collectionName,
+        count: await database.collection(collectionName).countDocuments(identity, { limit: 1 }),
+      })));
+      const protectedState = protectedCounts.filter((item) => item.count > 0);
+      if (protectedState.length) {
+        throw new Error(`Snapshot replacement refused because governed solution state exists in ${protectedState.map((item) => item.collectionName).join(', ')}`);
+      }
+      await database.collection('evidence_imports').updateMany(
+        { ...identity, _id: { $ne: manifest.packageId } },
+        { $set: { status: 'superseded', supersededBy: manifest.packageId, supersededAt: new Date() } },
+      );
+      const snapshotMirrorCollections = [
+        'study_snapshots',
+        'dataset_definitions',
+        'cdisc_records',
+        'subjects',
+        'source_artifacts',
+        'validation_evidence',
+        'lineage_events',
+        'study_endpoint_summaries',
+        'measurement_series',
+        'subject_timelines',
+        'evidence_relationships',
+        'study_evidence',
+        'evidence_chunks',
+        'portfolio_findings',
+      ];
+      for (const collectionName of snapshotMirrorCollections) {
+        await database.collection(collectionName).deleteMany(identity);
+      }
+    }
     await database.collection('evidence_imports').updateOne(
       { _id: manifest.packageId },
       { $set: { ...stamp, apiVersion: packageDocument.apiVersion, counts: manifest.counts, contentDigest: manifest.contentDigest, status: 'loading', startedAt: new Date() } },
@@ -242,10 +281,12 @@ try {
     await database.collection('study_endpoint_summaries').createIndexes([
       { key: { studyId: 1, snapshotId: 1, id: 1 }, name: 'endpoint_summary_identity', unique: true },
       { key: { studyId: 1, snapshotId: 1, organ: 1, domain: 1, testCode: 1, sex: 1, phase: 1, 'group.code': 1 }, name: 'endpoint_summary_scope' },
+      { key: { studyId: 1, snapshotId: 1, domain: 1, testCode: 1 }, name: 'endpoint_summary_domain' },
     ]);
     await database.collection('measurement_series').createIndexes([
       { key: { studyId: 1, snapshotId: 1, id: 1 }, name: 'measurement_series_identity', unique: true },
       { key: { studyId: 1, snapshotId: 1, organ: 1, domain: 1, testCode: 1, sex: 1, phase: 1 }, name: 'measurement_series_scope' },
+      { key: { studyId: 1, snapshotId: 1, domain: 1, testCode: 1, sex: 1, phase: 1 }, name: 'measurement_series_domain' },
     ]);
     await database.collection('subject_timelines').createIndexes([
       { key: { studyId: 1, snapshotId: 1, subjectId: 1 }, name: 'subject_timeline_identity', unique: true },
@@ -287,6 +328,17 @@ try {
 
   if (packageDocument) {
     const { manifest, modelSchemaVersion } = packageDocument;
+    await database.collection('study_snapshot_pointers').updateOne(
+      { _id: manifest.studyId },
+      { $set: {
+        studyId: manifest.studyId,
+        activeSnapshotId: manifest.snapshotId,
+        evidencePackageId: manifest.packageId,
+        semanticReleaseId,
+        activatedAt: new Date(),
+      } },
+      { upsert: true },
+    );
     await database.collection('evidence_imports').updateOne(
       { _id: manifest.packageId },
       { $set: {

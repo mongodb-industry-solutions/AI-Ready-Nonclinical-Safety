@@ -187,13 +187,15 @@ semantic map merely because they are traversed with `$graphLookup`.
 
 ## Current-state findings
 
-The connected demonstration currently contains 76,884 canonical CDISC records
-across five public studies. PDS2014 contributes 42,041 records across 25 SEND
-datasets. Every record has deterministic semantic text and none has
+The connected demonstration currently contains 109,748 canonical CDISC records
+across five complete public studies. PDS2014 contributes 42,041 records across 25
+SEND datasets; FFU, Nimort-01, GLP003, and PC201708 also retain every published
+domain in their active immutable snapshots. Every record has deterministic semantic text and none has
 a stored vector. That is the desired source-document shape for Automated
-Embedding. The application also has 76 evidence chunks, 75 portfolio-finding
-projections and three literature chunks. All three retrieval projections now use
-Atlas Automated Embedding over their governed `text` field.
+Embedding. The operational layer contains 11,640 endpoint summaries, 1,113
+measurement series, 625 subject timelines, and 98,444 relationships. Evidence,
+portfolio, literature, and semantic retrieval projections use Atlas Automated
+Embedding over their governed `text` fields.
 
 Semantic release 0.4.1 materializes 107 polymorphic resources, 24 definition edges,
 and 563 profile-scoped auto-embedding source documents. The resource plane now
