@@ -10,7 +10,7 @@ const prompts = [
   'Show the cross-domain evidence and its lineage.',
 ];
 
-export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id }: { study: StudySummary; signal: SafetySignal; profileId?: SemanticProfileId; enabled?: boolean; id?: string }) {
+export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id, onShowSource }: { study: StudySummary; signal: SafetySignal; profileId?: SemanticProfileId; enabled?: boolean; id?: string; onShowSource?: () => void }) {
   const [question, setQuestion] = useState(prompts[0]);
   const [result, setResult] = useState<InvestigationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +40,7 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
         <div className="chat-agent-label"><Bot size={13} /> Investigation</div>
         {!enabled ? <p>This semantic profile is not authorized to run the AI evidence investigator.</p> : error ? <p>{error}</p> : busy ? <div className="thinking"><i /><i /><i /> Planning governed retrieval…</div> : result ? <>
           <p>{result.answer}</p>
-          <div className="agent-citations">{result.citations.map((citation) => <button key={citation.sourceRef} title={citation.detail}>{citation.domain} · {citation.label}</button>)}</div>
+          <div className="agent-citations">{result.citations.map((citation) => <button key={citation.sourceRef} title={`${citation.detail} · ${citation.sourceRef}`} onClick={onShowSource}>{citation.domain} · {citation.label}</button>)}</div>
         </> : <p>Select a suggested investigation or ask your own question. I will combine exact study queries, semantic evidence, graph expansion and citations.</p>}
       </div>
       {result && <div className="agent-plan"><div className="agent-plan-title">What I checked <span>{result.provider}</span></div>{result.steps.map((step) => <div className="agent-step" key={step.id}><span className={`step-dot ${step.status}`} /><div><b>{step.label}</b><small>{step.detail}</small></div></div>)}</div>}

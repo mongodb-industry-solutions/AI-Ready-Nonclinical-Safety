@@ -42,17 +42,24 @@ export async function loadSignalRecordEvidence(
   if (!database) return empty;
 
   const records = database.collection<StoredRecord>('cdisc_records');
-  const organ = new RegExp(escaped(signal.organ), 'i');
-  const findingWords = signal.finding.split(/[, ]+/).filter((word) => word.length > 3).slice(0, 2);
-  const finding = new RegExp(findingWords.map(escaped).join('.*'), 'i');
+  const findingFilter = signal.sourceRecordIds?.length
+    ? { sourceId: { $in: signal.sourceRecordIds } }
+    : (() => {
+      const organ = new RegExp(escaped(signal.organ), 'i');
+      const findingWords = signal.finding.split(/[, /]+/).filter((word) => word.length > 3).slice(0, 2);
+      const finding = new RegExp(findingWords.map(escaped).join('.*'), 'i');
+      return {
+        $and: [
+          { $or: [{ 'facets.organ': organ }, { 'facets.specimen': organ }, { 'data.MISPEC': organ }, { 'data.MIORRES': organ }] },
+          { $or: [{ 'facets.finding': finding }, { 'facets.resultCharacter': finding }, { 'data.MISTRESC': finding }, { 'data.MIORRES': finding }, { 'data.MITEST': finding }] },
+        ],
+      };
+    })();
   const findingRecords = await records.find({
     studyId,
     snapshotId,
     domain: 'MI',
-    $and: [
-      { $or: [{ 'facets.organ': organ }, { 'facets.specimen': organ }, { 'data.MISPEC': organ }, { 'data.MIORRES': organ }] },
-      { $or: [{ 'facets.finding': finding }, { 'facets.resultCharacter': finding }, { 'data.MISTRESC': finding }, { 'data.MIORRES': finding }, { 'data.MITEST': finding }] },
-    ],
+    ...findingFilter,
   }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(200).toArray();
 
   if (!findingRecords.length) return empty;

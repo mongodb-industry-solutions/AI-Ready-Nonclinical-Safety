@@ -67,7 +67,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
           {saved && <div className="saved-action"><CheckCircle2 size={14} /><span><b>{saved.status}</b><small>{saved.id}</small></span></div>}
         </section>
       </main>
-      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} />
+      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} onShowSource={() => setCanvas('records')} />
     </div>
   </div>;
 }

@@ -32,12 +32,12 @@ const apiContracts = [
 ];
 
 const domainMappings = [
-  { domain: 'TS', source: 'Trial summary', object: 'Study + Compound', path: 'study / compound', purpose: 'Protocol identity and study context' },
-  { domain: 'TX', source: 'Trial sets', object: 'TreatmentGroup', path: 'doseGroups[]', purpose: 'Dose, vehicle and group assignment' },
-  { domain: 'DM', source: 'Demographics', object: 'Subject', path: 'subjects', purpose: 'Animal identity, sex and group' },
-  { domain: 'MI', source: 'Microscopic findings', object: 'Finding', path: 'signals[]', purpose: 'Organ, morphology, severity and incidence' },
-  { domain: 'LB', source: 'Laboratory tests', object: 'LabMeasurement', path: 'labSeries', purpose: 'Longitudinal measurements and units' },
-  { domain: 'XPT + Define-XML', source: 'Submission artifacts', object: 'SourceArtifact', path: 'sourceArtifacts', purpose: 'Variable definitions, checksum and lineage' },
+  { domain: 'TS', source: 'Trial summary', object: 'Study + Compound', path: 'cdisc_records (TS) → study / compound', purpose: 'Protocol identity and study context' },
+  { domain: 'TX', source: 'Trial sets', object: 'TreatmentGroup', path: 'cdisc_records (TX) → doseGroups[]', purpose: 'Dose, vehicle and group assignment' },
+  { domain: 'DM', source: 'Demographics', object: 'Subject', path: 'cdisc_records (DM) → subjects', purpose: 'Animal identity, sex and group' },
+  { domain: 'MI', source: 'Microscopic findings', object: 'Finding', path: 'cdisc_records (MI) → signals[]', purpose: 'Organ, morphology, severity and incidence' },
+  { domain: 'LB', source: 'Laboratory tests', object: 'LabMeasurement', path: 'cdisc_records (LB) → labSeries', purpose: 'Longitudinal measurements and units' },
+  { domain: 'XPT + Define-XML', source: 'Submission artifacts', object: 'SourceArtifact', path: 'source_artifacts → artifact ledger', purpose: 'Variable definitions, checksum and lineage' },
 ];
 
 export default function ArchitectureView({ evidence, runtime, onBack }: ArchitectureViewProps) {
@@ -62,7 +62,7 @@ export default function ArchitectureView({ evidence, runtime, onBack }: Architec
 
 function Blueprint({ evidence, runtime }: { evidence: StudyEvidence; runtime: SemanticRuntimeView }) {
   return <div className="blueprint-view">
-    <div className="architecture-principle"><ShieldCheck size={17} /><div><b>CDISC is the source contract—not the application ceiling.</b><p>SEND XPT and Define-XML are validated upstream and retained with checksums. The deployed solution consumes a versioned projection, preserving domain and source references while adding structures needed for interactive investigation.</p></div></div>
+    <div className="architecture-principle"><ShieldCheck size={17} /><div><b>CDISC is the source contract—not the application ceiling.</b><p>SEND XPT and Define-XML are validated upstream and retained with checksums. A solution-owned, versioned projector derives the interactive model from canonical rows and records a reconciliation receipt; no parallel hand-authored dataset is required.</p></div></div>
 
     <section className="architecture-plane enablement-plane">
       <header><span>01</span><div><b>Build-time enablement</b><small>Used to create, validate and compile deployable inputs; absent from the production request path.</small></div><em>not a runtime dependency</em></header>
@@ -82,7 +82,7 @@ function Blueprint({ evidence, runtime }: { evidence: StudyEvidence; runtime: Se
         <div className="runtime-connector"><ArrowRight /><span>adapters</span></div>
         <div className="atlas-core">
           <div className="atlas-title"><Database size={18} /><div><b>MongoDB Atlas evidence fabric</b><small>One operational platform; explicitly separated authorities</small></div></div>
-          <div className="atlas-planes"><div><span>Immutable evidence</span><code>study_snapshots</code><code>dataset_definitions</code><code>cdisc_records</code><code>subjects · source_artifacts</code></div><div><span>AI projections</span><code>study_evidence</code><code>evidence_chunks</code><code>literature_chunks</code><code>semantic_evidence_edges</code></div><div><span>Semantic control</span><code>semantic_releases</code><code>semantic_objects</code><code>semantic_value_sets</code></div><div><span>Solution state</span><code>investigations</code><code>review_actions</code><code>semantic_change_events</code></div></div>
+          <div className="atlas-planes"><div><span>Immutable evidence</span><code>study_snapshots</code><code>dataset_definitions</code><code>cdisc_records</code><code>subjects · source_artifacts</code></div><div><span>Reconciled projections</span><code>study_evidence · projector v1</code><code>evidence_chunks</code><code>literature_chunks</code><code>semantic_evidence_edges</code></div><div><span>Semantic control</span><code>semantic_releases</code><code>semantic_objects</code><code>semantic_value_sets</code></div><div><span>Solution state</span><code>investigations</code><code>review_actions</code><code>semantic_change_events</code></div></div>
           <div className="atlas-engines"><span><Search size={12} /> Aggregation + Search</span><span><Sparkles size={12} /> Vector Search</span><span><GitBranch size={12} /> Graph lookup</span><span><Zap size={12} /> Change Streams</span></div>
         </div>
         <div className="runtime-connector"><ArrowRight /><span>governed tools</span></div>
@@ -108,7 +108,7 @@ function DataModel({ evidence, runtime }: { evidence: StudyEvidence; runtime: Se
     <div className="model-definition"><div><span className="panel-kicker">The modeling decision</span><h2>Preserve the standard. Project for the workload.</h2><p>The source SEND domains remain attributable and replayable. A snapshot-bound document places the fields needed together for the investigation screen, while independent projections add vectors, graph edges, semantics, and review state.</p></div><div className="model-equation"><span>CDISC facts</span><b>+</b><span>semantic bindings</span><b>+</b><span>AI projections</span><b>=</b><strong>operational evidence</strong></div></div>
     <section className="domain-map-panel"><header><div><span className="panel-kicker">Standards mapping</span><h2>Where CDISC SEND is used</h2></div><span>{evidence.study.implementationGuide}</span></header><div className="domain-map-head"><span>CDISC domain</span><span>Meaning</span><span>Semantic object</span><span>MongoDB representation</span><span>Business use</span></div>{domainMappings.map((mapping) => <div className="domain-map-row" key={mapping.domain}><b>{mapping.domain}</b><span>{mapping.source}</span><span>{mapping.object}</span><code>{bindings.get(mapping.object.split(' + ')[0])?.location || mapping.path}<small>{mapping.path}</small></code><span>{mapping.purpose}</span></div>)}</section>
     <div className="document-model-grid">
-      <article className="document-shape"><header><div><span className="panel-kicker">Primary operational read model</span><h2>StudyEvidence document</h2></div><em>one immutable snapshot</em></header><pre><code>{`{
+      <article className="document-shape"><header><div><span className="panel-kicker">Primary operational read model</span><h2>StudyEvidence document</h2></div><em>rebuildable · digest verified</em></header><pre><code>{`{
   study: {
     id: "${evidence.study.id}",
     snapshotId: "${evidence.study.snapshotId}",
@@ -117,7 +117,10 @@ function DataModel({ evidence, runtime }: { evidence: StudyEvidence; runtime: Se
   doseGroups: [{ code, dose, unit, animalCount }],     // TX
   signals: [{ organ, finding, incidence, severity }], // MI
   labSeries: { testCode: { unit, points[] } },         // LB
-  provenance: { sourceRevision, sourceArtifacts }
+  provenance: {
+    evidencePackageId, projectionVersion,
+    projectionDigest, reconciliation, projectionRuleIds
+  }
 }`}</code></pre><footer><Database size={13} /> Embedded where data is read together; referenced where lifecycle or cardinality differs.</footer></article>
       <article className="projection-stack"><header><span className="panel-kicker">Independent, rebuildable projections</span><h2>Enrichment without evidence mutation</h2></header><div><Search size={15} /><span><b>Search documents</b><small>Normalized text, facets and source references</small></span><code>evidence_chunks</code></div><div><Sparkles size={15} /><span><b>Embedding vectors</b><small>Semantic similarity over findings and permitted passages</small></span><code>embedding[1536]</code></div><div><GitBranch size={15} /><span><b>Materialized relationships</b><small>Finding → publication → passage and evidence lineage</small></span><code>semantic_evidence_edges</code></div><div><ShieldCheck size={15} /><span><b>Expert workflow</b><small>Hypotheses and decisions remain separate from observations</small></span><code>investigations · review_actions</code></div></article>
     </div>

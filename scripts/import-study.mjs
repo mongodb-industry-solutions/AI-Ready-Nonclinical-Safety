@@ -2,10 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 import { MongoClient } from 'mongodb';
+import { projectStudyEvidence } from './lib/study-evidence-projector.mjs';
 
 const inputPath = process.argv[2];
-const projectionPath = process.argv[3];
-if (!inputPath) throw new Error('Usage: npm run import:study -- <solution-evidence-package.json> [study-evidence.json]');
+if (!inputPath) throw new Error('Usage: npm run import:study -- <solution-evidence-package.json|study-evidence.json>');
+if (process.argv[3]) throw new Error('A separate business projection is not accepted; package imports derive and reconcile StudyEvidence automatically');
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required');
 
 function canonicalJson(value) {
@@ -99,16 +100,7 @@ async function upsertMany(collection, documents) {
 const input = JSON.parse(await readFile(inputPath, 'utf8'));
 const isPackage = input?.apiVersion === 'kehrnel.dev/cdisc-solution-evidence/v1';
 const packageDocument = isPackage ? validatePackage(input) : null;
-const projection = projectionPath
-  ? validateStudyEvidence(JSON.parse(await readFile(projectionPath, 'utf8')))
-  : (!isPackage ? validateStudyEvidence(input) : null);
-
-if (packageDocument && projection && (
-  projection.study.id !== packageDocument.manifest.studyId
-  || projection.study.snapshotId !== packageDocument.manifest.snapshotId
-)) {
-  throw new Error('Study projection identity does not match the evidence package');
-}
+const projection = packageDocument ? projectStudyEvidence(packageDocument) : validateStudyEvidence(input);
 
 const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
@@ -173,26 +165,24 @@ try {
     );
   }
 
-  if (projection) {
-    await database.collection('study_evidence').updateOne(
-      { 'study.id': projection.study.id, 'study.snapshotId': projection.study.snapshotId },
-      { $set: { ...projection, modelSchemaVersion: packageDocument?.modelSchemaVersion || '1.0.0', importedAt: new Date(), importSource: packageDocument ? 'kehrnel-export' : 'solution-api', evidencePackageId: packageDocument?.manifest.packageId } },
-      { upsert: true },
-    );
-    const chunks = evidenceChunks(projection);
-    if (chunks.length) {
-      await database.collection('evidence_chunks').bulkWrite(chunks.map((chunk) => ({
-        updateOne: {
-          filter: { studyId: chunk.studyId, snapshotId: chunk.snapshotId, domain: chunk.domain, chunkId: chunk.chunkId },
-          update: { $set: chunk },
-          upsert: true,
-        },
-      })), { ordered: false });
-    }
+  await database.collection('study_evidence').updateOne(
+    { 'study.id': projection.study.id, 'study.snapshotId': projection.study.snapshotId },
+    { $set: { ...projection, modelSchemaVersion: packageDocument?.modelSchemaVersion || '1.0.0', importedAt: new Date(), importSource: packageDocument ? 'kehrnel-export' : 'solution-api', evidencePackageId: packageDocument?.manifest.packageId } },
+    { upsert: true },
+  );
+  const chunks = evidenceChunks(projection);
+  if (chunks.length) {
+    await database.collection('evidence_chunks').bulkWrite(chunks.map((chunk) => ({
+      updateOne: {
+        filter: { studyId: chunk.studyId, snapshotId: chunk.snapshotId, domain: chunk.domain, chunkId: chunk.chunkId },
+        update: { $set: chunk },
+        upsert: true,
+      },
+    })), { ordered: false });
   }
 
   const name = packageDocument
-    ? `${packageDocument.manifest.studyId}/${packageDocument.manifest.snapshotId}: ${packageDocument.manifest.counts.records} canonical records, ${packageDocument.manifest.counts.sourceArtifacts} source artifacts${projection ? ', plus the solution read model' : ''}`
+    ? `${packageDocument.manifest.studyId}/${packageDocument.manifest.snapshotId}: ${packageDocument.manifest.counts.records} canonical records, ${packageDocument.manifest.counts.sourceArtifacts} source artifacts, plus a reconciled ${projection.provenance.projectionVersion} read model`
     : `${projection.study.id}/${projection.study.snapshotId}: solution read model`;
   console.log(`Imported ${name}.`);
 } finally {

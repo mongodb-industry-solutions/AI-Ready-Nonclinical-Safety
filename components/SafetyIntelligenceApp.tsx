@@ -53,11 +53,11 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
       <div className="brand"><span className="brand-mark"><Dna size={20} /></span><div><strong>Safety Intelligence</strong><small>MongoDB Solution Library</small></div></div>
       <div className="nav-label">Investigation</div>
       <nav>
-        <button className={view === 'workspace' && !roomOpen ? 'active' : ''} onClick={() => openView('workspace')}><LayoutDashboard size={16} /><span>Study workspace</span></button>
-        <button className={roomOpen ? 'active' : ''} disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={16} /><span>Investigation room</span></button>
+        <button aria-label="Study workspace" className={view === 'workspace' && !roomOpen ? 'active' : ''} onClick={() => openView('workspace')}><LayoutDashboard size={16} /><span>Study workspace</span></button>
+        <button aria-label="Investigation room" className={roomOpen ? 'active' : ''} disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={16} /><span>Investigation room</span></button>
       </nav>
       <div className="nav-label">Platform</div>
-      <nav><button onClick={() => openView('semantics')} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Solution architecture</span></button><button onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
+      <nav><button aria-label="Semantic model" onClick={() => openView('semantics')} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button aria-label="Solution architecture" onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Solution architecture</span></button><button aria-label="Audit and lineage" onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
       <div className="source-card"><div><span className="status-dot" /> Published evidence</div><strong>{evidence.study.implementationGuide}</strong><small>Immutable · checksum verified</small></div>
     </aside>
 

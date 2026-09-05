@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { investigate } from '@/lib/ai/investigator';
+import { loadSignalRecordEvidence } from '@/lib/data/evidence-repository';
 import { loadStudyEvidence } from '@/lib/data/study-repository';
 import { recordInvestigation } from '@/lib/data/review-store';
 import { loadActiveSemanticBundle } from '@/lib/semantics/repository';
@@ -24,7 +25,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Profile ${parsed.data.profileId} is not authorized to run the AI evidence investigator` }, { status: 403 });
   }
   const evidence = await loadStudyEvidence(parsed.data.studyId);
-  const result = await investigate(evidence, parsed.data.signalId, parsed.data.question, parsed.data.profileId);
+  const signal = evidence.signals.find((candidate) => candidate.id === parsed.data.signalId) || evidence.signals[0];
+  const recordEvidence = await loadSignalRecordEvidence(evidence.study.id, evidence.study.snapshotId, signal);
+  const result = await investigate(evidence, parsed.data.signalId, parsed.data.question, parsed.data.profileId, recordEvidence);
   const investigationId = await recordInvestigation({
     studyId: evidence.study.id,
     snapshotId: evidence.study.snapshotId,

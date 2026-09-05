@@ -12,6 +12,7 @@ import {
   LockKeyhole,
   Play,
   ShieldCheck,
+  Workflow,
 } from 'lucide-react';
 import type { SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 
@@ -26,9 +27,11 @@ const shortDigest = (value: string) => value.replace(/^sha256:/, '').slice(0, 12
 
 export default function AuditLineageView({ evidence, runtime, canInvestigate, onOpenInvestigation }: AuditLineageViewProps) {
   const artifacts = Object.entries(evidence.provenance.sourceArtifacts || {});
+  const reconciliation = evidence.provenance.reconciliation;
   const flow = [
     { icon: FileCheck2, label: 'Public source', detail: `${artifacts.length} checksummed artifacts`, state: 'verified' },
     { icon: Database, label: 'Study snapshot', detail: evidence.study.snapshotId, state: 'immutable' },
+    { icon: Workflow, label: 'Solution projection', detail: evidence.provenance.projectionVersion || 'fixture projection', state: reconciliation?.status || 'available' },
     { icon: GitBranch, label: 'Semantic release', detail: runtime.release.version, state: 'active' },
     { icon: Bot, label: 'Resolver execution', detail: `${runtime.capabilities.length} governed capabilities`, state: 'profile gated' },
   ];
@@ -42,6 +45,7 @@ export default function AuditLineageView({ evidence, runtime, canInvestigate, on
     <div className="audit-status-strip">
       <span><ShieldCheck size={15} /><b>Published snapshot</b><small>{evidence.study.state} · {evidence.study.implementationGuide}</small></span>
       <span><Fingerprint size={15} /><b>Source revision</b><small>{evidence.study.sourceRevision.slice(0, 12)}</small></span>
+      <span><Workflow size={15} /><b>Projection digest</b><small>{evidence.provenance.projectionDigest ? shortDigest(evidence.provenance.projectionDigest.value) : 'fixture mode'}</small></span>
       <span><LockKeyhole size={15} /><b>Active policy</b><small>{runtime.activeProfile.label}</small></span>
       <span><GitBranch size={15} /><b>Semantic digest</b><small>{shortDigest(runtime.contentDigest)}</small></span>
     </div>
@@ -60,7 +64,7 @@ export default function AuditLineageView({ evidence, runtime, canInvestigate, on
 
       <article className="audit-card snapshot-record">
         <header><div><span className="panel-kicker">Immutable study snapshot</span><h2>{evidence.study.title}</h2></div><span className="snapshot-badge">published</span></header>
-        <dl><div><dt>Study identifier</dt><dd>{evidence.study.id}</dd></div><div><dt>Snapshot</dt><dd>{evidence.study.snapshotId}</dd></div><div><dt>Canonical records</dt><dd>{evidence.study.recordCount.toLocaleString()}</dd></div><div><dt>SEND domains</dt><dd>{evidence.study.domains.join(' · ')}</dd></div><div><dt>Source license</dt><dd>{evidence.study.license}</dd></div><div><dt>Revision</dt><dd>{evidence.study.sourceRevision.slice(0, 12)}</dd></div></dl>
+        <dl><div><dt>Study identifier</dt><dd>{evidence.study.id}</dd></div><div><dt>Snapshot</dt><dd>{evidence.study.snapshotId}</dd></div><div><dt>Canonical records</dt><dd>{evidence.study.recordCount.toLocaleString()}</dd></div><div><dt>SEND domains</dt><dd>{evidence.study.domains.join(' · ')}</dd></div><div><dt>Projection</dt><dd>{evidence.provenance.projectionVersion || 'bundled fixture'}</dd></div><div><dt>Reconciliation</dt><dd>{reconciliation ? `${Object.values(reconciliation.checks).filter(Boolean).length}/3 checks passed` : 'fixture provenance'}</dd></div><div><dt>Evidence package</dt><dd>{evidence.provenance.evidencePackageId ? shortDigest(evidence.provenance.evidencePackageId) : 'bundled fixture'}</dd></div><div><dt>Source license</dt><dd>{evidence.study.license}</dd></div><div><dt>Revision</dt><dd>{evidence.study.sourceRevision.slice(0, 12)}</dd></div></dl>
       </article>
     </div>
 

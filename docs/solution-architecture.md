@@ -20,6 +20,7 @@ flowchart LR
 
   subgraph Runtime[Self-contained solution runtime]
     ADP[Solution adapters<br/>CDISC import + PubMed + PMC + S3]
+    PRJ[Versioned safety projector<br/>canonical rows → business signals]
     subgraph Atlas[MongoDB Atlas evidence fabric]
       E[(Immutable evidence<br/>snapshots + datasets + cdisc_records<br/>subjects + source_artifacts)]
       P[(AI projections<br/>evidence/literature chunks + embeddings + edges)]
@@ -35,6 +36,7 @@ flowchart LR
     MAG[Bundled Magenta<br/>plan + tools + rerank + cite]
     UI[Safety Intelligence UI<br/>visual investigation + expert review]
     IMP --> ADP --> E
+    E --> PRJ --> P
     ADP --> P
     IMP --> S
     Q --> API --> UI
@@ -46,14 +48,14 @@ Healthcare Data Lab, Kehrnel, and Context Studio produce versioned inputs. They 
 
 ## Where CDISC is used
 
-| SEND source | Semantic object | Operational representation | Purpose |
+| SEND source | Canonical authority | Operational projection | Purpose |
 |---|---|---|---|
-| TS | Study, Compound | `study_evidence.study`, `compounds` | Protocol and compound context |
-| TX | TreatmentGroup | `study_evidence.doseGroups[]` | Dose, vehicle, and group assignment |
-| DM | Subject | `subjects` | Animal identity, sex, and group |
-| MI | Finding | `study_evidence.signals[]` | Organ, morphology, severity, and incidence |
-| LB | LabMeasurement | `study_evidence.labSeries` | Longitudinal measurements and units |
-| XPT + Define-XML | SourceArtifact | governed object storage plus lineage metadata | Definitions, replayability, and integrity |
+| TS | `cdisc_records` domain TS | `study_evidence.study`, `compounds` | Protocol and compound context when TS is present |
+| TX | `cdisc_records` domain TX | `study_evidence.doseGroups[]` | Dose, vehicle, and group assignment |
+| DM | `cdisc_records` domain DM | `subjects`, group membership in projections | Animal identity, sex, and group |
+| MI | `cdisc_records` domain MI | `study_evidence.signals[]` | Organ, morphology, severity, and incidence |
+| LB | `cdisc_records` domain LB | `study_evidence.labSeries` | Longitudinal measurements and units |
+| XPT + Define-XML | `source_artifacts` plus object storage | Artifact ledger and citations | Definitions, replayability, and integrity |
 
 The primary read model embeds data that the safety workspace reads together:
 
@@ -67,7 +69,9 @@ The primary read model embeds data that the safety workspace reads together:
 }
 ```
 
-This document is immutable for a published snapshot. Search documents, embedding vectors, semantic edges, investigations, and review actions have separate lifecycles and collections. They can evolve or be rebuilt without modifying observed SEND evidence.
+This read model is deterministic and rebuildable for a published snapshot. It stores its projector version, projection rule IDs, source package digest, projection digest, and a reconciliation receipt. The underlying `cdisc_records` and source artifacts are immutable authority; `study_evidence`, search documents, embedding vectors, and semantic edges are projections that can evolve or be rebuilt without modifying observed SEND evidence. Investigations and review actions remain separate append-only solution state.
+
+The solution projector is intentionally owned here rather than in Kehrnel. Kehrnel knows how to preserve and export standards-conformant evidence; this application knows which microscopic observations form a safety-review signal, which laboratory series are biologically relevant, and how the user experience consumes them. The boundary keeps reusable data infrastructure independent from product-specific scientific policy.
 
 ## API surface
 

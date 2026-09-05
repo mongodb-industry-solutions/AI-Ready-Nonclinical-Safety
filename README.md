@@ -119,17 +119,17 @@ Without `MONGODB_URI`, the application provides a fully interactive experience f
 
 ### MongoDB
 
-When `MONGODB_URI` is set, the application reads its own canonical evidence, operational read models, retrieval projections, and solution-state collections. The bundled public study summary is inserted idempotently on first use. A Kehrnel export can additionally populate `study_snapshots`, `dataset_definitions`, `cdisc_records`, `subjects`, `source_artifacts`, `validation_evidence`, and `lineage_events` without coupling the running solution to Kehrnel.
+When `MONGODB_URI` is set, the application reads its own canonical evidence, operational read models, retrieval projections, and solution-state collections. The bundled public study summary is inserted idempotently only when no connected projection has been imported. A Kehrnel export populates `study_snapshots`, `dataset_definitions`, `cdisc_records`, `subjects`, `source_artifacts`, `validation_evidence`, and `lineage_events` without coupling the running solution to Kehrnel.
 
-Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Its checked-in contract is [`contracts/cdisc-solution-evidence-v1.schema.json`](contracts/cdisc-solution-evidence-v1.schema.json). Download the generated JSON artifact, then import it with the optional business read model:
+Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Its checked-in contract is [`contracts/cdisc-solution-evidence-v1.schema.json`](contracts/cdisc-solution-evidence-v1.schema.json). Download the generated JSON artifact, then import it:
 
 ```bash
-npm run import:study -- ./path/to/solution-evidence-package.json ./path/to/study-evidence.json
+npm run import:study -- ./path/to/solution-evidence-package.json
 npm run import:literature
 npm run setup:indexes
 ```
 
-The importer verifies API and model versions, requires a published snapshot, recomputes the package SHA-256 digest, checks every manifest count, and then performs idempotent upserts. It is the deployment handoff point for data prepared in Healthcare Data Lab/Kehrnel or another validated pipeline. The older one-file `StudyEvidence` import remains supported for lightweight fixture use.
+The importer verifies API and model versions, requires a published snapshot, recomputes the package SHA-256 digest, checks every manifest count, and performs idempotent upserts. It then deterministically derives the solution-owned `StudyEvidence` read model from canonical DM, TX, MI, and LB records. The projection carries exact source-record IDs and hashes, its own digest, the versioned projection rule IDs used to form business signals, and a reconciliation receipt against the package counts. There is no manually supplied second data model in connected mode. The older one-file `StudyEvidence` import remains supported only for lightweight fixture use.
 
 The index command creates the solution-owned Atlas Search and Vector Search definitions described in [`docs/atlas-indexes.md`](docs/atlas-indexes.md). It requires an Atlas database role permitted to manage search indexes.
 

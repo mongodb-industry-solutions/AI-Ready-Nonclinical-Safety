@@ -35,12 +35,17 @@ export interface SafetySignal {
   incidence: number[];
   severity: Record<string, number>;
   correlatedLab: string | null;
+  sourceRecordIds?: string[];
+  sourceRecordHashes?: string[];
+  projectionRuleId?: string;
 }
 
 export interface LabSeries {
   label: string;
   unit: string;
   points: Array<{ day: number } & Record<string, number>>;
+  sourceRecordIds?: string[];
+  sourceRecordHashes?: string[];
 }
 
 export interface StudyEvidence {
@@ -53,6 +58,23 @@ export interface StudyEvidence {
     method: string;
     disclaimer: string;
     sourceArtifacts?: Record<string, string>;
+    evidencePackageId?: string;
+    evidencePackageDigest?: { algorithm: 'sha256'; value: string };
+    modelSchemaVersion?: string;
+    projectionVersion?: string;
+    projectionDigest?: { algorithm: 'sha256'; value: string };
+    projectionRuleIds?: string[];
+    reconciliation?: {
+      status: 'reconciled';
+      canonicalRecordCount: number;
+      projectedDomainCounts: Record<string, number>;
+      animalCount: number;
+      checks: {
+        domainCountsMatch: boolean;
+        recordCountMatches: boolean;
+        subjectCountMatches: boolean;
+      };
+    };
   };
 }
 
