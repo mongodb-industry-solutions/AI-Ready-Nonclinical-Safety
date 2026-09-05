@@ -54,11 +54,11 @@ function laboratoryAssessment(record: CanonicalEvidenceRecord) {
   return { status: 'unassessed', label: 'reference range unavailable' };
 }
 
-export default function RecordEvidencePanel({ study, doseGroups, signal, focusDomain }: { study: StudySummary; doseGroups: DoseGroup[]; signal: SafetySignal; focusDomain?: EvidenceDomain }) {
+export default function RecordEvidencePanel({ study, doseGroups, signal, focusDomain, initialScope = 'subject', initialSection }: { study: StudySummary; doseGroups: DoseGroup[]; signal: SafetySignal; focusDomain?: EvidenceDomain; initialScope?: 'subject' | 'study'; initialSection?: 'records' | 'artifacts' }) {
   const [result, setResult] = useState<SignalRecordEvidence | null>(null);
   const [selected, setSelected] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [recordScope, setRecordScope] = useState<'subject' | 'study'>('subject');
+  const [recordScope, setRecordScope] = useState<'subject' | 'study'>(initialScope);
   const [recordDomain, setRecordDomain] = useState<string>(focusDomain || 'MI');
   const [recordOffset, setRecordOffset] = useState(0);
   const [recordFilter, setRecordFilter] = useState<CanonicalRecordPage['filter']>('all');
@@ -102,6 +102,11 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
       .finally(() => { if (!controller.signal.aborted) setRecordLoading(false); });
     return () => controller.abort();
   }, [recordDomain, recordFilter, recordOffset, recordScope, result?.available, selectedSubjectId, signal.correlatedLab, study.id]);
+
+  useEffect(() => {
+    if (!result?.available || initialSection !== 'artifacts') return;
+    window.setTimeout(() => document.getElementById('source-artifact-catalog')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 0);
+  }, [initialSection, result?.available]);
 
   if (loading) return <div className="record-evidence-state"><LoaderCircle className="spin" size={18} /><span><b>Resolving source records</b><small>Following MI → subject → DM / TX / LB → immutable artifact</small></span></div>;
   if (!result?.available) return <div className="record-evidence-state empty"><Database size={18} /><span><b>Canonical evidence package not imported</b><small>The aggregate demonstration remains available. Import a verified Kehrnel solution-evidence package to activate row-level drilldown.</small></span></div>;
@@ -156,7 +161,7 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
           </div>
           <footer className="canonical-pagination"><span>Rows {recordPage?.total ? recordOffset + 1 : 0}–{Math.min(recordOffset + pageSize, recordPage?.total || 0)} of {recordPage?.total || 0}</span><div><button disabled={recordOffset === 0} onClick={() => setRecordOffset(Math.max(0, recordOffset - pageSize))}><ChevronLeft size={12} /> Previous</button><button disabled={!recordPage || recordOffset + pageSize >= recordPage.total} onClick={() => setRecordOffset(recordOffset + pageSize)}>Next <ChevronRight size={12} /></button></div></footer>
         </section>
-        <section className="artifact-catalog"><header><FileCheck2 size={13} /><b>Immutable source artifacts</b><span>{result.sourceArtifacts.length} files</span></header><div>{result.sourceArtifacts.map((item) => <article key={item.sourceId}><b>{item.sourceName || item.sourceId}</b><small>{item.mediaType} · {item.size ? `${item.size.toLocaleString()} bytes` : 'size not supplied'}</small><code>{item.digest.algorithm}:{item.digest.value}</code></article>)}</div></section>
+        <section className="artifact-catalog" id="source-artifact-catalog"><header><FileCheck2 size={13} /><b>Immutable source artifacts</b><span>{result.sourceArtifacts.length} files</span></header><div>{result.sourceArtifacts.map((item) => <article key={item.sourceId}><b>{item.sourceName || item.sourceId}</b><small>{item.mediaType} · {item.size ? `${item.size.toLocaleString()} bytes` : 'size not supplied'}</small><code>{item.digest.algorithm}:{item.digest.value}</code></article>)}</div></section>
       </main>}
     </div>
   </div>;
