@@ -21,6 +21,7 @@ class EvidenceContext(BaseModel):
     studyId: str
     snapshotId: str
     signalId: str
+    profileId: str
 
 
 class AskRequest(BaseModel):
@@ -51,6 +52,7 @@ async def ask(request: AskRequest) -> dict[str, Any]:
         request.context.studyId,
         request.context.snapshotId,
         request.context.signalId,
+        request.context.profileId,
     )
     output = await agent.invoke(context, AgentInput(payload={"message": prompt}))
     response = dict(output.response or {})

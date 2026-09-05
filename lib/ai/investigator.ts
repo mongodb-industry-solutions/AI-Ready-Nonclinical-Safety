@@ -1,10 +1,11 @@
-import type { InvestigationResult, StudyEvidence } from '@/lib/contracts';
+import type { InvestigationResult, SemanticProfileId, StudyEvidence } from '@/lib/contracts';
 import { signalSummary } from '@/lib/analysis/signal-engine';
 
 export async function investigate(
   evidence: StudyEvidence,
   signalId: string,
   question: string,
+  profileId: SemanticProfileId = 'toxicologist',
 ): Promise<InvestigationResult> {
   const signal = evidence.signals.find((candidate) => candidate.id === signalId) || evidence.signals[0];
   const magentaUrl = process.env.INTERNAL_AGENT_URL?.replace(/\/$/, '');
@@ -20,6 +21,7 @@ export async function investigate(
             studyId: evidence.study.id,
             snapshotId: evidence.study.snapshotId,
             signalId: signal.id,
+            profileId,
           },
         }),
         cache: 'no-store',

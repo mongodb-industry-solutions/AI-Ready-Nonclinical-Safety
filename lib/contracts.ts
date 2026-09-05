@@ -140,6 +140,8 @@ export interface SemanticResolver {
 
 export interface HybridQueryPlan {
   resolverId: string;
+  capabilityId: string;
+  profileId: SemanticProfileId;
   semanticScope: {
     language: 'contextobjects-containment-v1';
     semantics: 'AQL-CONTAINS';
@@ -150,6 +152,27 @@ export interface HybridQueryPlan {
   stages: Array<{ id: string; engine: string; purpose: string }>;
   fusion: 'reciprocal-rank-fusion';
   finalRanking: 'domain-reranker';
+}
+
+export type RetrievalStageStatus = 'executed' | 'fallback' | 'skipped';
+
+export interface RetrievalStageResult {
+  id: 'containment' | 'lexical' | 'vector' | 'graph' | 'fuse' | 'rerank' | 'hydrate';
+  status: RetrievalStageStatus;
+  candidateCount: number;
+  durationMs: number;
+  detail: string;
+}
+
+export interface LiteratureQueryExecution {
+  mode: 'fixture' | 'mongodb-exact' | 'atlas-search' | 'atlas-hybrid';
+  source: 'portable-bundle' | 'mongodb';
+  semanticReleaseId: string;
+  profileId: SemanticProfileId;
+  query: string;
+  durationMs: number;
+  executedAt: string;
+  stages: RetrievalStageResult[];
 }
 
 export interface SemanticAction {
@@ -293,6 +316,22 @@ export interface LiteratureDocument {
   relevance: string;
   concepts: string[];
   matchedSignalIds: string[];
+}
+
+export interface RankedLiteratureDocument extends LiteratureDocument {
+  retrieval: {
+    rank: number;
+    score: number;
+    lanes: Array<'containment' | 'lexical' | 'vector' | 'graph'>;
+    source: 'portable-bundle' | 'mongodb';
+  };
+}
+
+export interface LiteratureQueryResponse {
+  source: LiteratureEvidence['source'];
+  plan: HybridQueryPlan;
+  execution: LiteratureQueryExecution;
+  documents: RankedLiteratureDocument[];
 }
 
 export interface LiteratureEvidence {

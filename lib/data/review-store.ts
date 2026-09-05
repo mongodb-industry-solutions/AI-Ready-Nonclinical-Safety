@@ -1,11 +1,12 @@
 import type { Collection } from 'mongodb';
-import type { InvestigationResult, ReviewActionRecord } from '@/lib/contracts';
+import type { InvestigationResult, ReviewActionRecord, SemanticProfileId } from '@/lib/contracts';
 import { solutionDatabase } from '@/lib/data/mongodb';
 
 type InvestigationRecord = {
   studyId: string;
   snapshotId: string;
   signalId: string;
+  profileId: SemanticProfileId;
   question: string;
   result: InvestigationResult;
   createdAt: Date;

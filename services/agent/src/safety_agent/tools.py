@@ -11,21 +11,43 @@ def register_safety_tools(app: Any, repository: SafetyRepository) -> None:
     network = [repository.hostname]
 
     @app.tool(is_local=False, network=network)
-    def get_study_summary(study_id: str, snapshot_id: str) -> str:
+    def get_study_summary(study_id: str, snapshot_id: str, profile_id: str) -> str:
         """Return the study, dose groups, record counts, and source provenance."""
-        return repository.summary(study_id, snapshot_id)
+        return repository.summary(study_id, snapshot_id, profile_id)
 
     @app.tool(is_local=False, network=network)
-    def analyze_safety_signal(study_id: str, snapshot_id: str, signal_id: str) -> str:
+    def analyze_safety_signal(
+        study_id: str, snapshot_id: str, signal_id: str, profile_id: str
+    ) -> str:
         """Return exact incidence, severity, dose, and correlated laboratory evidence."""
-        return repository.signal(study_id, snapshot_id, signal_id)
+        return repository.signal(study_id, snapshot_id, signal_id, profile_id)
 
     @app.tool(is_local=False, network=network)
-    def search_safety_evidence(study_id: str, snapshot_id: str, query: str, limit: int = 8) -> str:
+    def search_safety_evidence(
+        study_id: str,
+        snapshot_id: str,
+        query: str,
+        profile_id: str,
+        limit: int = 8,
+    ) -> str:
         """Search bounded evidence chunks using Atlas Search with a lexical fallback."""
-        return repository.search(study_id, snapshot_id, query, limit)
+        return repository.search(study_id, snapshot_id, query, profile_id, limit)
 
     @app.tool(is_local=False, network=network)
-    def trace_source_lineage(study_id: str, snapshot_id: str) -> str:
+    def search_literature_evidence(
+        study_id: str,
+        snapshot_id: str,
+        signal_id: str,
+        query: str,
+        profile_id: str,
+        limit: int = 8,
+    ) -> str:
+        """Retrieve attributed literature context through governed hybrid search."""
+        return repository.literature(
+            study_id, snapshot_id, signal_id, query, profile_id, limit
+        )
+
+    @app.tool(is_local=False, network=network)
+    def trace_source_lineage(study_id: str, snapshot_id: str, profile_id: str) -> str:
         """Return the immutable public source revision and artifact checksums."""
-        return repository.lineage(study_id, snapshot_id)
+        return repository.lineage(study_id, snapshot_id, profile_id)

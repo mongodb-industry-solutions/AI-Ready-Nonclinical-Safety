@@ -33,6 +33,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
   const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
   const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : evidence.labSeries.LYM;
   const ranked = useMemo(() => evidence.signals.map((item) => ({ ...item, score: reviewScore(item, evidence.doseGroups) })).sort((a, b) => b.score - a.score), [evidence]);
+  const canInvestigate = semantics.capabilities.some((item) => item.id === 'assemble-evidence-brief');
   const goTo = (target: string) => {
     setSection(target);
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
@@ -64,7 +65,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
       {section === 'architecture' ? <Architecture evidence={evidence} onBack={() => setSection('signals')} /> : section === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : <>
         <section className="hero-row" id="overview">
           <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
-          <div className="hero-actions"><button className="secondary-action" onClick={() => goTo('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" onClick={() => setRoomOpen(true)}><Sparkles size={14} /> Start investigation</button></div>
+          <div className="hero-actions"><button className="secondary-action" onClick={() => goTo('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={() => setRoomOpen(true)}><Sparkles size={14} /> Start investigation</button></div>
         </section>
 
         <section className="metric-row">
@@ -106,7 +107,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
               </div>
             </article>
           </section>
-          <AgentPanel id="agent" study={evidence.study} signal={signal} />
+          <AgentPanel id="agent" study={evidence.study} signal={signal} profileId={semantics.activeProfile.id} enabled={canInvestigate} />
         </div>
         <section className="panel graph-panel graph-wide" id="graph">
           <div className="panel-heading"><div><span className="panel-kicker">Interactive evidence network</span><h2>{signal.organ}: from dose assignment to source artifact</h2><p>Follow the highlighted path, select any node for context, or expand the graph for investigation mode.</p></div><div className="graph-actions"><button className="text-action" onClick={() => setSection('architecture')}>See data model <Braces size={13} /></button><button className="secondary-action graph-expand" onClick={() => setGraphOpen(true)}><Expand size={13} /> Expand graph</button></div></div>

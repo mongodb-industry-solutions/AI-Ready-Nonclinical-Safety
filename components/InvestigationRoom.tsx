@@ -56,7 +56,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
         <section className="room-widget">
           {canvas === 'evidence' && <EvidenceGraph evidence={evidence} signal={signal} immersive />}
           {canvas === 'dose' && <div className="room-charts"><div><span className="panel-kicker">Finding incidence</span><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></div><div><span className="panel-kicker">{lab.label} trajectory</span><LabTrajectoryChart series={lab} /></div></div>}
-          {canvas === 'literature' && <LiteratureEvidencePanel signal={signal} documents={literature} />}
+          {canvas === 'literature' && <LiteratureEvidencePanel signal={signal} documents={literature} profileId={runtime.activeProfile.id} />}
           {canvas === 'semantics' && <div className="resolver-board"><header><span className="panel-kicker">Compiled resolver graph</span><h2>Authorized tools for {runtime.activeProfile.label}</h2></header>{runtime.capabilities.map((capability, index) => <article key={capability.id}><i>{index + 1}</i><div><b>{capability.label}</b><p>{capability.description}</p><span>{capability.engines.join(' + ')}</span></div></article>)}</div>}
         </section>
         <section className="review-console">
@@ -65,7 +65,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
           {saved && <div className="saved-action"><CheckCircle2 size={14} /><span><b>{saved.status}</b><small>{saved.id}</small></span></div>}
         </section>
       </main>
-      <AgentPanel study={evidence.study} signal={signal} />
+      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} />
     </div>
   </div>;
 }

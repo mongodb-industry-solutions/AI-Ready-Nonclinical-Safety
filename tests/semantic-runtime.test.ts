@@ -15,6 +15,11 @@ describe('portable semantic runtime', () => {
     expect(canPerformSemanticAction('external-reviewer', 'annotate')).toBe(false);
   });
 
+  it('projects AI investigator capabilities by profile', () => {
+    expect(semanticRuntimeForProfile('toxicologist').capabilities.some((item) => item.id === 'assemble-evidence-brief')).toBe(true);
+    expect(semanticRuntimeForProfile('data-steward').capabilities.some((item) => item.id === 'assemble-evidence-brief')).toBe(false);
+  });
+
   it('publishes a resumable live semantic subscription contract', () => {
     const view = semanticRuntimeForProfile('data-steward');
     expect(view.subscriptions[0].source).toBe('mongodb-change-stream');
@@ -24,7 +29,9 @@ describe('portable semantic runtime', () => {
 
   it('combines AQL-style containment with lexical, vector, graph, fusion, and reranking stages', () => {
     const runtime = semanticRuntimeForProfile('toxicologist');
-    const plan = compileLiteratureQueryPlan(runtime);
+    const plan = compileLiteratureQueryPlan(runtime, 'toxicologist');
+    expect(plan.profileId).toBe('toxicologist');
+    expect(plan.capabilityId).toBe('retrieve-literature-evidence');
     expect(plan.semanticScope.semantics).toBe('AQL-CONTAINS');
     expect(plan.semanticScope.contains).toContain('Finding');
     expect(plan.stages.map((stage) => stage.engine)).toEqual(expect.arrayContaining([

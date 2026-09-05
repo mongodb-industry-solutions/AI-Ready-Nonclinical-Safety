@@ -36,6 +36,8 @@ flowchart LR
 
 Every passage carries its parent publication, source locator, content-rights status, checksum, and semantic concept bindings. Retrieval rejects content outside the active user profile and permitted corpus before scoring. Study observations and external literature are never collapsed into the same evidence class: the former is observed study evidence; the latter is contextual support, analogy, or an alternative explanation.
 
+The deployed literature adapter returns an execution envelope alongside its results. Every declared stage is marked `executed`, `fallback`, or `skipped`, with candidate count, latency and explanation. The UI therefore distinguishes a genuinely executed Vector Search lane from a deployment where the vector index is ready but no embedding provider is configured. This is operational provenance, not simulated agent activity.
+
 ## Agent graph
 
 ```mermaid
@@ -57,6 +59,7 @@ stateDiagram-v2
 ## Guardrails
 
 - Every tool call is database-, study-, and snapshot-scoped.
+- The application propagates the active compiled semantic profile into the Magenta request; every tool independently validates its capability grant against the active semantic release.
 - The default tool set is read-only.
 - Every assertion must cite canonical evidence or a named derived projection.
 - The interface presents tool activity and retrieval evidence, not hidden chain-of-thought.

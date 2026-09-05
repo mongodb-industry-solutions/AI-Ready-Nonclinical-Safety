@@ -150,6 +150,8 @@ For a production corpus, source PDFs live in governed S3-compatible object stora
 
 The literature resolver performs concept grounding, license filtering, lexical search, vector search, graph expansion, and domain reranking. Its output is labeled as pathology reference, analogous pattern, or alternative explanation. It cannot turn literature similarity into a compound-specific or causal conclusion.
 
+`GET /api/literature` executes that contract rather than merely describing it. It validates the active profile and containment plan, scopes candidates to the selected finding, uses the configured Atlas Search index, optionally uses Atlas Vector Search when an embedding provider is available, expands materialized semantic evidence edges, performs reciprocal-rank fusion and domain reranking, and returns per-stage execution telemetry. If Atlas or the embedding provider is unavailable, the response identifies the skipped or fallback lane and retains the governed exact result set.
+
 The agent is read-only. It cannot publish snapshots, create validation waivers, supersede evidence, or claim regulatory compliance.
 
 ## Repository Structure
@@ -179,7 +181,7 @@ npm run build
 ## Product Roadmap
 
 1. **Single-study SEND investigation** — implemented foundation.
-2. **Connected Atlas AI retrieval** — embeddings, indexes, reranker, evaluation set.
+2. **Connected Atlas AI retrieval** — executable containment, Atlas Search, optional embeddings/Vector Search, graph expansion, fusion, reranking and visible plan telemetry are implemented; a larger evaluation corpus remains.
 3. **Cross-study portfolio intelligence** — compound, target organ, species, and historical-control comparisons.
 4. **Translational safety bridge** — governed connections from nonclinical SEND to clinical SDTM and ADaM evidence.
 
