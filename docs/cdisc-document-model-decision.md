@@ -184,8 +184,11 @@ legacy-field, or manual-embedding compatibility path.
 The obsolete manual-vector indexes have been removed. The active indexes use
 `autoEmbed`, and the corresponding vectors exist only in Atlas's internal search
 collections. Optional operational properties are omitted rather than persisted as
-`null`, empty arrays, or empty objects. Canonical CDISC source values remain lossless,
-including source-defined blanks where preserving them is required for replay.
+`null`, empty arrays, or empty objects. The canonical MongoDB rows follow the same
+sparse rule for blank/null cells. Column definitions and order live in the dataset
+metamodel, while immutable Dataset-JSON/XPT/Define-XML artifacts and row hashes
+preserve exact replay and direct interoperability. Explicit values such as zero,
+`false`, `UNK`, and `NA` remain present.
 
 ## Delivery sequence
 
