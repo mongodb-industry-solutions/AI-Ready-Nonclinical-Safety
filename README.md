@@ -17,6 +17,7 @@ The in-product **Solution architecture** workspace and [full architecture guide]
 - Cross-domain links between SEND DM, TX, MI, and LB records.
 - A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
 - A full-screen Investigation Room where the AI investigator conducts typed graph, dose, laboratory, and resolver widgets while exposing citations.
+- Record-level drilldown from a signal to the contributing MI, DM, TX, and LB rows and their checksum-verified source artifacts.
 - A literature-evidence workspace that grounds SEND findings to attributed PubMed records, separates supporting context from alternative explanations, and exposes the hybrid retrieval path.
 - A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses.
 - Governed review actions stored separately from immutable SEND evidence.
@@ -118,17 +119,17 @@ Without `MONGODB_URI`, the application provides a fully interactive experience f
 
 ### MongoDB
 
-When `MONGODB_URI` is set, the application reads its own `study_evidence` and `evidence_chunks` collections, retains investigations, and exposes its own API. The bundled public study is inserted idempotently on first use. Future Kehrnel or HDL exports target this same versioned import contract without coupling the running solution to either tool.
+When `MONGODB_URI` is set, the application reads its own canonical evidence, operational read models, retrieval projections, and solution-state collections. The bundled public study summary is inserted idempotently on first use. A Kehrnel export can additionally populate `study_snapshots`, `dataset_definitions`, `cdisc_records`, `subjects`, `source_artifacts`, `validation_evidence`, and `lineage_events` without coupling the running solution to Kehrnel.
 
-Import another solution-ready snapshot with:
+Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Download that generated JSON artifact, then import it with the optional business read model:
 
 ```bash
-npm run import:study -- ./path/to/study-evidence.json
+npm run import:study -- ./path/to/solution-evidence-package.json ./path/to/study-evidence.json
 npm run import:literature
 npm run setup:indexes
 ```
 
-The import is idempotent by study and snapshot. It is the deployment handoff point for data prepared in HDL/Kehrnel or another validated pipeline.
+The importer verifies API and model versions, requires a published snapshot, recomputes the package SHA-256 digest, checks every manifest count, and then performs idempotent upserts. It is the deployment handoff point for data prepared in Healthcare Data Lab/Kehrnel or another validated pipeline. The older one-file `StudyEvidence` import remains supported for lightweight fixture use.
 
 The index command creates the solution-owned Atlas Search and Vector Search definitions described in [`docs/atlas-indexes.md`](docs/atlas-indexes.md). It requires an Atlas database role permitted to manage search indexes.
 

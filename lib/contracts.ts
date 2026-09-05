@@ -56,6 +56,50 @@ export interface StudyEvidence {
   };
 }
 
+export interface CanonicalEvidenceRecord {
+  sourceId: string;
+  domain: string;
+  rowOrdinal: number;
+  recordKey: Record<string, unknown>;
+  facets: Record<string, unknown>;
+  data: Record<string, unknown>;
+  lineage: {
+    sourceArtifactId?: string;
+    sourceDataset: string;
+    sourceRow: number;
+    recordHash: string;
+  };
+}
+
+export interface SubjectEvidenceThread {
+  subjectId: string;
+  treatmentGroup?: string;
+  findingRecords: CanonicalEvidenceRecord[];
+  laboratoryRecords: CanonicalEvidenceRecord[];
+  demographicRecord?: CanonicalEvidenceRecord;
+}
+
+export interface SourceArtifactEvidence {
+  sourceId: string;
+  sourceName?: string;
+  mediaType: string;
+  size?: number;
+  digest: { algorithm: 'sha256'; value: string };
+}
+
+export interface SignalRecordEvidence {
+  available: boolean;
+  studyId: string;
+  snapshotId: string;
+  signalId: string;
+  packageId?: string;
+  modelSchemaVersion?: string;
+  subjects: SubjectEvidenceThread[];
+  treatmentRecords: CanonicalEvidenceRecord[];
+  sourceArtifacts: SourceArtifactEvidence[];
+  counts: { findings: number; laboratory: number; subjects: number; artifacts: number };
+}
+
 export interface Citation {
   domain: string;
   label: string;

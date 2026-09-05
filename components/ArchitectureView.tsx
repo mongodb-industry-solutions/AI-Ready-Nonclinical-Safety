@@ -21,6 +21,7 @@ const lenses: Array<{ id: ArchitectureLens; label: string; description: string; 
 
 const apiContracts = [
   { method: 'GET', path: '/api/studies/{studyId}/signals', title: 'Study evidence', input: 'studyId', output: 'Immutable StudyEvidence snapshot', policy: 'Snapshot-bound canonical facts' },
+  { method: 'GET', path: '/api/studies/{studyId}/signals/{signalId}/records', title: 'Record evidence', input: 'studyId, signalId', output: 'MI → subject → DM / LB / TX → source artifact', policy: 'Published package; record hashes preserved' },
   { method: 'POST', path: '/api/investigations', title: 'AI investigation', input: 'studyId, signalId, profileId, question', output: 'Cited EvidenceBrief + investigationId', policy: 'Profile-gated; read-only evidence' },
   { method: 'GET', path: '/api/literature', title: 'Hybrid literature retrieval', input: 'signalId, profile, q, limit', output: 'Ranked evidence + execution telemetry', policy: 'Licensed corpus; context, not causality' },
   { method: 'GET · POST', path: '/api/reviews', title: 'Expert review actions', input: 'studyId, snapshotId, signalId, decision', output: 'Append-only review record', policy: 'Action authorization; evidence unchanged' },
@@ -81,7 +82,7 @@ function Blueprint({ evidence, runtime }: { evidence: StudyEvidence; runtime: Se
         <div className="runtime-connector"><ArrowRight /><span>adapters</span></div>
         <div className="atlas-core">
           <div className="atlas-title"><Database size={18} /><div><b>MongoDB Atlas evidence fabric</b><small>One operational platform; explicitly separated authorities</small></div></div>
-          <div className="atlas-planes"><div><span>Immutable evidence</span><code>study_evidence</code><code>subjects</code><code>source_artifacts</code></div><div><span>AI projections</span><code>evidence_chunks</code><code>literature_chunks</code><code>semantic_evidence_edges</code></div><div><span>Semantic control</span><code>semantic_releases</code><code>semantic_objects</code><code>semantic_value_sets</code></div><div><span>Solution state</span><code>investigations</code><code>review_actions</code><code>semantic_change_events</code></div></div>
+          <div className="atlas-planes"><div><span>Immutable evidence</span><code>study_snapshots</code><code>dataset_definitions</code><code>cdisc_records</code><code>subjects · source_artifacts</code></div><div><span>AI projections</span><code>study_evidence</code><code>evidence_chunks</code><code>literature_chunks</code><code>semantic_evidence_edges</code></div><div><span>Semantic control</span><code>semantic_releases</code><code>semantic_objects</code><code>semantic_value_sets</code></div><div><span>Solution state</span><code>investigations</code><code>review_actions</code><code>semantic_change_events</code></div></div>
           <div className="atlas-engines"><span><Search size={12} /> Aggregation + Search</span><span><Sparkles size={12} /> Vector Search</span><span><GitBranch size={12} /> Graph lookup</span><span><Zap size={12} /> Change Streams</span></div>
         </div>
         <div className="runtime-connector"><ArrowRight /><span>governed tools</span></div>

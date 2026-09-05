@@ -13,7 +13,7 @@ flowchart LR
     HDL[Healthcare Data Lab<br/>intake + examples + synthetic recipes]
     KEH[Kehrnel<br/>metamodel + validation + query learning]
     CTX[Context Studio<br/>semantics + archetypes + resolvers + profiles]
-    IMP[Versioned solution inputs<br/>StudyEvidence + runtime bundle]
+    IMP[Versioned solution inputs<br/>CDISC evidence package + runtime bundle]
     SEND --> HDL --> KEH --> IMP
     CTX --> IMP
   end
@@ -21,7 +21,7 @@ flowchart LR
   subgraph Runtime[Self-contained solution runtime]
     ADP[Solution adapters<br/>CDISC import + PubMed + PMC + S3]
     subgraph Atlas[MongoDB Atlas evidence fabric]
-      E[(Immutable evidence<br/>study_evidence + subjects + source_artifacts)]
+      E[(Immutable evidence<br/>snapshots + datasets + cdisc_records<br/>subjects + source_artifacts)]
       P[(AI projections<br/>evidence/literature chunks + embeddings + edges)]
       S[(Semantic control<br/>releases + objects + value sets + runtime pointer)]
       W[(Solution state<br/>investigations + review_actions)]
@@ -74,6 +74,7 @@ This document is immutable for a published snapshot. Search documents, embedding
 | Method | Route | Responsibility |
 |---|---|---|
 | GET | `/api/studies/{studyId}/signals` | Retrieve a snapshot-bound study evidence model |
+| GET | `/api/studies/{studyId}/signals/{signalId}/records` | Resolve a visual signal to canonical subject, finding, lab, treatment, and artifact evidence |
 | POST | `/api/investigations` | Execute a profile-authorized, cited evidence investigation |
 | GET | `/api/literature` | Execute containment, lexical, optional vector, graph, fusion, and reranking stages |
 | GET / POST | `/api/reviews` | Read or append governed expert review actions |

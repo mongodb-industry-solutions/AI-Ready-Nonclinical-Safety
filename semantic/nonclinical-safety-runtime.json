@@ -2,9 +2,9 @@
   "apiVersion": "contextobjects.dev/runtime-bundle/v1",
   "kind": "SemanticRuntimeBundle",
   "release": {
-    "releaseId": "org.contextobjects.nonclinical-safety@0.1.0",
+    "releaseId": "org.contextobjects.nonclinical-safety@0.2.0",
     "packageId": "org.contextobjects.nonclinical-safety",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "title": "Nonclinical Safety Semantic Runtime",
     "maturity": "preview",
     "compiledBy": "Context Studio",
@@ -370,11 +370,17 @@
   ],
   "storageBindings": [
     { "id": "binding.compound.mongodb", "semanticObject": "Compound", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "compounds", "path": "compound", "authority": "projection" },
-    { "id": "binding.study.mongodb", "semanticObject": "Study", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "study", "authority": "source" },
-    { "id": "binding.group.mongodb", "semanticObject": "TreatmentGroup", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "doseGroups[]", "authority": "source" },
-    { "id": "binding.subject.mongodb", "semanticObject": "Subject", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "subjects", "path": "subject", "authority": "source" },
-    { "id": "binding.finding.mongodb", "semanticObject": "Finding", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "signals[]", "authority": "source" },
-    { "id": "binding.lab.mongodb", "semanticObject": "LabMeasurement", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "labSeries", "authority": "source" },
+    { "id": "binding.study.mongodb.canonical", "semanticObject": "Study", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "study_snapshots", "path": "snapshot", "authority": "source" },
+    { "id": "binding.study.mongodb.readmodel", "semanticObject": "Study", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "study", "authority": "projection" },
+    { "id": "binding.group.mongodb.canonical", "semanticObject": "TreatmentGroup", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "cdisc_records", "path": "domain=TX.data", "authority": "source" },
+    { "id": "binding.group.mongodb.readmodel", "semanticObject": "TreatmentGroup", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "doseGroups[]", "authority": "projection" },
+    { "id": "binding.subject.mongodb.canonical", "semanticObject": "Subject", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "cdisc_records", "path": "domain=DM.data", "authority": "source" },
+    { "id": "binding.subject.mongodb.projection", "semanticObject": "Subject", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "subjects", "path": "subject", "authority": "projection" },
+    { "id": "binding.finding.mongodb.canonical", "semanticObject": "Finding", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "cdisc_records", "path": "domain=MI.data+facets", "authority": "source" },
+    { "id": "binding.finding.mongodb.readmodel", "semanticObject": "Finding", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "signals[]", "authority": "projection" },
+    { "id": "binding.lab.mongodb.canonical", "semanticObject": "LabMeasurement", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "cdisc_records", "path": "domain=LB.data+facets", "authority": "source" },
+    { "id": "binding.lab.mongodb.readmodel", "semanticObject": "LabMeasurement", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "labSeries", "authority": "projection" },
+    { "id": "binding.artifact.mongodb", "semanticObject": "SourceArtifact", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "source_artifacts", "path": "artifact", "authority": "source" },
     { "id": "binding.artifact.s3", "semanticObject": "SourceArtifact", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "s3-documents", "representation": "object", "location": "source-artifacts", "path": "{studyId}/{sha256}", "authority": "source" },
     { "id": "binding.publication.pubmed", "semanticObject": "Publication", "archetype": "archetype.contextual-literature-evidence.v1", "adapter": "pubmed", "representation": "api-resource", "location": "pubmed.ncbi.nlm.nih.gov", "path": "/{pmid}", "authority": "source" },
     { "id": "binding.publication.mongodb", "semanticObject": "Publication", "archetype": "archetype.contextual-literature-evidence.v1", "adapter": "mongodb", "representation": "document", "location": "literature_documents", "path": "publication", "authority": "projection" },
@@ -409,7 +415,7 @@
     }
   ],
   "governance": {
-    "evidenceCollections": ["study_evidence", "subjects", "source_artifacts", "literature_documents", "literature_chunks"],
+    "evidenceCollections": ["study_snapshots", "dataset_definitions", "cdisc_records", "subjects", "source_artifacts", "study_evidence", "literature_documents", "literature_chunks"],
     "solutionWriteCollections": ["investigations", "review_actions"],
     "writeWorkflow": ["propose", "simulate", "diff", "validate", "approve", "commit", "audit"],
     "rules": [
@@ -419,5 +425,5 @@
       "Profile authorization is enforced by the API, not only by the UI."
     ]
   },
-  "contentDigest": "sha256:f29e3d62d8598fbc843b90f229e4ae4f075b86a2804348176861b5fa427339dd"
+  "contentDigest": "sha256:e9b6e6d555e4fde03f6f34b73de30bd054a01a703f9e41830ddf43a635f3a58d"
 }
