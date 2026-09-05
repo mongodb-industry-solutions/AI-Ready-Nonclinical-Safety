@@ -44,7 +44,7 @@ export default function PortfolioIntelligenceView({ evidence, evidenceSet, profi
   const selected = result.matches.find((item) => item.id === selectedId) || result.matches[0];
   return <div className="portfolio-view">
     <section className="portfolio-hero">
-      <div><span className="eyebrow">Cross-study portfolio intelligence</span><h1>Evidence similarity atlas</h1><p>Compare a governed SEND finding with portfolio evidence through semantic, dose-pattern, severity and optional vector lanes—without confusing synthetic test scenarios with observed evidence.</p></div>
+      <div><span className="eyebrow">Cross-study portfolio intelligence</span><h1>Evidence similarity atlas</h1><p>Compare a governed SEND finding with portfolio evidence through semantic, dose-pattern, severity and Atlas Automated Embedding lanes—without confusing synthetic test scenarios with observed evidence.</p></div>
       <div className="portfolio-query">
         <label><ScanSearch size={14} /><span><small>Query finding</small><select value={signalId} onChange={(event) => setSignalId(event.target.value)}>{evidence.signals.map((signal) => <option key={signal.id} value={signal.id}>{signal.organ} · {signal.finding}</option>)}</select></span></label>
         <em className={state}>{state === 'querying' ? 'Resolving…' : state === 'fallback' ? 'Portable resolver' : 'Live resolver'}</em>
@@ -55,7 +55,7 @@ export default function PortfolioIntelligenceView({ evidence, evidenceSet, profi
       <article><Network size={15} /><div><span>Portfolio corpus</span><strong>{result.corpus.studies} studies</strong><small>{result.corpus.findings} governed findings</small></div></article>
       <article><BadgeCheck size={15} /><div><span>Observed evidence</span><strong>{result.corpus.observedStudies}</strong><small>source-labeled snapshots</small></div></article>
       <article><Beaker size={15} /><div><span>Evaluation corpus</span><strong>{result.corpus.syntheticStudies}</strong><small>synthetic benchmarks</small></div></article>
-      <article><BrainCircuit size={15} /><div><span>Retrieval mode</span><strong>{result.execution.vectorLane === 'executed' ? '4 lanes' : '3 lanes'}</strong><small>{result.execution.vectorLane === 'executed' ? 'vector executed' : 'vector ready · not simulated'}</small></div></article>
+      <article><BrainCircuit size={15} /><div><span>Retrieval mode</span><strong>{result.execution.vectorLane === 'executed' ? '4 lanes' : '3 lanes'}</strong><small>{result.execution.vectorLane === 'executed' ? 'Atlas auto-embedding executed' : 'auto-embedding unavailable · not simulated'}</small></div></article>
     </section>
 
     <section className="portfolio-stage">

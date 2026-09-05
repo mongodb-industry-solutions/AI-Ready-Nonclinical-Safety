@@ -10,7 +10,7 @@ import { allLiterature } from '@/lib/data/literature-repository';
 import { solutionDatabase } from '@/lib/data/mongodb';
 
 type Candidate = { publicationId: string; score?: number };
-type LiteratureChunk = Candidate & { text: string; concepts: string[]; matchedSignalIds: string[]; embedding?: number[] };
+type LiteratureChunk = Candidate & { text: string; concepts: string[]; matchedSignalIds: string[] };
 type RetrievalLane = 'containment' | 'lexical' | 'vector' | 'graph';
 
 const roleWeight: Record<LiteratureDocument['evidenceRole'], number> = {
@@ -74,24 +74,6 @@ export function rankLiterature(
       source,
     },
   }));
-}
-
-async function createQueryEmbedding(query: string): Promise<number[] | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
-      input: query,
-      dimensions: 1536,
-    }),
-    cache: 'no-store',
-  });
-  if (!response.ok) return null;
-  const payload = await response.json() as { data?: Array<{ embedding?: number[] }> };
-  return payload.data?.[0]?.embedding || null;
 }
 
 function fixtureResult(
@@ -192,19 +174,14 @@ export async function executeLiteratureQuery({
 
     const vectorStarted = Date.now();
     let vector: Candidate[] = [];
-    const queryVector = await createQueryEmbedding(boundedQuery).catch(() => null);
-    if (queryVector) {
-      try {
-        vector = await database.collection<LiteratureChunk>('literature_chunks').aggregate<Candidate>([
-          { $vectorSearch: { index: process.env.ATLAS_LITERATURE_VECTOR_INDEX || 'safety_literature_vector', path: 'embedding', queryVector, filter: { matchedSignalIds: signalId }, numCandidates: 50, limit: Math.min(Math.max(limit, 1), 20) } },
-          { $project: { _id: 0, publicationId: 1, score: { $meta: 'vectorSearchScore' } } },
-        ]).toArray();
-        stageResults.push({ id: 'vector', status: 'executed', candidateCount: vector.length, durationMs: elapsed(vectorStarted), detail: 'Atlas Vector Search executed over the licensed, signal-scoped chunk projection.' });
-      } catch {
-        stageResults.push({ id: 'vector', status: 'fallback', candidateCount: 0, durationMs: elapsed(vectorStarted), detail: 'The vector lane was unavailable; exact and lexical evidence remain authoritative.' });
-      }
-    } else {
-      stageResults.push({ id: 'vector', status: 'skipped', candidateCount: 0, durationMs: elapsed(vectorStarted), detail: 'No embedding provider is configured; the vector index remains ready but unused.' });
+    try {
+      vector = await database.collection<LiteratureChunk>('literature_chunks').aggregate<Candidate>([
+        { $vectorSearch: { index: process.env.ATLAS_LITERATURE_AUTO_EMBED_INDEX || 'safety_literature_auto_embed', path: 'text', query: boundedQuery, filter: { matchedSignalIds: signalId }, numCandidates: 50, limit: Math.min(Math.max(limit, 1), 20) } },
+        { $project: { _id: 0, publicationId: 1, score: { $meta: 'vectorSearchScore' } } },
+      ]).toArray();
+      stageResults.push({ id: 'vector', status: 'executed', candidateCount: vector.length, durationMs: elapsed(vectorStarted), detail: 'Atlas Automated Embedding generated the query vector and searched the licensed, signal-scoped text projection.' });
+    } catch {
+      stageResults.push({ id: 'vector', status: 'fallback', candidateCount: 0, durationMs: elapsed(vectorStarted), detail: 'The Atlas Automated Embedding lane was unavailable; exact and lexical evidence remain authoritative.' });
     }
 
     const graphStarted = Date.now();

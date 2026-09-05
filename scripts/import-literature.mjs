@@ -25,35 +25,17 @@ try {
     contentRights: 'bibliographic-metadata-and-application-summary',
     provenance: { provider: 'PubMed', pmid: publication.pmid, url: publication.url },
   }));
-  let embeddings = null;
-  if (process.env.OPENAI_API_KEY) {
-    try {
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small', input: chunkRows.map((row) => row.text), dimensions: 1536 }),
-      });
-      if (!response.ok) throw new Error(`embedding request failed (${response.status})`);
-      const payload = await response.json();
-      embeddings = payload.data.sort((left, right) => left.index - right.index).map((item) => item.embedding);
-    } catch (error) {
-      console.warn(`Literature embeddings were not generated: ${error instanceof Error ? error.message : 'unknown provider error'}`);
-    }
-  }
 
   for (const [index, publication] of source.documents.entries()) {
     const chunk = chunkRows[index];
     const stored = {
       ...publication,
       source: source.source,
-      objectStorage: process.env.DOCUMENT_BUCKET ? { provider: 's3-compatible', bucket: process.env.DOCUMENT_BUCKET, objectKey: `literature/${publication.pmid}/source.pdf`, status: 'reference-only' } : null,
+      ...(process.env.DOCUMENT_BUCKET ? { objectStorage: { provider: 's3-compatible', bucket: process.env.DOCUMENT_BUCKET, objectKey: `literature/${publication.pmid}/source.pdf`, status: 'reference-only' } } : {}),
       importedAt: new Date(),
     };
     await documents.replaceOne({ id: publication.id }, stored, { upsert: true });
-    await chunks.replaceOne({ id: chunk.id }, {
-      ...chunk,
-      ...(embeddings?.[index] ? { embedding: embeddings[index], embeddingStatus: 'ready', embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small' } : { embeddingStatus: 'pending-model-configuration' }),
-    }, { upsert: true });
+    await chunks.replaceOne({ id: chunk.id }, chunk, { upsert: true });
     for (const signalId of publication.matchedSignalIds) {
       await edges.replaceOne({ id: `finding:${signalId}:publication:${publication.id}` }, {
         id: `finding:${signalId}:publication:${publication.id}`,
@@ -79,7 +61,7 @@ try {
   await chunks.createIndex({ publicationId: 1, matchedSignalIds: 1 }, { name: 'literature_lineage' });
   await edges.createIndex({ releaseId: 1, from: 1, predicate: 1, to: 1 }, { name: 'semantic_edge_forward', unique: true });
   await edges.createIndex({ releaseId: 1, to: 1, predicate: 1, from: 1 }, { name: 'semantic_edge_reverse' });
-  console.log(`Imported ${source.documents.length} attributed PubMed records, evidence summaries, and semantic graph paths${embeddings ? ' with embeddings' : ''}.`);
+  console.log(`Imported ${source.documents.length} attributed PubMed records, evidence summaries, and semantic graph paths; Atlas owns automated embeddings for the text projection.`);
 } finally {
   await client.close();
 }

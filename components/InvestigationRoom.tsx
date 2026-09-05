@@ -18,7 +18,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
   const [note, setNote] = useState('');
   const [saved, setSaved] = useState<ReviewActionRecord | null>(null);
   const [busy, setBusy] = useState(false);
-  const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : undefined;
+  const lab = signal.correlatedLab ? evidence.labSeries?.[signal.correlatedLab] : undefined;
 
   async function commitReview() {
     if (note.trim().length < 3) return;

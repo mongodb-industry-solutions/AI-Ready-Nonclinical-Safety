@@ -101,8 +101,8 @@ function portfolioFindings(projection) {
     studyId: projection.study.id,
     snapshotId: projection.study.snapshotId,
     evidenceClass: projection.study.evidenceClass || 'sponsor-observed',
-    species: projection.study.species,
-    strain: projection.study.strain,
+    ...(projection.study.species ? { species: projection.study.species } : {}),
+    ...(projection.study.strain ? { strain: projection.study.strain } : {}),
     signalId: signal.id,
     organ: signal.organ,
     finding: signal.finding,
@@ -110,18 +110,17 @@ function portfolioFindings(projection) {
     semanticConcepts: [`anatomic-site:${signal.organ}`, `finding-morphology:${signal.id}`],
     incidenceRates: projection.doseGroups.map((group, index) => (signal.incidence[index] || 0) / Math.max(group.animalCount, 1)),
     severity: signal.severity,
-    correlatedLab: signal.correlatedLab,
-    sourceRecordIds: signal.sourceRecordIds || [],
-    evidencePackageId: projection.provenance.evidencePackageId,
-    projectionDigest: projection.provenance.projectionDigest,
-    ...(Array.isArray(signal.embedding) ? { embedding: signal.embedding } : {}),
+    ...(signal.correlatedLab ? { correlatedLab: signal.correlatedLab } : {}),
+    ...(signal.sourceRecordIds?.length ? { sourceRecordIds: signal.sourceRecordIds } : {}),
+    ...(projection.provenance.evidencePackageId ? { evidencePackageId: projection.provenance.evidencePackageId } : {}),
+    ...(projection.provenance.projectionDigest ? { projectionDigest: projection.provenance.projectionDigest } : {}),
   }));
 }
 
 async function upsertMany(collection, documents) {
   if (!documents.length) return;
   await collection.bulkWrite(documents.map((document) => ({
-    updateOne: { filter: { _id: document._id }, update: { $set: document }, upsert: true },
+    replaceOne: { filter: { _id: document._id }, replacement: document, upsert: true },
   })), { ordered: false });
 }
 
@@ -193,17 +192,23 @@ try {
     );
   }
 
-  await database.collection('study_evidence').updateOne(
+  await database.collection('study_evidence').replaceOne(
     { 'study.id': projection.study.id, 'study.snapshotId': projection.study.snapshotId },
-    { $set: { ...projection, modelSchemaVersion: packageDocument?.modelSchemaVersion || '1.0.0', importedAt: new Date(), importSource: packageDocument ? 'kehrnel-export' : 'solution-api', evidencePackageId: packageDocument?.manifest.packageId } },
+    {
+      ...projection,
+      modelSchemaVersion: packageDocument?.modelSchemaVersion || '1.0.0',
+      importedAt: new Date(),
+      importSource: packageDocument ? 'kehrnel-export' : 'solution-api',
+      ...(packageDocument?.manifest.packageId ? { evidencePackageId: packageDocument.manifest.packageId } : {}),
+    },
     { upsert: true },
   );
   const chunks = evidenceChunks(projection);
   if (chunks.length) {
     await database.collection('evidence_chunks').bulkWrite(chunks.map((chunk) => ({
-      updateOne: {
+      replaceOne: {
         filter: { studyId: chunk.studyId, snapshotId: chunk.snapshotId, domain: chunk.domain, chunkId: chunk.chunkId },
-        update: { $set: chunk },
+        replacement: chunk,
         upsert: true,
       },
     })), { ordered: false });

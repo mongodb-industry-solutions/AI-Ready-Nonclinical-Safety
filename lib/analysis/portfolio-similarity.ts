@@ -41,16 +41,18 @@ function cosine(left: number[], right: number[]) {
   return dot / Math.max(magnitude(left) * magnitude(right), Number.EPSILON);
 }
 
-function vector(signal: SafetySignal): number[] | null {
-  const value = (signal as SafetySignal & { embedding?: number[] }).embedding;
-  return Array.isArray(value) && value.length ? value : null;
-}
-
 function evidenceClass(evidence: StudyEvidence): EvidenceClass {
   return evidence.study.evidenceClass || (evidence.study.id.startsWith('NCS-BENCH-') ? 'synthetic-benchmark' : 'sponsor-observed');
 }
 
-export function comparePortfolio(evidenceSet: StudyEvidence[], studyId: string, signalId: string, limit = 8, semanticReleaseId = defaultReleaseId): PortfolioSimilarityResult {
+export function comparePortfolio(
+  evidenceSet: StudyEvidence[],
+  studyId: string,
+  signalId: string,
+  limit = 8,
+  semanticReleaseId = defaultReleaseId,
+  vectorScores: ReadonlyMap<string, number> | null = null,
+): PortfolioSimilarityResult {
   const queryEvidence = evidenceSet.find((item) => item.study.id === studyId);
   if (!queryEvidence) throw new Error(`Study ${studyId} is not available in the portfolio corpus`);
   const querySignal = queryEvidence.signals.find((item) => item.id === signalId);
@@ -62,23 +64,22 @@ export function comparePortfolio(evidenceSet: StudyEvidence[], studyId: string, 
       const semantic = clamp((querySignal.organ === signal.organ ? 0.62 : 0) + 0.38 * jaccard(tokens(`${querySignal.organ} ${querySignal.finding}`), tokens(`${signal.organ} ${signal.finding}`)));
       const incidence = incidenceSimilarity(queryEvidence, querySignal, evidence, signal);
       const severity = clamp(cosine(severityVector(querySignal), severityVector(signal)));
-      const queryVector = vector(querySignal);
-      const candidateVector = vector(signal);
-      const vectorScore = queryVector && candidateVector && queryVector.length === candidateVector.length ? clamp(cosine(queryVector, candidateVector)) : null;
+      const candidateId = `${evidence.study.id}:${evidence.study.snapshotId}:${signal.id}`;
+      const vectorScore = vectorScores?.get(candidateId) ?? null;
       return { evidence, signal, semantic, incidence, severity, vector: vectorScore };
     });
 
   const laneRanks = ['semantic', 'incidence', 'severity', 'vector'] as const;
   const ranks = new Map<string, number>();
   for (const lane of laneRanks) {
-    const ranked = candidates.filter((item) => item[lane] !== null).sort((a, b) => (b[lane] || 0) - (a[lane] || 0));
+    const ranked = candidates.filter((item) => item[lane] != null).sort((a, b) => (b[lane] || 0) - (a[lane] || 0));
     ranked.forEach((item, index) => {
       const id = `${item.evidence.study.id}:${item.evidence.study.snapshotId}:${item.signal.id}`;
       ranks.set(id, (ranks.get(id) || 0) + 1 / (60 + index + 1));
     });
   }
   const maxRrf = Math.max(...ranks.values(), 1 / 61);
-  const vectorExecuted = candidates.some((item) => item.vector !== null);
+  const vectorExecuted = vectorScores !== null;
   const matches: PortfolioSimilarityMatch[] = candidates.map((item): PortfolioSimilarityMatch => {
     const id = `${item.evidence.study.id}:${item.evidence.study.snapshotId}:${item.signal.id}`;
     const domainScore = vectorExecuted
@@ -97,7 +98,7 @@ export function comparePortfolio(evidenceSet: StudyEvidence[], studyId: string, 
         { id: 'semantic', label: 'Semantic concepts', score: Math.round(item.semantic * 100), status: 'executed', detail: sameOrgan ? `Shared ${querySignal.organ} concept and terminology path` : 'Related through finding terminology only' },
         { id: 'incidence', label: 'Dose pattern', score: Math.round(item.incidence * 100), status: 'executed', detail: 'Normalized group incidence shape; dose-grid independent' },
         { id: 'severity', label: 'Severity profile', score: Math.round(item.severity * 100), status: 'executed', detail: 'Cosine similarity across ordered severity proportions' },
-        { id: 'vector', label: 'Vector meaning', score: item.vector === null ? null : Math.round(item.vector * 100), status: item.vector === null ? 'skipped' : 'executed', detail: item.vector === null ? 'No governed embedding is present for both findings' : 'Cosine similarity over governed finding embeddings' },
+        { id: 'vector', label: 'Vector meaning', score: item.vector == null ? null : Math.round(item.vector * 100), status: item.vector == null ? 'skipped' : 'executed', detail: item.vector == null ? 'The automated-embedding candidate set did not include this finding' : 'Atlas Automated Embedding similarity over the governed finding text projection' },
       ],
       explanation: sameOrgan
         ? `Same target organ; dose pattern is ${Math.round(item.incidence * 100)}% similar after normalization.`
@@ -119,7 +120,7 @@ export function comparePortfolio(evidenceSet: StudyEvidence[], studyId: string, 
     execution: {
       mode: vectorExecuted ? 'explainable-hybrid-vector' : 'explainable-hybrid',
       semanticReleaseId,
-      vectorLane: vectorExecuted ? 'executed' : 'skipped-no-embeddings',
+      vectorLane: vectorExecuted ? 'executed' : 'skipped-no-vector-candidates',
       boundary: 'Synthetic benchmarks support product evaluation only; they never become observed or historical-control evidence.',
     },
   };

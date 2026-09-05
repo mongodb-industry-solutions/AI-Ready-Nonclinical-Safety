@@ -43,8 +43,7 @@
       "reviewPriority": "context",
       "pattern": "control-and-treated",
       "incidence": [1, 2, 2, 2, 1],
-      "severity": { "minimal": 8 },
-      "correlatedLab": null
+      "severity": { "minimal": 8 }
     },
     {
       "id": "heart-infiltration",
@@ -55,8 +54,7 @@
       "reviewPriority": "context",
       "pattern": "control-and-treated",
       "incidence": [2, 2, 1, 1, 1],
-      "severity": { "minimal": 7 },
-      "correlatedLab": null
+      "severity": { "minimal": 7 }
     },
     {
       "id": "kidney-infiltration",
@@ -67,8 +65,7 @@
       "reviewPriority": "medium",
       "pattern": "non-monotonic",
       "incidence": [1, 2, 1, 0, 2],
-      "severity": { "minimal": 3, "mild": 3 },
-      "correlatedLab": null
+      "severity": { "minimal": 3, "mild": 3 }
     },
     {
       "id": "injection-site-fibroblasts",
@@ -79,8 +76,7 @@
       "reviewPriority": "medium",
       "pattern": "local-tolerance",
       "incidence": [1, 1, 2, 0, 2],
-      "severity": { "minimal": 6, "mild": 2 },
-      "correlatedLab": null
+      "severity": { "minimal": 6, "mild": 2 }
     },
     {
       "id": "liver-inflammatory",
@@ -91,8 +87,7 @@
       "reviewPriority": "low",
       "pattern": "sparse",
       "incidence": [0, 1, 1, 1, 0],
-      "severity": { "minimal": 3 },
-      "correlatedLab": null
+      "severity": { "minimal": 3 }
     }
   ],
   "labSeries": {

@@ -65,10 +65,10 @@ export async function bootstrapDemoEvidence(): Promise<boolean> {
         finding: signal.finding,
         incidence: signal.incidence,
         severity: signal.severity,
-        correlatedLab: signal.correlatedLab,
+        ...(signal.correlatedLab ? { correlatedLab: signal.correlatedLab } : {}),
       },
     })),
-    ...Object.entries(demoEvidence.labSeries).map(([testCode, series]) => ({
+    ...Object.entries(demoEvidence.labSeries || {}).map(([testCode, series]) => ({
       chunkId: `LB:${testCode}`,
       studyId: demoEvidence.study.id,
       snapshotId: demoEvidence.study.snapshotId,

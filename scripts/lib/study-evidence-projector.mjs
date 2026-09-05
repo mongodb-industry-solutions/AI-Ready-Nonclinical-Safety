@@ -50,7 +50,6 @@ export const SAFETY_SIGNAL_POLICY = [
     resultPatterns: ['(?:infiltration.*mononuclear cell|mononuclear cell.*infiltration)'],
     reviewPriority: 'context',
     pattern: 'control-and-treated',
-    correlatedLab: null,
   },
   {
     id: 'heart-infiltration',
@@ -59,7 +58,6 @@ export const SAFETY_SIGNAL_POLICY = [
     resultPatterns: ['infiltration.*mononuclear cell'],
     reviewPriority: 'context',
     pattern: 'control-and-treated',
-    correlatedLab: null,
   },
   {
     id: 'kidney-infiltration',
@@ -68,7 +66,6 @@ export const SAFETY_SIGNAL_POLICY = [
     resultPatterns: ['infiltration.*mononuclear cell.*interstitial'],
     reviewPriority: 'medium',
     pattern: 'non-monotonic',
-    correlatedLab: null,
   },
   {
     id: 'injection-site-fibroblasts',
@@ -77,7 +74,6 @@ export const SAFETY_SIGNAL_POLICY = [
     resultPatterns: ['increased number.*fibroblasts', 'infiltration.*mononuclear cell'],
     reviewPriority: 'medium',
     pattern: 'local-tolerance',
-    correlatedLab: null,
   },
   {
     id: 'liver-inflammatory',
@@ -86,7 +82,6 @@ export const SAFETY_SIGNAL_POLICY = [
     resultPatterns: ['aggregates.*mononuclear cell', 'infiltration.*mixed cell'],
     reviewPriority: 'low',
     pattern: 'sparse',
-    correlatedLab: null,
   },
 ];
 
@@ -195,7 +190,7 @@ function buildSignals(records, doseGroups) {
       pattern: rule.pattern,
       incidence,
       severity,
-      correlatedLab: rule.correlatedLab,
+      ...(rule.correlatedLab ? { correlatedLab: rule.correlatedLab } : {}),
       sourceRecordIds: matches.map((record) => record.sourceId).filter(Boolean).sort(),
       sourceRecordHashes: matches.map((record) => record.lineage?.recordHash).filter(Boolean).sort(),
       projectionRuleId: `signal.${rule.id}.v1`,
@@ -267,7 +262,6 @@ function buildObservedMicroscopySignals(records, doseGroups) {
       pattern,
       incidence,
       severity,
-      correlatedLab: null,
       sourceRecordIds: group.records.map((record) => record.sourceId).filter(Boolean).sort(),
       sourceRecordHashes: group.records.map((record) => record.lineage?.recordHash).filter(Boolean).sort(),
       projectionRuleId: 'signal.observed-microscopy-grouping.v1',
@@ -384,7 +378,7 @@ export function projectStudyEvidence(packageDocument, options = {}) {
     study,
     doseGroups,
     signals,
-    labSeries,
+    ...(Object.keys(labSeries).length ? { labSeries } : {}),
     provenance: {
       derivedAt,
       method: `Deterministic ${STUDY_EVIDENCE_PROJECTION_VERSION} projection of checksum-verified canonical SEND records`,

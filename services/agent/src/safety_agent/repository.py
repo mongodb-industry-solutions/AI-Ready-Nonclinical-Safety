@@ -83,13 +83,11 @@ class SafetyRepository:
         if not signal:
             raise ValueError("The requested signal is not available in this snapshot")
         correlated = signal.get("correlatedLab")
-        return json_util.dumps(
-            {
-                "signal": signal,
-                "doseGroups": document["doseGroups"],
-                "laboratorySeries": document.get("labSeries", {}).get(correlated),
-            }
-        )
+        result = {"signal": signal, "doseGroups": document["doseGroups"]}
+        laboratory_series = document.get("labSeries", {}).get(correlated)
+        if laboratory_series:
+            result["laboratorySeries"] = laboratory_series
+        return json_util.dumps(result)
 
     def search(
         self,
@@ -102,7 +100,7 @@ class SafetyRepository:
         self._authorize(profile_id, "retrieve-similar-findings")
         safe_limit = min(max(limit, 1), 20)
         scope = {"studyId": study_id, "snapshotId": snapshot_id}
-        search_index = os.environ.get("ATLAS_SEARCH_INDEX")
+        search_index = os.environ.get("ATLAS_SEARCH_INDEX", "safety_evidence_search")
         lexical_rows: list[dict[str, Any]] = []
         used_atlas_search = False
         if search_index:
@@ -160,36 +158,18 @@ class SafetyRepository:
         return json_util.dumps({"mode": mode, "rows": rows})
 
     def _vector_search(self, scope: dict[str, str], query: str, limit: int) -> list[dict[str, Any]]:
-        vector_index = os.environ.get("ATLAS_VECTOR_INDEX")
-        if not vector_index or not os.environ.get("OPENAI_API_KEY"):
-            return []
+        vector_index = os.environ.get(
+            "ATLAS_EVIDENCE_AUTO_EMBED_INDEX", "safety_evidence_auto_embed"
+        )
         try:
-            from langchain_openai import OpenAIEmbeddings
-            from openai import OpenAIError
-
-            embeddings = OpenAIEmbeddings(
-                model=os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-            )
-            missing = list(
-                self.database.evidence_chunks.find(
-                    {**scope, "embedding": {"$exists": False}}, {"_id": 1, "text": 1}
-                ).limit(100)
-            )
-            if missing:
-                vectors = embeddings.embed_documents([row["text"] for row in missing])
-                for row, vector in zip(missing, vectors, strict=True):
-                    self.database.evidence_chunks.update_one(
-                        {"_id": row["_id"]}, {"$set": {"embedding": vector}}
-                    )
-            query_vector = embeddings.embed_query(query)
             return list(
                 self.database.evidence_chunks.aggregate(
                     [
                         {
                             "$vectorSearch": {
                                 "index": vector_index,
-                                "path": "embedding",
-                                "queryVector": query_vector,
+                                "path": "text",
+                                "query": query,
                                 "filter": scope,
                                 "numCandidates": max(50, limit * 10),
                                 "limit": limit,
@@ -209,7 +189,7 @@ class SafetyRepository:
                     ]
                 )
             )
-        except (OpenAIError, PyMongoError, ValueError):
+        except (PyMongoError, ValueError):
             return []
 
     def literature(
@@ -367,26 +347,17 @@ class SafetyRepository:
         self, scope: dict[str, str], query: str, limit: int
     ) -> list[dict[str, Any]]:
         vector_index = os.environ.get(
-            "ATLAS_LITERATURE_VECTOR_INDEX", "safety_literature_vector"
+            "ATLAS_LITERATURE_AUTO_EMBED_INDEX", "safety_literature_auto_embed"
         )
-        if not os.environ.get("OPENAI_API_KEY"):
-            return []
         try:
-            from langchain_openai import OpenAIEmbeddings
-            from openai import OpenAIError
-
-            embeddings = OpenAIEmbeddings(
-                model=os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-            )
-            query_vector = embeddings.embed_query(query)
             return list(
                 self.database.literature_chunks.aggregate(
                     [
                         {
                             "$vectorSearch": {
                                 "index": vector_index,
-                                "path": "embedding",
-                                "queryVector": query_vector,
+                                "path": "text",
+                                "query": query,
                                 "filter": scope,
                                 "numCandidates": max(50, limit * 10),
                                 "limit": limit,
@@ -402,7 +373,7 @@ class SafetyRepository:
                     ]
                 )
             )
-        except (OpenAIError, PyMongoError, ValueError):
+        except (PyMongoError, ValueError):
             return []
 
     def lineage(self, study_id: str, snapshot_id: str, profile_id: str) -> str:

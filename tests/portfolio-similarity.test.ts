@@ -12,17 +12,23 @@ describe('portfolio similarity resolver', () => {
     expect(result.matches[0].signal.organ).toBe('THYMUS');
     expect(result.matches[0].evidenceClass).toBe('synthetic-benchmark');
     expect(result.matches[0].lanes.find((lane) => lane.id === 'semantic')?.score).toBe(100);
-    expect(result.execution.vectorLane).toBe('skipped-no-embeddings');
+    expect(result.execution.vectorLane).toBe('skipped-no-vector-candidates');
     expect(result.execution.boundary).toContain('never become observed');
   });
 
-  it('executes the vector lane only when governed embeddings exist on both signals', () => {
+  it('executes the vector lane when Atlas Automated Embedding returns candidate scores', () => {
     const observed = structuredClone(demoEvidence);
     const benchmark = structuredClone(portfolioBenchmarks[0]);
-    (observed.signals[0] as typeof observed.signals[0] & { embedding: number[] }).embedding = [1, 0, 0];
-    (benchmark.signals[0] as typeof benchmark.signals[0] & { embedding: number[] }).embedding = [0.9, 0.1, 0];
+    const candidateId = `${benchmark.study.id}:${benchmark.study.snapshotId}:${benchmark.signals[0].id}`;
 
-    const result = comparePortfolio([observed, benchmark], observed.study.id, observed.signals[0].id);
+    const result = comparePortfolio(
+      [observed, benchmark],
+      observed.study.id,
+      observed.signals[0].id,
+      8,
+      'org.contextobjects.nonclinical-safety@0.2.0',
+      new Map([[candidateId, 0.91]]),
+    );
     expect(result.execution.vectorLane).toBe('executed');
     expect(result.matches.find((item) => item.signal.id === benchmark.signals[0].id)?.lanes.at(-1)?.status).toBe('executed');
   });

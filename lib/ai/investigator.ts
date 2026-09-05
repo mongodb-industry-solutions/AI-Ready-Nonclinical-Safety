@@ -78,7 +78,7 @@ export async function investigate(
   }
 
   const structured = signalSummary(signal, evidence.doseGroups);
-  const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : null;
+  const lab = signal.correlatedLab ? evidence.labSeries?.[signal.correlatedLab] : undefined;
   const day29 = lab?.points.find((point) => point.day === 29);
   const labContext = lab && day29
     ? ` At day 29, mean ${lab.label.toLowerCase()} are ${Number(day29['0']).toFixed(2)} ${lab.unit} in controls; treated-group means are ${evidence.doseGroups.filter((group) => group.dose > 0 && day29[String(group.dose)] != null).map((group) => `${group.dose}: ${Number(day29[String(group.dose)]).toFixed(2)}`).join(', ')}.`

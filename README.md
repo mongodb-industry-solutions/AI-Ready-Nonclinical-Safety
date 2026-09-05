@@ -155,17 +155,17 @@ The investigator is deliberately hybrid:
 
 Literature is a separate contextual-evidence lane. The demonstration includes three verified PubMed records linked to the thymus finding by organ, morphology, species, study design, and explanatory role. It stores bibliographic metadata and application-authored relevance summaries only—never unlicensed article text.
 
-For a production corpus, source PDFs live in governed S3-compatible object storage. The solution stores parsed, section-aware chunks, embeddings, semantic links, page or passage locators, content hashes, and access policy in MongoDB. Full text is ingested only from PMC Open Access or material for which the deployer has permission. PubMed identifiers and source links remain attached to every retrieved passage.
+For a production corpus, source PDFs live in governed S3-compatible object storage. The solution stores parsed, section-aware chunks, semantic links, page or passage locators, content hashes, and access policy in MongoDB. Atlas Automated Embedding stores generated vectors in its reserved internal database rather than adding arrays to those application documents. Full text is ingested only from PMC Open Access or material for which the deployer has permission. PubMed identifiers and source links remain attached to every retrieved passage.
 
 The literature resolver performs concept grounding, license filtering, lexical search, vector search, graph expansion, and domain reranking. Its output is labeled as pathology reference, analogous pattern, or alternative explanation. It cannot turn literature similarity into a compound-specific or causal conclusion.
 
-`GET /api/literature` executes that contract rather than merely describing it. It validates the active profile and containment plan, scopes candidates to the selected finding, uses the configured Atlas Search index, optionally uses Atlas Vector Search when an embedding provider is available, expands materialized semantic evidence edges, performs reciprocal-rank fusion and domain reranking, and returns per-stage execution telemetry. If Atlas or the embedding provider is unavailable, the response identifies the skipped or fallback lane and retains the governed exact result set.
+`GET /api/literature` executes that contract rather than merely describing it. It validates the active profile and containment plan, scopes candidates to the selected finding, uses the configured Atlas Search index, sends query text directly through Atlas Automated Embedding, expands materialized semantic evidence edges, performs reciprocal-rank fusion and domain reranking, and returns per-stage execution telemetry. If the Atlas Preview feature is unavailable, the response identifies the fallback lane and retains the governed exact result set.
 
 The agent is read-only. It cannot publish snapshots, create validation waivers, supersede evidence, or claim regulatory compliance.
 
 ### Portfolio similarity
 
-`GET /api/portfolio/similarity` authorizes `retrieve-similar-findings` against the active semantic profile and compares the selected finding only with other study snapshots. The resolver executes semantic/concept, normalized dose-incidence, and severity lanes; it executes the vector lane only when both findings have governed embeddings. Candidate lists are fused with reciprocal-rank fusion and then domain-reranked. The response exposes every lane score and whether Vector Search actually ran.
+`GET /api/portfolio/similarity` authorizes `retrieve-similar-findings` against the active semantic profile and compares the selected finding only with other study snapshots. The resolver executes semantic/concept, normalized dose-incidence, severity, and Atlas Automated Embedding lanes. Candidate lists are fused with reciprocal-rank fusion and then domain-reranked. The response exposes every lane score and whether Vector Search actually ran.
 
 The shipped benchmark corpus is for evaluating the workflow, never for historical-control or scientific inference. When real sponsor or public study packages are imported, the same resolver compares their solution-owned projections without changing the UI contract. Compound and SMILES similarity are intentionally absent until a governed compound identity and structure source are available.
 
@@ -196,7 +196,7 @@ npm run build
 ## Product Roadmap
 
 1. **Single-study SEND investigation** — implemented foundation.
-2. **Connected Atlas AI retrieval** — executable containment, Atlas Search, optional embeddings/Vector Search, graph expansion, fusion, reranking and visible plan telemetry are implemented; expert-labeled retrieval evaluation remains.
+2. **Connected Atlas AI retrieval** — executable containment, Atlas Search, Atlas Automated Embedding, graph expansion, fusion, reranking and visible plan telemetry are implemented; expert-labeled retrieval evaluation remains.
 3. **Cross-study portfolio intelligence** — implemented across four observed public SEND studies plus segregated synthetic benchmarks, with explainable target-organ, species, dose-pattern, severity and vector-ready comparisons. Compound/SMILES similarity remains deferred until governed compound identities and structures are supplied.
 4. **Translational safety bridge** — governed connections from nonclinical SEND to clinical SDTM and ADaM evidence.
 

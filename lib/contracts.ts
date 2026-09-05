@@ -39,7 +39,7 @@ export interface SafetySignal {
   pattern: string;
   incidence: number[];
   severity: Record<string, number>;
-  correlatedLab: string | null;
+  correlatedLab?: string;
   sourceRecordIds?: string[];
   sourceRecordHashes?: string[];
   projectionRuleId?: string;
@@ -57,7 +57,7 @@ export interface StudyEvidence {
   study: StudySummary;
   doseGroups: DoseGroup[];
   signals: SafetySignal[];
-  labSeries: Record<string, LabSeries>;
+  labSeries?: Record<string, LabSeries>;
   provenance: {
     derivedAt: string;
     method: string;
@@ -122,7 +122,7 @@ export interface PortfolioSimilarityResult {
   execution: {
     mode: 'explainable-hybrid' | 'explainable-hybrid-vector';
     semanticReleaseId: string;
-    vectorLane: 'executed' | 'skipped-no-embeddings';
+    vectorLane: 'executed' | 'skipped-no-vector-candidates';
     boundary: string;
   };
 }

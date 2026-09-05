@@ -25,14 +25,14 @@ const recipes: BenchmarkRecipe[] = [
   { id: 'NCS-BENCH-203', seed: 203, strain: 'WISTAR', thymus: [0, 2, 5, 8, 10], lung: [4, 5, 6, 3, 4], severity: { minimal: 7, mild: 8, moderate: 10 }, lymphocytes: [[7.400, 7.200, 7.046, 7.089, 7.376], [7.001, 6.900, 6.724, 6.633, 5.927], [7.105, 6.367, 5.929, 5.450, 4.339], [7.528, 5.750, 5.625, 4.616, 3.448]], recipeDigest: 'sha256:4cad0393e0363be4b2d0c35d97a4eb348a908135d81dacfee87daeb0e393e411' },
 ];
 
-function signal(id: string, organ: string, finding: string, incidence: number[], severity: Record<string, number>, correlatedLab: string | null): SafetySignal {
+function signal(id: string, organ: string, finding: string, incidence: number[], severity: Record<string, number>, correlatedLab?: string): SafetySignal {
   return {
     id,
     organ,
     finding,
     incidence,
     severity,
-    correlatedLab,
+    ...(correlatedLab ? { correlatedLab } : {}),
     affectedAnimals: incidence.reduce((sum, value) => sum + value, 0),
     totalAnimals: 50,
     reviewPriority: id.startsWith('thymus') ? 'high' : 'context',
@@ -44,7 +44,7 @@ function signal(id: string, organ: string, finding: string, incidence: number[],
 function evidence(recipe: BenchmarkRecipe): StudyEvidence {
   const signals = [
     signal('thymus-lymphocytes', 'THYMUS', 'Decreased number, lymphocytes, cortex', recipe.thymus, recipe.severity, 'LYM'),
-    signal('lung-infiltration', 'LUNG', 'Mononuclear cell infiltration', recipe.lung, { minimal: recipe.lung.reduce((sum, value) => sum + value, 0) }, null),
+    signal('lung-infiltration', 'LUNG', 'Mononuclear cell infiltration', recipe.lung, { minimal: recipe.lung.reduce((sum, value) => sum + value, 0) }),
   ];
   return {
     study: {

@@ -15,8 +15,8 @@ function projectFinding(evidence, signal) {
     studyId: evidence.study.id,
     snapshotId: evidence.study.snapshotId,
     evidenceClass: inferredEvidenceClass,
-    species: evidence.study.species,
-    strain: evidence.study.strain,
+    ...(evidence.study.species ? { species: evidence.study.species } : {}),
+    ...(evidence.study.strain ? { strain: evidence.study.strain } : {}),
     signalId: signal.id,
     organ: signal.organ,
     finding: signal.finding,
@@ -24,11 +24,10 @@ function projectFinding(evidence, signal) {
     semanticConcepts: [`anatomic-site:${signal.organ}`, `finding-morphology:${signal.id}`],
     incidenceRates: evidence.doseGroups.map((group, index) => (signal.incidence[index] || 0) / Math.max(group.animalCount, 1)),
     severity: signal.severity,
-    correlatedLab: signal.correlatedLab,
-    sourceRecordIds: signal.sourceRecordIds || [],
-    evidencePackageId: evidence.provenance?.evidencePackageId,
-    projectionDigest: evidence.provenance?.projectionDigest,
-    ...(Array.isArray(signal.embedding) ? { embedding: signal.embedding } : {}),
+    ...(signal.correlatedLab ? { correlatedLab: signal.correlatedLab } : {}),
+    ...(signal.sourceRecordIds?.length ? { sourceRecordIds: signal.sourceRecordIds } : {}),
+    ...(evidence.provenance?.evidencePackageId ? { evidencePackageId: evidence.provenance.evidencePackageId } : {}),
+    ...(evidence.provenance?.projectionDigest ? { projectionDigest: evidence.provenance.projectionDigest } : {}),
   };
 }
 

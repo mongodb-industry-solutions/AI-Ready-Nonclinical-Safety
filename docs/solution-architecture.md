@@ -23,12 +23,14 @@ flowchart LR
     PRJ[Versioned safety projector<br/>canonical rows → business signals]
     subgraph Atlas[MongoDB Atlas evidence fabric]
       E[(Immutable evidence<br/>snapshots + datasets + cdisc_records<br/>subjects + source_artifacts)]
-      P[(AI projections<br/>evidence/literature chunks + embeddings + edges)]
+      P[(AI projections<br/>evidence/literature text + edges)]
+      V[(Atlas internal search<br/>Automated Embedding vectors)]
       S[(Semantic control<br/>releases + objects + value sets + runtime pointer)]
       W[(Solution state<br/>investigations + review_actions)]
       Q[Aggregation + Atlas Search<br/>Vector Search + graph lookup + Change Streams]
       E --> Q
       P --> Q
+      P --> V --> Q
       S --> Q
       Q --> W
     end
@@ -69,7 +71,9 @@ The primary read model embeds data that the safety workspace reads together:
 }
 ```
 
-This read model is deterministic and rebuildable for a published snapshot. It stores its projector version, projection rule IDs, source package digest, projection digest, and a reconciliation receipt. The underlying `cdisc_records` and source artifacts are immutable authority; `study_evidence`, search documents, embedding vectors, and semantic edges are projections that can evolve or be rebuilt without modifying observed SEND evidence. Investigations and review actions remain separate append-only solution state.
+This read model is deterministic and rebuildable for a published snapshot. It stores its projector version, projection rule IDs, source package digest, projection digest, and a reconciliation receipt. The underlying `cdisc_records` and source artifacts are immutable authority; `study_evidence`, search documents, and semantic edges are application projections that can evolve or be rebuilt without modifying observed SEND evidence. Atlas maintains Automated Embedding vectors outside the source documents in `__mdb_internal_search`. Investigations and review actions remain separate append-only solution state.
+
+The detailed [CDISC document-model decision](cdisc-document-model-decision.md) defines the target v2 evidence envelope, explains why CDISC uses one polymorphic record collection, and distinguishes the Context Studio release from its solution-side serving projections.
 
 The solution projector is intentionally owned here rather than in Kehrnel. Kehrnel knows how to preserve and export standards-conformant evidence; this application knows which microscopic observations form a safety-review signal, which laboratory series are biologically relevant, and how the user experience consumes them. The boundary keeps reusable data infrastructure independent from product-specific scientific policy.
 
@@ -80,8 +84,8 @@ The solution projector is intentionally owned here rather than in Kehrnel. Kehrn
 | GET | `/api/studies/{studyId}/signals` | Retrieve a snapshot-bound study evidence model |
 | GET | `/api/studies/{studyId}/signals/{signalId}/records` | Resolve a visual signal to canonical subject, finding, lab, treatment, and artifact evidence |
 | POST | `/api/investigations` | Execute a profile-authorized, cited evidence investigation |
-| GET | `/api/literature` | Execute containment, lexical, optional vector, graph, fusion, and reranking stages |
-| GET | `/api/portfolio/similarity` | Compare a finding across study snapshots with semantic, incidence, severity, optional vector, fusion, and reranking telemetry |
+| GET | `/api/literature` | Execute containment, lexical, Atlas Automated Embedding, graph, fusion, and reranking stages |
+| GET | `/api/portfolio/similarity` | Compare a finding across study snapshots with semantic, incidence, severity, Atlas Automated Embedding, fusion, and reranking telemetry |
 | GET / POST | `/api/reviews` | Read or append governed expert review actions |
 | GET | `/api/semantics` | Return the active semantic runtime projected for a profile |
 | GET / SSE | `/api/semantics/stream` | Stream resume-safe semantic release and review events |
@@ -105,7 +109,7 @@ Exact CDISC-derived measurements remain authoritative. Vector similarity finds c
 
 - **Fidelity:** source domains, controlled terminology, revisions, and checksums remain explicit.
 - **Workload fit:** closely related study facts can be read as one snapshot rather than repeatedly reconstructed from tabular joins.
-- **Flexible enrichment:** text chunks, embeddings, relationships, literature, and future molecular projections can be added without changing the standard evidence.
+- **Flexible enrichment:** text chunks, Atlas-managed embedding indexes, relationships, literature, and future molecular projections can be added without changing the standard evidence.
 - **Multi-modal retrieval:** the same platform supports exact filters, ranges, full-text search, vector similarity, and graph traversal.
 - **Governed agents:** Context Studio profiles determine visible objects, masked fields, tools, and actions before Magenta can execute them.
 - **Independent evolution:** semantic releases, retrieval projections, and reviewer state remain versioned separately from immutable source evidence.

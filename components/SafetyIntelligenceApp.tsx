@@ -30,7 +30,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [semantics, setSemantics] = useState(initialSemantics);
   const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
-  const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : undefined;
+  const lab = signal.correlatedLab ? evidence.labSeries?.[signal.correlatedLab] : undefined;
   const ranked = useMemo(() => evidence.signals.map((item) => ({ ...item, score: reviewScore(item, evidence.doseGroups) })).sort((a, b) => b.score - a.score), [evidence]);
   const canInvestigate = semantics.capabilities.some((item) => item.id === 'assemble-evidence-brief');
   const canCompare = semantics.capabilities.some((item) => item.id === 'retrieve-similar-findings');
