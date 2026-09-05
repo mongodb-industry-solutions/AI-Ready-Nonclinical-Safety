@@ -75,4 +75,37 @@ describe('canonical SEND study evidence projector', () => {
     expect(projectStudyEvidence(packageDocument).provenance.projectionDigest)
       .toEqual(projectStudyEvidence(packageDocument).provenance.projectionDigest);
   });
+
+  it('accepts the SEND field conventions emitted by the Kehrnel safety-signal generator', () => {
+    const syntheticRecords = records.map((item) => structuredClone(item));
+    for (const item of syntheticRecords) {
+      if (item.domain === 'DM') {
+        item.data.SPGRPCD = item.data.SETCD;
+        delete item.data.SETCD;
+        delete item.facets.treatmentGroup;
+      }
+      if (item.domain === 'TX' && item.data.TXPARMCD === 'TRTDOS') {
+        item.data.TXVALN = Number(item.data.TXVAL);
+        item.data.TXVALU = 'mg/kg/day';
+        item.data.TXVAL = item.data.TXVALN === 0 ? 'Vehicle control' : 'High dose';
+      }
+      if (item.domain === 'TX' && item.data.TXPARMCD === 'TRTDOSU') item.data.TXVAL = '';
+      if (item.domain === 'MI') {
+        item.data.MISTRESC = 'DECREASED LYMPHOCYTES, CORTEX';
+        item.facets.finding = '';
+      }
+    }
+    const syntheticPackage = structuredClone(packageDocument);
+    syntheticPackage.manifest.studyId = 'SYNTH-TEST';
+    syntheticPackage.manifest.standardsPackageId = 'sendig-3.0';
+    syntheticPackage.evidence.records = syntheticRecords;
+
+    const projection = projectStudyEvidence(syntheticPackage);
+    expect(projection.doseGroups).toMatchObject([
+      { code: 'C', dose: 0, unit: 'mg/kg/day' },
+      { code: 'D', dose: 8, unit: 'mg/kg/day' },
+    ]);
+    expect(projection.signals[0]).toMatchObject({ id: 'thymus-lymphocytes', incidence: [0, 1] });
+    expect(projection.study.evidenceClass).toBe('sponsor-observed');
+  });
 });

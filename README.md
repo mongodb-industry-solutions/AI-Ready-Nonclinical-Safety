@@ -13,6 +13,7 @@ The in-product **Solution architecture** workspace and [full architecture guide]
 ## What You Can Explore
 
 - A study-wide dose-by-organ incidence matrix and organ signal landscape ranked for expert review.
+- A separate portfolio similarity atlas with interactive cross-study graphs, explainable retrieval lanes, and evidence-class boundaries.
 - Dose-response and longitudinal laboratory charts.
 - Cross-domain links between SEND DM, TX, MI, and LB records.
 - A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
@@ -115,7 +116,7 @@ The source package also contains a portable Context Studio workspace blueprint. 
 
 ### Fixture fallback
 
-Without `MONGODB_URI`, the application provides a fully interactive experience from checked-in, traceable aggregates. It is deterministic and requires no credentials.
+Without `MONGODB_URI`, the application provides a fully interactive experience from checked-in, traceable aggregates. It is deterministic and requires no credentials. The portfolio workspace adds three compact benchmark projections generated from Kehrnel CDISC synthetic data factory `2.1.0` using the `safety-signal` recipe and seeds `42`, `117`, and `203`. Their recipe and model digests are retained, and the UI labels them as synthetic evaluation data everywhere.
 
 ### MongoDB
 
@@ -125,7 +126,10 @@ Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_so
 
 ```bash
 npm run import:study -- ./path/to/solution-evidence-package.json
+# For a package intentionally generated as an evaluation benchmark:
+npm run import:study -- ./path/to/synthetic-package.json --evidence-class=synthetic-benchmark
 npm run import:literature
+npm run rebuild:portfolio
 npm run setup:indexes
 ```
 
@@ -157,6 +161,12 @@ The literature resolver performs concept grounding, license filtering, lexical s
 
 The agent is read-only. It cannot publish snapshots, create validation waivers, supersede evidence, or claim regulatory compliance.
 
+### Portfolio similarity
+
+`GET /api/portfolio/similarity` authorizes `retrieve-similar-findings` against the active semantic profile and compares the selected finding only with other study snapshots. The resolver executes semantic/concept, normalized dose-incidence, and severity lanes; it executes the vector lane only when both findings have governed embeddings. Candidate lists are fused with reciprocal-rank fusion and then domain-reranked. The response exposes every lane score and whether Vector Search actually ran.
+
+The shipped benchmark corpus is for evaluating the workflow, never for historical-control or scientific inference. When real sponsor or public study packages are imported, the same resolver compares their solution-owned projections without changing the UI contract. Compound and SMILES similarity are intentionally absent until a governed compound identity and structure source are available.
+
 ## Repository Structure
 
 ```text
@@ -185,7 +195,7 @@ npm run build
 
 1. **Single-study SEND investigation** — implemented foundation.
 2. **Connected Atlas AI retrieval** — executable containment, Atlas Search, optional embeddings/Vector Search, graph expansion, fusion, reranking and visible plan telemetry are implemented; a larger evaluation corpus remains.
-3. **Cross-study portfolio intelligence** — compound, target organ, species, and historical-control comparisons.
+3. **Cross-study portfolio intelligence** — implemented explainable target-organ, species, dose-pattern, severity and vector-ready comparisons. The included synthetic corpus is explicitly segregated from observed evidence; compound/SMILES similarity remains deferred until governed compound identities are supplied.
 4. **Translational safety bridge** — governed connections from nonclinical SEND to clinical SDTM and ADaM evidence.
 
 ## Safety and Scope

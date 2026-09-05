@@ -4,9 +4,14 @@ import process from 'node:process';
 import { MongoClient } from 'mongodb';
 import { projectStudyEvidence } from './lib/study-evidence-projector.mjs';
 
-const inputPath = process.argv[2];
-if (!inputPath) throw new Error('Usage: npm run import:study -- <solution-evidence-package.json|study-evidence.json>');
-if (process.argv[3]) throw new Error('A separate business projection is not accepted; package imports derive and reconcile StudyEvidence automatically');
+const arguments_ = process.argv.slice(2);
+const inputPath = arguments_.find((value) => !value.startsWith('--'));
+const evidenceClassArgument = arguments_.find((value) => value.startsWith('--evidence-class='));
+const selectedEvidenceClass = evidenceClassArgument?.split('=')[1];
+const allowedEvidenceClasses = ['observed-public', 'synthetic-benchmark', 'sponsor-observed'];
+if (!inputPath) throw new Error('Usage: npm run import:study -- <solution-evidence-package.json|study-evidence.json> [--evidence-class=synthetic-benchmark]');
+if (selectedEvidenceClass && !allowedEvidenceClasses.includes(selectedEvidenceClass)) throw new Error(`Unsupported evidence class: ${selectedEvidenceClass}`);
+if (arguments_.some((value) => value !== inputPath && value !== evidenceClassArgument)) throw new Error('A separate business projection is not accepted; package imports derive and reconcile StudyEvidence automatically');
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required');
 
 function canonicalJson(value) {
@@ -90,6 +95,29 @@ function evidenceChunks(projection) {
   ];
 }
 
+function portfolioFindings(projection) {
+  return projection.signals.map((signal) => ({
+    _id: localId(projection.study.id, projection.study.snapshotId, `finding:${signal.id}`),
+    studyId: projection.study.id,
+    snapshotId: projection.study.snapshotId,
+    evidenceClass: projection.study.evidenceClass || 'sponsor-observed',
+    species: projection.study.species,
+    strain: projection.study.strain,
+    signalId: signal.id,
+    organ: signal.organ,
+    finding: signal.finding,
+    text: `${signal.organ}. ${signal.finding}. ${signal.pattern}. ${signal.correlatedLab ? `Correlated laboratory test ${signal.correlatedLab}.` : ''}`.trim(),
+    semanticConcepts: [`anatomic-site:${signal.organ}`, `finding-morphology:${signal.id}`],
+    incidenceRates: projection.doseGroups.map((group, index) => (signal.incidence[index] || 0) / Math.max(group.animalCount, 1)),
+    severity: signal.severity,
+    correlatedLab: signal.correlatedLab,
+    sourceRecordIds: signal.sourceRecordIds || [],
+    evidencePackageId: projection.provenance.evidencePackageId,
+    projectionDigest: projection.provenance.projectionDigest,
+    ...(Array.isArray(signal.embedding) ? { embedding: signal.embedding } : {}),
+  }));
+}
+
 async function upsertMany(collection, documents) {
   if (!documents.length) return;
   await collection.bulkWrite(documents.map((document) => ({
@@ -100,7 +128,7 @@ async function upsertMany(collection, documents) {
 const input = JSON.parse(await readFile(inputPath, 'utf8'));
 const isPackage = input?.apiVersion === 'kehrnel.dev/cdisc-solution-evidence/v1';
 const packageDocument = isPackage ? validatePackage(input) : null;
-const projection = packageDocument ? projectStudyEvidence(packageDocument) : validateStudyEvidence(input);
+const projection = packageDocument ? projectStudyEvidence(packageDocument, { evidenceClass: selectedEvidenceClass }) : validateStudyEvidence(input);
 
 const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
@@ -180,6 +208,11 @@ try {
       },
     })), { ordered: false });
   }
+  await upsertMany(database.collection('portfolio_findings'), portfolioFindings(projection));
+  await database.collection('portfolio_findings').createIndexes([
+    { key: { studyId: 1, snapshotId: 1, signalId: 1 }, name: 'portfolio_finding_identity', unique: true },
+    { key: { organ: 1, species: 1, strain: 1, evidenceClass: 1 }, name: 'portfolio_semantic_scope' },
+  ]);
 
   const name = packageDocument
     ? `${packageDocument.manifest.studyId}/${packageDocument.manifest.snapshotId}: ${packageDocument.manifest.counts.records} canonical records, ${packageDocument.manifest.counts.sourceArtifacts} source artifacts, plus a reconciled ${projection.provenance.projectionVersion} read model`

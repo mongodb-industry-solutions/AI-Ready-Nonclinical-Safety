@@ -1,0 +1,23 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { comparePortfolio } from '@/lib/analysis/portfolio-similarity';
+import { loadPortfolioEvidence } from '@/lib/data/study-repository';
+import { loadSemanticRuntimeForProfile } from '@/lib/semantics/repository';
+import type { SemanticProfileId } from '@/lib/contracts';
+
+const profiles: SemanticProfileId[] = ['toxicologist', 'study-director', 'data-steward', 'portfolio-lead', 'external-reviewer'];
+
+export async function GET(request: NextRequest) {
+  const studyId = request.nextUrl.searchParams.get('studyId') || '';
+  const signalId = request.nextUrl.searchParams.get('signalId') || '';
+  const profileValue = request.nextUrl.searchParams.get('profile') || 'toxicologist';
+  const profile = profiles.includes(profileValue as SemanticProfileId) ? profileValue as SemanticProfileId : 'toxicologist';
+  const runtime = await loadSemanticRuntimeForProfile(profile);
+  if (!runtime.capabilities.some((item) => item.id === 'retrieve-similar-findings')) {
+    return NextResponse.json({ error: `Profile ${profile} cannot retrieve similar findings` }, { status: 403 });
+  }
+  try {
+    return NextResponse.json(comparePortfolio(await loadPortfolioEvidence(), studyId, signalId, 8, runtime.release.releaseId));
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Similarity query failed' }, { status: 400 });
+  }
+}

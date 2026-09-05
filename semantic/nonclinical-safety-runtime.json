@@ -201,8 +201,8 @@
       "id": "retrieve-similar-findings",
       "label": "Retrieve similar findings",
       "mode": "read",
-      "description": "Hybrid lexical and vector retrieval over finding meaning, study context, and evidence summaries, followed by reranking.",
-      "engines": ["atlas-search", "vector-search", "rerank"],
+      "description": "Cross-study retrieval over semantic concepts, normalized dose incidence, severity profiles, and optional embeddings, followed by reciprocal-rank fusion and domain reranking.",
+      "engines": ["aggregation", "atlas-search", "vector-search", "graph-lookup", "rerank"],
       "reads": ["Finding", "Study", "Compound"],
       "indexes": ["finding_text", "finding_embedding"],
       "allowedProfiles": ["toxicologist", "study-director", "portfolio-lead"]
@@ -260,12 +260,12 @@
     {
       "id": "resolver.similar-findings.v1",
       "capability": "retrieve-similar-findings",
-      "input": { "findingId": "string", "query": "string", "limit": "number" },
-      "output": "SimilarFinding[]",
-      "executor": "mongodb-hybrid-search",
+      "input": { "studyId": "string", "signalId": "string", "profileId": "string", "limit": "number" },
+      "output": "ExplainablePortfolioMatch[]",
+      "executor": "mongodb-portfolio-hybrid",
       "policy": ["profile-filtered", "citations-required", "read-only"],
       "containmentPlan": { "language": "contextobjects-containment-v1", "semantics": "AQL-CONTAINS", "rootArchetype": "archetype.study-evidence-aggregate.v1", "contains": ["Study", "TreatmentGroup", "Finding"], "compileTargets": ["mongodb-aggregation", "openehr-aql"] },
-      "stages": ["lexicalSearch", "vectorSearch", "reciprocalRankFusion", "domainRerank", "authorizeResults"]
+      "stages": ["compileSemanticScope", "semanticSearch", "compareNormalizedIncidence", "compareSeverityProfile", "optionalVectorSearch", "reciprocalRankFusion", "domainRerank", "authorizeResults"]
     },
     {
       "id": "resolver.evidence-brief.v1",
@@ -378,6 +378,7 @@
     { "id": "binding.subject.mongodb.projection", "semanticObject": "Subject", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "subjects", "path": "subject", "authority": "projection" },
     { "id": "binding.finding.mongodb.canonical", "semanticObject": "Finding", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "cdisc_records", "path": "domain=MI.data+facets", "authority": "source" },
     { "id": "binding.finding.mongodb.readmodel", "semanticObject": "Finding", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "signals[]", "authority": "projection" },
+    { "id": "binding.finding.mongodb.portfolio", "semanticObject": "Finding", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "portfolio_findings", "path": "finding", "authority": "projection" },
     { "id": "binding.lab.mongodb.canonical", "semanticObject": "LabMeasurement", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "cdisc_records", "path": "domain=LB.data+facets", "authority": "source" },
     { "id": "binding.lab.mongodb.readmodel", "semanticObject": "LabMeasurement", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "embedded-fragment", "location": "study_evidence", "path": "labSeries", "authority": "projection" },
     { "id": "binding.artifact.mongodb", "semanticObject": "SourceArtifact", "archetype": "archetype.study-evidence-aggregate.v1", "adapter": "mongodb", "representation": "document", "location": "source_artifacts", "path": "artifact", "authority": "source" },
@@ -415,7 +416,7 @@
     }
   ],
   "governance": {
-    "evidenceCollections": ["study_snapshots", "dataset_definitions", "cdisc_records", "subjects", "source_artifacts", "study_evidence", "literature_documents", "literature_chunks"],
+    "evidenceCollections": ["study_snapshots", "dataset_definitions", "cdisc_records", "subjects", "source_artifacts", "study_evidence", "portfolio_findings", "literature_documents", "literature_chunks"],
     "solutionWriteCollections": ["investigations", "review_actions"],
     "writeWorkflow": ["propose", "simulate", "diff", "validate", "approve", "commit", "audit"],
     "rules": [
@@ -425,5 +426,5 @@
       "Profile authorization is enforced by the API, not only by the UI."
     ]
   },
-  "contentDigest": "sha256:e9b6e6d555e4fde03f6f34b73de30bd054a01a703f9e41830ddf43a635f3a58d"
+  "contentDigest": "sha256:d95142df9652bc74be55c6a17079c81beafe81a42a9a9e9ff23e93dfcce0b1a3"
 }

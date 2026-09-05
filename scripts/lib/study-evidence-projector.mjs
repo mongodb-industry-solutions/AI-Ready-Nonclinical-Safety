@@ -6,6 +6,7 @@ const KNOWN_STUDIES = {
   'phuse-ffu-send': {
     title: 'PhUSE FFU Contribution to FDA',
     license: 'MIT',
+    evidenceClass: 'observed-public',
   },
 };
 
@@ -18,7 +19,7 @@ export const SAFETY_SIGNAL_POLICY = [
     id: 'thymus-lymphocytes',
     organ: 'THYMUS',
     finding: 'Decreased number, lymphocytes, cortex',
-    resultPatterns: ['decreased number.*lymphocytes.*cortex'],
+    resultPatterns: ['decreased(?: number)?.*lymphocytes.*cortex'],
     reviewPriority: 'high',
     pattern: 'treated-only',
     correlatedLab: 'LYM',
@@ -27,7 +28,7 @@ export const SAFETY_SIGNAL_POLICY = [
     id: 'lung-infiltration',
     organ: 'LUNG',
     finding: 'Mononuclear cell infiltration',
-    resultPatterns: ['infiltration.*mononuclear cell'],
+    resultPatterns: ['(?:infiltration.*mononuclear cell|mononuclear cell.*infiltration)'],
     reviewPriority: 'context',
     pattern: 'control-and-treated',
     correlatedLab: null,
@@ -96,7 +97,7 @@ function mean(values) {
 }
 
 function groupCode(record) {
-  return asString(record?.facets?.treatmentGroup || record?.data?.SETCD || record?.data?.ARMCD);
+  return asString(record?.facets?.treatmentGroup || record?.data?.SPGRPCD || record?.data?.SETCD || record?.data?.ARMCD);
 }
 
 function subjectId(record) {
@@ -119,17 +120,22 @@ function buildDoseGroups(records) {
     const code = groupCode(record);
     if (!code) continue;
     if (!parameters.has(code)) parameters.set(code, {});
-    parameters.get(code)[asString(record.data?.TXPARMCD)] = record.data?.TXVAL;
+    const parameter = asString(record.data?.TXPARMCD);
+    parameters.get(code)[parameter] = {
+      value: record.data?.TXVAL,
+      numeric: record.data?.TXVALN,
+      unit: record.data?.TXVALU,
+    };
   }
   return [...parameters.entries()].map(([code, values]) => {
-    const dose = asNumber(values.TRTDOS);
+    const dose = asNumber(values.TRTDOS?.numeric ?? values.TRTDOS?.value);
     if (dose === null) throw new Error(`TX group ${code} does not define a numeric TRTDOS`);
     const animalCount = demographics.filter((record) => groupCode(record) === code).length;
     return {
       code,
       label: dose === 0 ? 'Vehicle control' : `Dose ${dose}`,
       dose,
-      unit: asString(values.TRTDOSU) || 'dose unit not supplied',
+      unit: asString(values.TRTDOSU?.value || values.TRTDOS?.unit) || 'dose unit not supplied',
       animalCount,
     };
   }).sort((left, right) => left.dose - right.dose || left.code.localeCompare(right.code));
@@ -222,7 +228,7 @@ function projectionReconciliation(packageDocument, domainCounts, animalCount) {
   };
 }
 
-export function projectStudyEvidence(packageDocument) {
+export function projectStudyEvidence(packageDocument, options = {}) {
   const { evidence, manifest, modelSchemaVersion } = packageDocument;
   const records = evidence.records;
   const datasets = [...evidence.datasets].sort((left, right) => {
@@ -240,6 +246,7 @@ export function projectStudyEvidence(packageDocument) {
   const standard = datasets[0]?.standard || {};
   const source = sourceMetadata(evidence.sourceArtifacts);
   const known = KNOWN_STUDIES[manifest.standardsPackageId] || {};
+  const firstDemographic = demographics[0]?.data || {};
   const sourceArtifacts = Object.fromEntries(evidence.sourceArtifacts.map((artifact) => [
     artifact.sourceName || artifact.sourceId,
     `${artifact.digest.algorithm}:${artifact.digest.value}`,
@@ -247,8 +254,7 @@ export function projectStudyEvidence(packageDocument) {
   const derivedAt = evidence.snapshot.publishedAt || evidence.snapshot.createdAt;
   const reconciliation = projectionReconciliation(packageDocument, domainCounts, demographics.length);
 
-  const projection = {
-    study: {
+  const study = {
       id: manifest.studyId,
       title: known.title || manifest.studyId,
       profile: asString(standard.family || manifest.profile).toUpperCase(),
@@ -262,7 +268,13 @@ export function projectStudyEvidence(packageDocument) {
       animalCount: demographics.length,
       domains: datasets.map((dataset) => dataset.domain),
       domainCounts,
-    },
+      evidenceClass: options.evidenceClass || known.evidenceClass || 'sponsor-observed',
+  };
+  if (asString(firstDemographic.SPECIES)) study.species = asString(firstDemographic.SPECIES);
+  if (asString(firstDemographic.STRAIN)) study.strain = asString(firstDemographic.STRAIN);
+
+  const projection = {
+    study,
     doseGroups,
     signals,
     labSeries,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Activity, Braces, ChevronDown, CircleHelp, Dna, Expand, FileCheck2, FlaskConical, GitBranch, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
+import { Activity, Braces, ChevronDown, CircleHelp, Dna, Expand, FileCheck2, FlaskConical, GitBranch, GitCompareArrows, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
 import type { LiteratureDocument, SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import { reviewScore } from '@/lib/analysis/signal-engine';
 import AgentPanel from '@/components/AgentPanel';
@@ -13,14 +13,15 @@ import SemanticModelExplorer from '@/components/SemanticModelExplorer';
 import InvestigationRoom from '@/components/InvestigationRoom';
 import AuditLineageView from '@/components/AuditLineageView';
 import ArchitectureView from '@/components/ArchitectureView';
+import PortfolioIntelligenceView from '@/components/PortfolioIntelligenceView';
 
-type WorkspaceView = 'workspace' | 'semantics' | 'architecture' | 'audit';
+type WorkspaceView = 'workspace' | 'portfolio' | 'semantics' | 'architecture' | 'audit';
 
 function PriorityPill({ value }: { value: SafetySignal['reviewPriority'] }) {
   return <span className={`priority-pill priority-${value}`}>{value === 'high' ? 'review first' : value}</span>;
 }
 
-export default function SafetyIntelligenceApp({ evidence, initialSemantics, literature }: { evidence: StudyEvidence; initialSemantics: SemanticRuntimeView; literature: LiteratureDocument[] }) {
+export default function SafetyIntelligenceApp({ evidence, portfolioEvidence, initialSemantics, literature }: { evidence: StudyEvidence; portfolioEvidence: StudyEvidence[]; initialSemantics: SemanticRuntimeView; literature: LiteratureDocument[] }) {
   const [view, setView] = useState<WorkspaceView>('workspace');
   const [selectedId, setSelectedId] = useState(evidence.signals[0].id);
   const [graphOpen, setGraphOpen] = useState(false);
@@ -30,6 +31,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
   const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : evidence.labSeries.LYM;
   const ranked = useMemo(() => evidence.signals.map((item) => ({ ...item, score: reviewScore(item, evidence.doseGroups) })).sort((a, b) => b.score - a.score), [evidence]);
   const canInvestigate = semantics.capabilities.some((item) => item.id === 'assemble-evidence-brief');
+  const canCompare = semantics.capabilities.some((item) => item.id === 'retrieve-similar-findings');
   const scrollToSection = (target: string) => {
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
@@ -55,6 +57,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
       <nav>
         <button aria-label="Study workspace" className={view === 'workspace' && !roomOpen ? 'active' : ''} onClick={() => openView('workspace')}><LayoutDashboard size={16} /><span>Study workspace</span></button>
         <button aria-label="Investigation room" className={roomOpen ? 'active' : ''} disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={16} /><span>Investigation room</span></button>
+        <button aria-label="Portfolio similarity" className={view === 'portfolio' ? 'active' : ''} disabled={!canCompare} title={canCompare ? undefined : 'The active semantic profile cannot compare portfolio findings'} onClick={() => openView('portfolio')}><GitCompareArrows size={16} /><span>Portfolio similarity</span><em>new</em></button>
       </nav>
       <div className="nav-label">Platform</div>
       <nav><button aria-label="Semantic model" onClick={() => openView('semantics')} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button aria-label="Solution architecture" onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Solution architecture</span></button><button aria-label="Audit and lineage" onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
@@ -70,7 +73,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
         <button className="icon-button"><CircleHelp size={17} /></button>
       </header>
 
-      {view === 'architecture' ? <ArchitectureView evidence={evidence} runtime={semantics} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : <>
+      {view === 'architecture' ? <ArchitectureView evidence={evidence} runtime={semantics} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : view === 'portfolio' ? <PortfolioIntelligenceView evidence={evidence} evidenceSet={portfolioEvidence} profileId={semantics.activeProfile.id} semanticReleaseId={semantics.release.releaseId} /> : <>
         <section className="hero-row" id="overview">
           <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
           <div className="hero-actions"><button className="secondary-action" onClick={() => scrollToSection('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={14} /> Start investigation</button></div>

@@ -1,4 +1,5 @@
 export type ReviewPriority = 'high' | 'medium' | 'context' | 'low';
+export type EvidenceClass = 'observed-public' | 'synthetic-benchmark' | 'sponsor-observed';
 
 export interface StudySummary {
   id: string;
@@ -14,6 +15,9 @@ export interface StudySummary {
   animalCount: number;
   domains: string[];
   domainCounts: Record<string, number>;
+  evidenceClass?: EvidenceClass;
+  species?: string;
+  strain?: string;
 }
 
 export interface DoseGroup {
@@ -64,6 +68,14 @@ export interface StudyEvidence {
     projectionVersion?: string;
     projectionDigest?: { algorithm: 'sha256'; value: string };
     projectionRuleIds?: string[];
+    syntheticRecipe?: {
+      generator: string;
+      generatorVersion: string;
+      scenario: string;
+      seed: number;
+      recipeDigest: string;
+      modelDigest: string;
+    };
     reconciliation?: {
       status: 'reconciled';
       canonicalRecordCount: number;
@@ -75,6 +87,42 @@ export interface StudyEvidence {
         subjectCountMatches: boolean;
       };
     };
+  };
+}
+
+export interface SimilarityLaneScore {
+  id: 'semantic' | 'incidence' | 'severity' | 'vector';
+  label: string;
+  score: number | null;
+  status: 'executed' | 'skipped';
+  detail: string;
+}
+
+export interface PortfolioSimilarityMatch {
+  id: string;
+  study: StudySummary;
+  signal: SafetySignal;
+  evidenceClass: EvidenceClass;
+  score: number;
+  rank: number;
+  lanes: SimilarityLaneScore[];
+  explanation: string;
+}
+
+export interface PortfolioSimilarityResult {
+  query: { study: StudySummary; signal: SafetySignal };
+  matches: PortfolioSimilarityMatch[];
+  corpus: {
+    studies: number;
+    findings: number;
+    observedStudies: number;
+    syntheticStudies: number;
+  };
+  execution: {
+    mode: 'explainable-hybrid' | 'explainable-hybrid-vector';
+    semanticReleaseId: string;
+    vectorLane: 'executed' | 'skipped-no-embeddings';
+    boundary: string;
   };
 }
 

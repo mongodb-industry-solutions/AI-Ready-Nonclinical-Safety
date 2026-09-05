@@ -81,6 +81,7 @@ The solution projector is intentionally owned here rather than in Kehrnel. Kehrn
 | GET | `/api/studies/{studyId}/signals/{signalId}/records` | Resolve a visual signal to canonical subject, finding, lab, treatment, and artifact evidence |
 | POST | `/api/investigations` | Execute a profile-authorized, cited evidence investigation |
 | GET | `/api/literature` | Execute containment, lexical, optional vector, graph, fusion, and reranking stages |
+| GET | `/api/portfolio/similarity` | Compare a finding across study snapshots with semantic, incidence, severity, optional vector, fusion, and reranking telemetry |
 | GET / POST | `/api/reviews` | Read or append governed expert review actions |
 | GET | `/api/semantics` | Return the active semantic runtime projected for a profile |
 | GET / SSE | `/api/semantics/stream` | Stream resume-safe semantic release and review events |
