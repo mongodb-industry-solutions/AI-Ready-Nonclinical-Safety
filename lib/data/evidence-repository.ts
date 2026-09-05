@@ -58,19 +58,21 @@ export async function loadSignalRecordEvidence(
   if (!findingRecords.length) return empty;
   const subjectIds = [...new Set(findingRecords.map((record) => String(record.facets?.subjectId || record.data?.USUBJID || '')).filter(Boolean))];
   const subjectScope = { studyId, snapshotId, 'facets.subjectId': { $in: subjectIds } };
-  const demographics = await records.find({ ...subjectScope, domain: 'DM' }, { projection: { _id: 0 } }).toArray();
-  const laboratory = signal.correlatedLab
-    ? await records.find({ ...subjectScope, domain: 'LB', $or: [{ 'facets.testCode': signal.correlatedLab }, { [`data.LBTESTCD`]: signal.correlatedLab }] }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(500).toArray()
-    : [];
-  const treatment = await records.find({ studyId, snapshotId, domain: 'TX' }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(100).toArray();
-  const artifacts = await database.collection('source_artifacts').find(
-    { studyId, snapshotId },
-    { projection: { _id: 0, sourceId: 1, sourceName: 1, mediaType: 1, size: 1, digest: 1 } },
-  ).sort({ sourceName: 1 }).toArray();
-  const snapshot = await database.collection('study_snapshots').findOne(
-    { studyId, snapshotId },
-    { projection: { _id: 0, evidencePackageId: 1, modelSchemaVersion: 1 } },
-  );
+  const [demographics, laboratory, treatment, artifacts, snapshot] = await Promise.all([
+    records.find({ ...subjectScope, domain: 'DM' }, { projection: { _id: 0 } }).toArray(),
+    signal.correlatedLab
+      ? records.find({ ...subjectScope, domain: 'LB', $or: [{ 'facets.testCode': signal.correlatedLab }, { 'data.LBTESTCD': signal.correlatedLab }] }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(500).toArray()
+      : Promise.resolve([]),
+    records.find({ studyId, snapshotId, domain: 'TX' }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(100).toArray(),
+    database.collection('source_artifacts').find(
+      { studyId, snapshotId },
+      { projection: { _id: 0, sourceId: 1, sourceName: 1, mediaType: 1, size: 1, digest: 1 } },
+    ).sort({ sourceName: 1 }).toArray(),
+    database.collection('study_snapshots').findOne(
+      { studyId, snapshotId },
+      { projection: { _id: 0, evidencePackageId: 1, modelSchemaVersion: 1 } },
+    ),
+  ]);
 
   const bySubject = new Map(demographics.map((record) => [String(record.facets?.subjectId || record.data?.USUBJID), record]));
   return {
