@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Activity, Bot, Braces, ChevronDown, CircleHelp, Database, Dna, Expand, FileCheck2, FlaskConical, GitBranch, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
+import { Activity, Braces, ChevronDown, CircleHelp, Dna, Expand, FileCheck2, FlaskConical, GitBranch, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
 import type { LiteratureDocument, SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import { reviewScore } from '@/lib/analysis/signal-engine';
 import AgentPanel from '@/components/AgentPanel';
@@ -12,6 +12,7 @@ import SignalMatrix from '@/components/SignalMatrix';
 import SemanticModelExplorer from '@/components/SemanticModelExplorer';
 import InvestigationRoom from '@/components/InvestigationRoom';
 import AuditLineageView from '@/components/AuditLineageView';
+import ArchitectureView from '@/components/ArchitectureView';
 
 type WorkspaceView = 'workspace' | 'semantics' | 'architecture' | 'audit';
 
@@ -56,7 +57,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
         <button className={roomOpen ? 'active' : ''} disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={16} /><span>Investigation room</span></button>
       </nav>
       <div className="nav-label">Platform</div>
-      <nav><button onClick={() => openView('semantics')} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Data & AI architecture</span></button><button onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
+      <nav><button onClick={() => openView('semantics')} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Solution architecture</span></button><button onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
       <div className="source-card"><div><span className="status-dot" /> Published evidence</div><strong>{evidence.study.implementationGuide}</strong><small>Immutable · checksum verified</small></div>
     </aside>
 
@@ -69,7 +70,7 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
         <button className="icon-button"><CircleHelp size={17} /></button>
       </header>
 
-      {view === 'architecture' ? <Architecture evidence={evidence} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : <>
+      {view === 'architecture' ? <ArchitectureView evidence={evidence} runtime={semantics} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : <>
         <section className="hero-row" id="overview">
           <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
           <div className="hero-actions"><button className="secondary-action" onClick={() => scrollToSection('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={14} /> Start investigation</button></div>
@@ -126,25 +127,4 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
       {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} onClose={() => setRoomOpen(false)} />}
     </main>
   </div>;
-}
-
-function Architecture({ evidence, onBack }: { evidence: StudyEvidence; onBack: () => void }) {
-  const layers = [
-    { n: '01', title: 'Source evidence', sub: 'SEND XPT + Define-XML', body: 'Original checksummed artifacts remain replayable and attributed.', tone: 'cyan' },
-    { n: '02', title: 'Solution import', sub: 'Versioned evidence contract', body: 'Validated CDISC-derived evidence enters through an idempotent deployment boundary.', tone: 'green' },
-    { n: '03', title: 'MongoDB Atlas', sub: 'Evidence + vectors + graph', body: 'The solution owns records, semantic chunks, investigations and relationship views.', tone: 'violet' },
-    { n: '04', title: 'Bundled Magenta', sub: 'Governed investigation', body: 'The internal agent plans read-only tools, retrieves, reranks and cites evidence.', tone: 'amber' },
-    { n: '05', title: 'Solution app', sub: 'Expert review workspace', body: 'Interactive visuals, explanations, feedback and audit trail.', tone: 'rose' },
-  ];
-  return <section className="architecture-page">
-    <button className="back-link" onClick={onBack}>← Back to study workspace</button>
-    <div className="architecture-title"><div className="eyebrow">How it was created</div><h1>One governed source. Many intelligent interactions.</h1><p>The business application is intentionally separate from the data factory, canonical model, and agent runtime.</p></div>
-    <div className="architecture-flow">{layers.map((layer, index) => <article key={layer.n} className={`architecture-card tone-${layer.tone}`}><span>{layer.n}</span><div className="architecture-icon">{index === 0 ? <FileCheck2 /> : index === 1 ? <Database /> : index === 2 ? <GitBranch /> : index === 3 ? <Bot /> : <Activity />}</div><h2>{layer.title}</h2><b>{layer.sub}</b><p>{layer.body}</p>{index < layers.length - 1 && <i>→</i>}</article>)}</div>
-    <div className="boundary-grid">
-      <article><span className="ready-dot" /><div><h3>Available now</h3><p>Canonical CDISC records, {evidence.study.recordCount.toLocaleString()}-record example, immutable snapshots, analysis, lineage and hybrid search contract.</p></div></article>
-      <article><span className="configure-dot" /><div><h3>Deployment configuration</h3><p>MongoDB Atlas, Search and Vector Search indexes, model provider and application authentication.</p></div></article>
-      <article><span className="build-dot" /><div><h3>Solution intelligence</h3><p>Safety-specific projections, second-stage reranking, cross-study graph, agent evaluation and expert feedback loops.</p></div></article>
-    </div>
-    <div className="contract-table"><div className="contract-head"><span>Owner</span><span>Owns</span><span>Must not own</span></div><div><b>HDL + Kehrnel</b><span>Upstream data creation, CDISC validation, model learning and query prototyping</span><span>Production solution availability</span></div><div><b>Solution MongoDB</b><span>Deployed evidence, search/vector projections, review state and APIs</span><span>Upstream experimentation workspaces</span></div><div><b>Bundled Magenta</b><span>Agent graph, memory, tool policy, traces and human review</span><span>Unscoped database access</span></div><div><b>Solution UI</b><span>Safety workflow, visuals, evidence assembly and reviewer experience</span><span>Standards-authoring logic</span></div></div>
-  </section>;
 }

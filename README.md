@@ -8,6 +8,8 @@ The application starts with the question a toxicologist actually asks:
 
 It then progressively reveals the data model, governed queries, hybrid retrieval, evidence graph, and agent execution that produced the answer.
 
+The in-product **Solution architecture** workspace and [full architecture guide](docs/solution-architecture.md) show exactly where CDISC is used, how SEND domains become traceable MongoDB documents, which APIs form the runtime boundary, and how search, embeddings, graph traversal, semantic resolution, and Magenta work together.
+
 ## What You Can Explore
 
 - A study-wide dose-by-organ incidence matrix and organ signal landscape ranked for expert review.
