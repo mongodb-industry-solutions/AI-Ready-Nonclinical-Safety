@@ -4,6 +4,12 @@ import { z } from 'zod';
 import type { SemanticRuntimeBundle } from '@/lib/contracts';
 import { solutionDatabase } from '@/lib/data/mongodb';
 import { loadActiveSemanticBundle } from '@/lib/semantics/repository';
+import {
+  materializeSemanticBundle,
+  type SemanticEdgeProjection,
+  type SemanticResourceProjection,
+  type SemanticSearchDocument,
+} from '@/lib/semantics/materialization';
 import { isSemanticProfile, semanticRuntimeForProfile } from '@/lib/semantics/runtime';
 
 const observationSchema = z.object({
@@ -35,7 +41,7 @@ export async function POST(request: Request) {
   const alreadyActive = valueSet.values.some((value) => value.toLocaleLowerCase() === parsed.data.value.toLocaleLowerCase());
 
   const observedAt = new Date();
-  const revision = observedAt.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+  const revision = observedAt.toISOString().replace(/[-:.TZ]/g, '');
   const next = structuredClone(current);
   const nextValueSet = next.valueSets.find((item) => item.id === parsed.data.valueSetId)!;
   if (!alreadyActive) nextValueSet.values.push(parsed.data.value);
@@ -59,10 +65,12 @@ export async function POST(request: Request) {
   };
   const database = await solutionDatabase();
   if (database && !alreadyActive) {
+    const materialized = materializeSemanticBundle(next);
     await database.collection('semantic_change_events').insertOne(event);
-    await database.collection('semantic_value_sets').replaceOne({ releaseId: next.release.releaseId, id: nextValueSet.id }, { ...nextValueSet, releaseId: next.release.releaseId, compiledAt: observedAt }, { upsert: true });
-    await database.collection('semantic_releases').updateMany({ active: true }, { $set: { active: false } });
-    await database.collection('semantic_releases').replaceOne({ releaseId: next.release.releaseId }, { ...next.release, apiVersion: next.apiVersion, digest: next.contentDigest, bundle: next, importedAt: observedAt, active: true }, { upsert: true });
+    await database.collection<SemanticResourceProjection>('semantic_resources').insertMany(materialized.resources);
+    await database.collection<SemanticEdgeProjection>('semantic_edges').insertMany(materialized.edges);
+    await database.collection<SemanticSearchDocument>('semantic_search_documents').insertMany(materialized.searchDocuments);
+    await database.collection('semantic_releases').insertOne({ ...next.release, apiVersion: next.apiVersion, digest: next.contentDigest, bundle: next, importedAt: observedAt });
     await database.collection('semantic_runtime_pointer').replaceOne({ id: 'active' }, { id: 'active', releaseId: next.release.releaseId, digest: next.contentDigest, activatedAt: observedAt }, { upsert: true });
   }
 

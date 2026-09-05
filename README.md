@@ -20,7 +20,7 @@ The in-product **Solution architecture** workspace and [full architecture guide]
 - A full-screen Investigation Room where the AI investigator conducts typed graph, dose, laboratory, and resolver widgets while exposing citations.
 - Record-level drilldown from a signal to the contributing MI, DM, TX, and LB rows and their checksum-verified source artifacts.
 - A literature-evidence workspace that grounds SEND findings to attributed PubMed records, separates supporting context from alternative explanations, and exposes the hybrid retrieval path.
-- A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses.
+- A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses, plus live hybrid search across the map itself.
 - Governed review actions stored separately from immutable SEND evidence.
 - A live semantic change lab that shows a newly observed terminology value flowing through Change Streams, validation, compilation, profile projection, and map refresh.
 - A technical view explaining the boundary between the deployed solution and upstream HDL/Kehrnel enablement.
@@ -106,7 +106,7 @@ The solution never makes canonical CDISC records, semantic projections, or agent
 - a snapshot + cursor + event subscription contract backed by MongoDB Change Streams.
 - portable source-adapter declarations for MongoDB, PubMed, PMC Open Access, and S3-compatible document storage.
 
-With MongoDB configured, the semantic API resolves the active release from `semantic_runtime_pointer`. The change lab creates a candidate event, compiles a new immutable bundle, activates its pointer, and lets connected clients refresh from the emitted resume-safe event. Fixture mode performs the identical visual workflow against the bundled release without pretending to persist it.
+With MongoDB configured, the semantic API resolves the active release from `semantic_runtime_pointer`. The importer also builds one polymorphic `semantic_resources` projection, a separate `semantic_edges` traversal projection, and `semantic_search_documents`. The latter is indexed with Atlas Automated Embedding, so semantic-map vectors live in `__mdb_internal_search` rather than appearing as fields in Compass. `/api/semantics/search` combines profile-scoped lexical and vector candidates with reciprocal-rank fusion. The change lab creates a candidate event, compiles a new immutable bundle, materializes all three projections, activates its pointer, and lets connected clients refresh from the emitted resume-safe event. Fixture mode performs the identical visual workflow against the bundled release without pretending to persist it.
 
 The application imports that artifact; it never imports Context Studio internals. A production identity provider must supply the profile—this demonstrator exposes a profile picker so the authorization projections are visible.
 

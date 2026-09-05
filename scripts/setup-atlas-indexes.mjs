@@ -9,6 +9,8 @@ const literatureSearchName = process.env.ATLAS_LITERATURE_SEARCH_INDEX || 'safet
 const literatureAutoEmbedName = process.env.ATLAS_LITERATURE_AUTO_EMBED_INDEX || 'safety_literature_auto_embed';
 const portfolioSearchName = process.env.ATLAS_PORTFOLIO_SEARCH_INDEX || 'safety_portfolio_search';
 const portfolioAutoEmbedName = process.env.ATLAS_PORTFOLIO_AUTO_EMBED_INDEX || 'safety_portfolio_auto_embed';
+const semanticSearchName = process.env.ATLAS_SEMANTIC_SEARCH_INDEX || 'semantic_map_search';
+const semanticAutoEmbedName = process.env.ATLAS_SEMANTIC_AUTO_EMBED_INDEX || 'semantic_map_auto_embed';
 const embeddingModel = process.env.ATLAS_AUTO_EMBED_MODEL || 'voyage-4';
 const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
@@ -114,7 +116,48 @@ try {
     });
   }
 
-  console.log(`Atlas indexes requested: ${searchName}, ${evidenceAutoEmbedName}, ${literatureSearchName}, ${literatureAutoEmbedName}, ${portfolioSearchName}, ${portfolioAutoEmbedName}`);
+  const semantic = database.collection('semantic_search_documents');
+  const semanticIndexDocuments = await semantic.listSearchIndexes().toArray();
+  const semanticIndexes = new Set(semanticIndexDocuments.map((index) => index.name));
+  const semanticSearchDefinition = {
+    mappings: {
+      dynamic: false,
+      fields: {
+        text: { type: 'string' },
+        label: { type: 'string' },
+        releaseId: { type: 'string', analyzer: 'lucene.keyword' },
+        resourceType: { type: 'string', analyzer: 'lucene.keyword' },
+        profileId: { type: 'string', analyzer: 'lucene.keyword' },
+      },
+    },
+  };
+  if (!semanticIndexes.has(semanticSearchName)) {
+    await semantic.createSearchIndex({
+      name: semanticSearchName,
+      definition: semanticSearchDefinition,
+    });
+  } else if (!JSON.stringify(semanticIndexDocuments.find((index) => index.name === semanticSearchName)?.latestDefinition || {}).includes('profileId')) {
+    await semantic.updateSearchIndex(semanticSearchName, semanticSearchDefinition);
+  }
+  const semanticAutoEmbedDefinition = {
+    fields: [
+      { type: 'autoEmbed', modality: 'text', path: 'text', model: embeddingModel },
+      { type: 'filter', path: 'releaseId' },
+      { type: 'filter', path: 'resourceType' },
+      { type: 'filter', path: 'profileId' },
+    ],
+  };
+  if (!semanticIndexes.has(semanticAutoEmbedName)) {
+    await semantic.createSearchIndex({
+      name: semanticAutoEmbedName,
+      type: 'vectorSearch',
+      definition: semanticAutoEmbedDefinition,
+    });
+  } else if (!JSON.stringify(semanticIndexDocuments.find((index) => index.name === semanticAutoEmbedName)?.latestDefinition || {}).includes('profileId')) {
+    await semantic.updateSearchIndex(semanticAutoEmbedName, semanticAutoEmbedDefinition);
+  }
+
+  console.log(`Atlas indexes requested: ${searchName}, ${evidenceAutoEmbedName}, ${literatureSearchName}, ${literatureAutoEmbedName}, ${portfolioSearchName}, ${portfolioAutoEmbedName}, ${semanticSearchName}, ${semanticAutoEmbedName}`);
 } finally {
   await client.close();
 }

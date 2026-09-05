@@ -2,12 +2,22 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
-import { Box, Braces, Check, Database, GitBranch, Radio, RefreshCw, SearchCode, ShieldCheck } from 'lucide-react';
+import { Box, Braces, Check, Database, GitBranch, Radio, RefreshCw, Search, SearchCode, ShieldCheck, Sparkles } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 import type { SemanticObject, SemanticRuntimeView } from '@/lib/contracts';
 
 type Lens = 'business-documents' | 'semantic-graph' | 'retrieval-projections' | 'physical-mongodb';
 type ModelNodeData = SemanticObject & { lens: Lens; updated: boolean; meta: string; [key: string]: unknown };
+type SemanticSearchResult = {
+  mode: string;
+  releaseId: string;
+  profileId: string;
+  hits: Array<{ resourceType: string; resourceId: string; label: string; excerpt: string; score: number; lanes: string[]; sourceRef: string }>;
+  stages: Array<{ id: string; status: string; detail: string }>;
+  managedEmbedding: { index: string; sourcePath: string; vectorStorage: string; vectorFieldInSourceDocument: false };
+};
+
+const initialSemanticQuery = 'Which concepts, archetypes and resolvers govern a thymus lymphocyte finding?';
 
 function ModelNode({ data }: NodeProps<Node<ModelNodeData>>) {
   return <div className={`model-node model-${data.kind} ${data.updated ? 'model-updated' : ''}`}>
@@ -26,6 +36,9 @@ export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { ru
   const [streamState, setStreamState] = useState('connecting');
   const [changeStep, setChangeStep] = useState(-1);
   const [changeMode, setChangeMode] = useState('');
+  const [semanticQuery, setSemanticQuery] = useState(initialSemanticQuery);
+  const [semanticSearch, setSemanticSearch] = useState<SemanticSearchResult | null>(null);
+  const [semanticSearchState, setSemanticSearchState] = useState<'loading' | 'ready' | 'error'>('loading');
   const newValue = 'Lymphoid depletion, cortical';
   useEffect(() => {
     const stream = new EventSource(`/api/semantics/stream?profile=${runtime.activeProfile.id}`);
@@ -43,6 +56,18 @@ export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { ru
     stream.onerror = () => setStreamState('snapshot mode');
     return () => stream.close();
   }, [runtime.activeProfile.id, onRuntimeChange]);
+  useEffect(() => {
+    let active = true;
+    setSemanticSearchState('loading');
+    fetch(`/api/semantics/search?profile=${runtime.activeProfile.id}&q=${encodeURIComponent(initialSemanticQuery)}&limit=6`, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Semantic retrieval failed');
+        return response.json() as Promise<SemanticSearchResult>;
+      })
+      .then((payload) => { if (active) { setSemanticSearch(payload); setSemanticSearchState('ready'); } })
+      .catch(() => { if (active) setSemanticSearchState('error'); });
+    return () => { active = false; };
+  }, [runtime.activeProfile.id, runtime.release.releaseId]);
   const selected = runtime.objects.find((object) => object.id === selectedId) || runtime.objects[0];
   const valueSet = runtime.valueSets.find((item) => item.id === 'finding-morphology');
   const demoValueActive = valueSet?.values.includes(newValue) || false;
@@ -101,12 +126,39 @@ export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { ru
     }
   }
 
+  async function runSemanticSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (semanticQuery.trim().length < 2) return;
+    setSemanticSearchState('loading');
+    try {
+      const response = await fetch(`/api/semantics/search?profile=${runtime.activeProfile.id}&q=${encodeURIComponent(semanticQuery)}&limit=6`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Semantic retrieval failed');
+      setSemanticSearch(await response.json());
+      setSemanticSearchState('ready');
+    } catch {
+      setSemanticSearchState('error');
+    }
+  }
+
   return <section className="model-explorer">
     <header className="model-hero">
       <div><span className="panel-kicker">Compiled by Context Studio · portable runtime {runtime.release.version}</span><h1>Meaning is portable. Placement is explicit.</h1><p>Explore taxonomy and terminology, archetype composition, retrieval projections, and every physical representation without confusing storage with semantics.</p></div>
       <div className="release-live"><Radio size={14} /><span><b>LIVE SEMANTICS · {streamState}</b><small>{runtime.release.releaseId}</small></span></div>
     </header>
     <div className="profile-banner"><ShieldCheck size={15} /><span><b>{runtime.activeProfile.label} projection</b>{runtime.activeProfile.description}</span><em>{runtime.objects.length} visible objects · {runtime.capabilities.length} agent capabilities · {runtime.actions.length} governed actions</em></div>
+    <section className="semantic-search-lab">
+      <div className="semantic-search-intro"><span className="panel-kicker">Semantic retrieval fabric</span><h2>Ask the map, not only the evidence.</h2><p>Profile-scoped lexical and vector retrieval over concepts, archetypes, resolvers, storage bindings and graph edges.</p></div>
+      <div className="semantic-search-console">
+        <form onSubmit={runSemanticSearch}><Search size={14} /><input value={semanticQuery} onChange={(event) => setSemanticQuery(event.target.value)} aria-label="Search the semantic map" /><button type="submit" disabled={semanticSearchState === 'loading'}>{semanticSearchState === 'loading' ? 'Resolving…' : 'Resolve'}</button></form>
+        <div className="semantic-search-pipeline"><span><SearchCode size={11} /> lexical</span><i>+</i><span className="managed-vector"><Sparkles size={11} /> Atlas autoEmbed</span><i>→</i><span>RRF</span><i>→</i><span>{runtime.activeProfile.id}</span></div>
+        <small className="managed-vector-proof">Source documents contain semantic text and provenance. Atlas stores managed vectors in <code>__mdb_internal_search</code>; no vector field is written to the map.</small>
+      </div>
+      <div className="semantic-search-results">
+        <header><span>{semanticSearch?.mode || semanticSearchState}</span><b>{semanticSearch?.hits.length || 0} governed matches</b></header>
+        {semanticSearch?.hits.slice(0, 4).map((hit) => <button key={`${hit.resourceType}:${hit.resourceId}`} onClick={() => { if (runtime.objects.some((object) => object.id === hit.resourceId)) setSelectedId(hit.resourceId); setLens('retrieval-projections'); }}><em>{hit.resourceType}</em><span><b>{hit.label}</b><small>{hit.lanes.join(' + ')} · score {hit.score}</small></span></button>)}
+        {semanticSearchState === 'error' && <p>Semantic search is unavailable; the signed map remains browsable.</p>}
+      </div>
+    </section>
     <section className="semantic-change-lab">
       <div className="change-summary"><span className="panel-kicker">Semantic change lab</span><h2>Watch a new source value become governed meaning</h2><p><b>{newValue}</b> appears in a new MI record. The evidence stays immutable while the terminology projection is reviewed and refreshed.</p></div>
       <div className="change-flow">{['Value observed', 'Change Stream', 'Validate candidate', 'Compile projection', 'Map refreshed'].map((label, index) => <div key={label} className={changeStep >= index ? 'complete' : changeStep === index - 1 ? 'next' : ''}><i>{changeStep > index ? <Check size={10} /> : index + 1}</i><span>{label}</span></div>)}</div>
@@ -125,7 +177,7 @@ export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { ru
         {lens === 'business-documents' && <div className="inspector-block"><span>ARCHETYPE COMPOSITION</span>{selectedArchetypes.map((archetype) => { const member = archetype.members.find((item) => item.semanticObject === selected.id); return <div className="resolver-card" key={archetype.id}><b>{archetype.label}</b><small>{member?.role} · {member?.cardinality}</small><em>{archetype.extends ? `extends ${archetype.extends}` : 'root archetype'}</em></div>; })}</div>}
         {lens === 'semantic-graph' && <div className="inspector-block"><span>CONCEPTS &amp; TERMINOLOGY</span>{selectedConcepts.map((concept) => <div className="resolver-card" key={concept.id}><b>{concept.label}</b><small>{concept.kind}{concept.broader ? ` · broader: ${concept.broader}` : ''}</small><em>{[...(concept.externalMappings || []), ...(concept.valueSet ? [`value set: ${concept.valueSet}`] : [])].join(' · ')}</em></div>)}</div>}
         {lens === 'physical-mongodb' && <div className="inspector-block"><span>PHYSICAL PLACEMENTS</span>{selectedStorage.map((binding) => <div className="resolver-card" key={binding.id}><b>{binding.adapter} · {binding.location}</b><small>{binding.representation} · {binding.authority}</small><em>{binding.path}</em></div>)}</div>}
-        {lens === 'retrieval-projections' && <div className="inspector-block"><span>RETRIEVAL PROJECTIONS</span><div className="tag-row">{selected.retrieval.map((item) => <i key={item}>{item}</i>)}</div></div>}
+        {lens === 'retrieval-projections' && <div className="inspector-block"><span>RETRIEVAL PROJECTIONS</span><div className="tag-row">{selected.retrieval.map((item) => <i key={item}>{item}</i>)}</div><div className="autoembed-contract"><Sparkles size={13} /><span><b>Atlas-managed semantic embedding</b><small><code>semantic_search_documents.text</code> → <code>{semanticSearch?.managedEmbedding.index || 'semantic_map_auto_embed'}</code></small><em>Vector stored internally; source document stays readable.</em></span></div></div>}
         <div className="inspector-block"><span>STANDARD SOURCE</span><div className="tag-row">{(selected.sourceDomains || ['solution']).map((item) => <i key={item}>{item}</i>)}</div></div>
         <div className="inspector-block"><span>AUTHORIZED RESOLVERS</span>{relatedResolvers.length ? relatedResolvers.map((resolver) => <div className="resolver-card" key={resolver.id}><b>{resolver.id}</b><small>{resolver.executor}</small><em>{resolver.stages.join(' → ')}</em></div>) : <small>No direct resolver in this profile.</small>}</div>
       </aside>}

@@ -11,7 +11,7 @@ try {
   const database = client.db(process.env.MONGODB_DATABASE || 'nonclinical_safety_solution');
   const documents = database.collection('literature_documents');
   const chunks = database.collection('literature_chunks');
-  const edges = database.collection('semantic_evidence_edges');
+  const edges = database.collection('evidence_relationships');
   const semanticReleaseId = process.env.SEMANTIC_RELEASE_ID || 'org.contextobjects.nonclinical-safety@0.2.0';
   const chunkRows = source.documents.map((publication) => ({
     id: `${publication.id}-relevance`,

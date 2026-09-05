@@ -187,9 +187,9 @@ export async function executeLiteratureQuery({
     const graphStarted = Date.now();
     let graph: Candidate[] = [];
     try {
-      const paths = await database.collection('semantic_evidence_edges').aggregate<Array<{ to: string; descendants: Array<{ to: string }> }>[number]>([
+      const paths = await database.collection('evidence_relationships').aggregate<Array<{ to: string; descendants: Array<{ to: string }> }>[number]>([
         { $match: { releaseId: bundle.release.releaseId, from: `Finding:${signalId}` } },
-        { $graphLookup: { from: 'semantic_evidence_edges', startWith: '$to', connectFromField: 'to', connectToField: 'from', as: 'descendants', maxDepth: 1, depthField: 'depth', restrictSearchWithMatch: { releaseId: bundle.release.releaseId } } },
+        { $graphLookup: { from: 'evidence_relationships', startWith: '$to', connectFromField: 'to', connectToField: 'from', as: 'descendants', maxDepth: 1, depthField: 'depth', restrictSearchWithMatch: { releaseId: bundle.release.releaseId } } },
         { $project: { _id: 0, to: 1, descendants: 1 } },
       ]).toArray();
       const ids = new Set<string>();

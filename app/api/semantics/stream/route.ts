@@ -43,12 +43,12 @@ export async function GET(request: Request) {
         const lastEventId = request.headers.get('last-event-id');
         const resumeAfter = lastEventId ? JSON.parse(Buffer.from(lastEventId, 'base64url').toString('utf8')) : undefined;
         changeStream = database.watch([
-          { $match: { 'ns.coll': { $in: ['semantic_releases', 'semantic_objects', 'semantic_profiles', 'semantic_value_sets', 'semantic_change_events', 'review_actions'] } } },
+          { $match: { 'ns.coll': { $in: ['semantic_releases', 'semantic_runtime_pointer', 'semantic_change_events', 'review_actions'] } } },
         ], { fullDocument: 'updateLookup', ...(resumeAfter ? { resumeAfter } : {}) });
         changeStream.on('change', (change) => {
           if (!('ns' in change)) return;
           const collection = 'coll' in change.ns ? change.ns.coll : 'unknown';
-          const eventName = collection === 'review_actions' ? 'review.action.committed' : collection === 'semantic_change_events' ? 'terminology.value.observed' : collection === 'semantic_value_sets' ? 'terminology.valueset.compiled' : collection === 'semantic_profiles' ? 'profile.projection.changed' : collection === 'semantic_objects' ? 'semantic.object.changed' : 'semantic.release.activated';
+          const eventName = collection === 'review_actions' ? 'review.action.committed' : collection === 'semantic_change_events' ? 'terminology.value.observed' : collection === 'semantic_runtime_pointer' ? 'semantic.release.activated' : 'semantic.release.compiled';
           controller.enqueue(event(eventName, {
             operation: change.operationType,
             collection,

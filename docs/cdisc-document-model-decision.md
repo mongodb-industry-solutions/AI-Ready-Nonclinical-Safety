@@ -146,19 +146,21 @@ There are three distinct representations:
 3. **Solution serving projections** — optional MongoDB nodes, edges, search
    documents and caches rebuilt from exactly one runtime release.
 
-In the current solution the active pointer selects `semantic_releases.bundle`; this
-is the only representation read to construct the runtime. The separate
-`semantic_objects`, `semantic_profiles`, `semantic_value_sets`, and similar
-collections are exploded inspection/change-stream projections. They are not a
-second semantic authority. Their current number makes that boundary harder to see
-and they can drift because the runtime does not read them.
+In the solution the active pointer selects `semantic_releases.bundle`; this is the
+only representation read to construct the runtime. Small, same-lifecycle map
+resources are materialized into one polymorphic `semantic_resources` collection.
+Definition relationships remain in `semantic_edges`, because their forward and
+reverse traversal workload differs. These are inspection/query projections, not a
+second semantic authority, and are rebuilt from the selected release.
 
 The target solution footprint is therefore:
 
 - `semantic_releases`: immutable imported runtime artifacts and digests;
 - `semantic_runtime_pointer`: the atomic active-release pointer;
-- optional `semantic_nodes` and `semantic_edges`: rebuildable graph/query
-  projections when the UI or resolver needs database-native traversal;
+- `semantic_resources` and `semantic_edges`: rebuildable polymorphic and graph
+  projections for inspection, filtering and database-native traversal;
+- `semantic_search_documents`: profile- and release-scoped text projection with
+  Atlas Automated Embedding; vectors live only in `__mdb_internal_search`;
 - `semantic_change_events`: proposals, compilation and activation events.
 
 Operational `Finding → Publication → DocumentChunk` relationships are an evidence
@@ -192,15 +194,16 @@ preserve exact replay and direct interoperability. Explicit values such as zero,
 
 ## Delivery sequence
 
-1. Use Atlas Automated Embedding on the three bounded retrieval projections and
-   query them with text directly.
+1. Use Atlas Automated Embedding on the bounded evidence, literature, portfolio,
+   and semantic-map retrieval projections and query them with text directly.
 2. Specify and validate the CDISC evidence-envelope v2 contract in Kehrnel.
 3. Cut the solution importer to v2 and rebuild all projections from the canonical
    namespace; do not keep a v1 compatibility branch.
 4. Benchmark explain plans, index size, import throughput and study/subject/domain
    query latency before making v2 the default.
-5. Make semantic serving authority explicit and consolidate unused exploded
-   semantic collections behind rebuildable `semantic_nodes`/`semantic_edges` views.
+5. Keep semantic serving authority explicit through rebuildable
+   `semantic_resources`, `semantic_edges`, and auto-embedded
+   `semantic_search_documents` projections.
 
 This keeps the blueprint ambitious where it creates durable value: traceable CDISC
 evidence, workload-shaped MongoDB documents, invisible managed embeddings, and a

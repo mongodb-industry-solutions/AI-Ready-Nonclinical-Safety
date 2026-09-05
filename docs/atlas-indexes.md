@@ -42,4 +42,13 @@ Each imported study materializes one compact `portfolio_findings` document per p
 
 The portfolio resolver can therefore retrieve a bounded candidate set before hydrating canonical study evidence. Vector similarity is optional and is never substituted for exact dose, incidence, severity, provenance, or evidence-class checks.
 
+## Semantic-map indexes
+
+The active Context Studio release is materialized as polymorphic `semantic_resources`, separate `semantic_edges`, and one retrieval sidecar named `semantic_search_documents`. The sidecar contains readable semantic text, a resource reference, release identity, resource type, and one explicit profile identity. Profile-specific materialization removes hidden object names before embedding, rather than trying to mask a broader vector after retrieval.
+
+- `semantic_map_search` indexes `text` and `label`, with exact release, type, and profile fields.
+- `semantic_map_auto_embed` automatically embeds `text` and filters every query by active release and authorized profile.
+
+`GET /api/semantics/search` runs both lanes and applies reciprocal-rank fusion. Source map documents never contain a vector or empty vector placeholder. Atlas owns the generated values in `__mdb_internal_search`, and a new immutable semantic release produces a new bounded search projection.
+
 Automated Embedding is an Atlas Preview feature and requires the applicable Atlas enablement, model access and billing configuration. `ATLAS_AUTO_EMBED_MODEL` selects the index-time model and defaults to `voyage-4`.

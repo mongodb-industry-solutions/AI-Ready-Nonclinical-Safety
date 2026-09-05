@@ -275,7 +275,7 @@ class SafetyRepository:
             semantic_release_id = os.environ.get(
                 "SEMANTIC_RELEASE_ID", "org.contextobjects.nonclinical-safety@0.1.0"
             )
-            graph_paths = self.database.semantic_evidence_edges.aggregate(
+            graph_paths = self.database.evidence_relationships.aggregate(
                 [
                     {
                         "$match": {
@@ -285,7 +285,7 @@ class SafetyRepository:
                     },
                     {
                         "$graphLookup": {
-                            "from": "semantic_evidence_edges",
+                            "from": "evidence_relationships",
                             "startWith": "$to",
                             "connectFromField": "to",
                             "connectToField": "from",

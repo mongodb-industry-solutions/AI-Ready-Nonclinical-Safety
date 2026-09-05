@@ -4,8 +4,8 @@ import { semanticRuntimeBundle, semanticRuntimeForProfile } from '@/lib/semantic
 
 type StoredSemanticRelease = {
   releaseId: string;
-  active: boolean;
   bundle?: SemanticRuntimeBundle;
+  importedAt?: Date;
 };
 
 export async function loadActiveSemanticBundle(): Promise<SemanticRuntimeBundle> {
@@ -13,8 +13,10 @@ export async function loadActiveSemanticBundle(): Promise<SemanticRuntimeBundle>
   if (!database) return semanticRuntimeBundle();
 
   const pointer = await database.collection<{ id: string; releaseId: string }>('semantic_runtime_pointer').findOne({ id: 'active' });
-  const query = pointer?.releaseId ? { releaseId: pointer.releaseId } : { active: true };
-  const release = await database.collection<StoredSemanticRelease>('semantic_releases').findOne(query);
+  const releases = database.collection<StoredSemanticRelease>('semantic_releases');
+  const release = pointer?.releaseId
+    ? await releases.findOne({ releaseId: pointer.releaseId })
+    : await releases.find({ bundle: { $exists: true } }).sort({ importedAt: -1 }).limit(1).next();
   return release?.bundle || semanticRuntimeBundle();
 }
 

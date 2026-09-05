@@ -25,7 +25,7 @@ flowchart LR
       E[(Immutable evidence<br/>snapshots + datasets + cdisc_records<br/>subjects + source_artifacts)]
       P[(AI projections<br/>evidence/literature text + edges)]
       V[(Atlas internal search<br/>Automated Embedding vectors)]
-      S[(Semantic control<br/>releases + objects + value sets + runtime pointer)]
+      S[(Semantic control<br/>releases + polymorphic resources + edges<br/>auto-embedded search + runtime pointer)]
       W[(Solution state<br/>investigations + review_actions)]
       Q[Aggregation + Atlas Search<br/>Vector Search + graph lookup + Change Streams]
       E --> Q
@@ -88,6 +88,7 @@ The solution projector is intentionally owned here rather than in Kehrnel. Kehrn
 | GET | `/api/portfolio/similarity` | Compare a finding across study snapshots with semantic, incidence, severity, Atlas Automated Embedding, fusion, and reranking telemetry |
 | GET / POST | `/api/reviews` | Read or append governed expert review actions |
 | GET | `/api/semantics` | Return the active semantic runtime projected for a profile |
+| GET | `/api/semantics/search` | Run release- and profile-scoped hybrid retrieval over semantic resources and definition edges |
 | GET / SSE | `/api/semantics/stream` | Stream resume-safe semantic release and review events |
 | POST | `/api/semantics/value-sets/observe` | Validate an observed term and compile a candidate semantic release |
 | GET | `/api/health` | Expose configured data, agent, and review-store modes |

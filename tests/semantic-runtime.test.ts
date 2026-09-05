@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { canPerformSemanticAction, semanticRuntimeForProfile } from '@/lib/semantics/runtime';
+import { materializeSemanticBundle } from '@/lib/semantics/materialization';
+import { canPerformSemanticAction, semanticRuntimeBundle, semanticRuntimeForProfile } from '@/lib/semantics/runtime';
 import { compileLiteratureQueryPlan } from '@/lib/semantics/query-planner';
 
 describe('portable semantic runtime', () => {
@@ -42,5 +43,23 @@ describe('portable semantic runtime', () => {
       'reciprocal-rank-fusion',
       'domain-reranker',
     ]));
+  });
+
+  it('materializes a polymorphic semantic map and an auto-embedding source projection without vector fields', () => {
+    const bundle = semanticRuntimeBundle();
+    const materialized = materializeSemanticBundle(bundle);
+    expect(new Set(materialized.resources.map((resource) => resource.resourceType))).toEqual(new Set([
+      'object', 'profile', 'capability', 'resolver', 'action', 'surface', 'valueSet', 'concept',
+      'archetype', 'storageBinding', 'sourceAdapter', 'subscription',
+    ]));
+    expect(materialized.edges).toHaveLength(bundle.edges.length);
+    expect(materialized.searchDocuments.length).toBeGreaterThan(materialized.resources.length + materialized.edges.length);
+    expect(new Set(materialized.searchDocuments.map((document) => document._id)).size).toBe(materialized.searchDocuments.length);
+    expect(materialized.searchDocuments.every((document) => document.text.length > 0 && document.profileId.length > 0)).toBe(true);
+    expect(JSON.stringify(materialized.searchDocuments)).not.toMatch(/"(embedding|vector)"\s*:/i);
+    expect(materialized.searchDocuments.some((document) => document.resourceId === 'Subject' && document.profileId === 'portfolio-lead')).toBe(false);
+    const portfolioArchetype = materialized.searchDocuments.find((document) => document.resourceId === 'archetype.study-evidence-aggregate.v1' && document.profileId === 'portfolio-lead');
+    expect(portfolioArchetype?.text).not.toContain('Subject');
+    expect(portfolioArchetype?.text).not.toContain('SourceArtifact');
   });
 });
