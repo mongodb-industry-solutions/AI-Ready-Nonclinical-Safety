@@ -17,7 +17,8 @@ The in-product **Solution architecture** workspace and [full architecture guide]
 - Dose-response and longitudinal laboratory charts.
 - Cross-domain links between SEND DM, TX, MI, and LB records.
 - A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
-- A full-screen Investigation Room where the AI investigator conducts typed graph, dose, laboratory, and resolver widgets while exposing citations.
+- A full-screen Investigation Room with an optional AI-first canvas where the investigator composes typed graph, dose-response, laboratory, semantic-clarification, and resolver widgets while exposing citations.
+- An inspectable execution envelope for every investigation: the authorized deterministic resolver contract, immutable query scope, declared stages, and the stages that actually executed, fell back, or were skipped.
 - Record-level drilldown from a signal to the contributing MI, DM, TX, and LB rows and their checksum-verified source artifacts.
 - A literature-evidence workspace that grounds SEND findings to attributed PubMed records, separates supporting context from alternative explanations, and exposes the hybrid retrieval path.
 - A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses, plus live hybrid search across the map itself.
@@ -102,6 +103,7 @@ The solution never makes canonical CDISC records, semantic projections, or agent
 - explicit storage bindings showing every MongoDB, API, or object-store representation and its authority;
 - profile-filtered visibility, field masks, capabilities, and actions;
 - resolver contracts for aggregation, graph lookup, hybrid vector search, reranking, and Magenta synthesis;
+- domain-owned resolver contracts, including a nonclinical safety investigator that binds the exact study, snapshot, signal, profile, and question before any tool executes;
 - terminology value sets and four synchronized UI surface definitions;
 - a snapshot + cursor + event subscription contract backed by MongoDB Change Streams.
 - portable source-adapter declarations for MongoDB, PubMed, PMC Open Access, and S3-compatible document storage.

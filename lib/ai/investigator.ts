@@ -96,9 +96,9 @@ export async function investigate(
     steps: [
       { id: 'scope', label: 'Bind immutable study scope', engine: 'structured', status: 'complete', detail: `${evidence.study.id} / ${evidence.study.snapshotId}` },
       { id: 'aggregate', label: 'Aggregate incidence and severity', engine: 'structured', status: 'complete', detail: 'Governed MI + DM + TX aggregation' },
-      { id: 'retrieve', label: 'Retrieve semantic evidence', engine: 'vector', status: 'fallback', detail: sourceCitations.length ? 'Canonical record hydration completed; vector retrieval is reserved for contextual evidence' : 'Bundled fixture evidence used; vector retrieval activates with a configured corpus' },
+      { id: 'retrieve', label: 'Retrieve semantic evidence', engine: 'vector', status: 'skipped', detail: sourceCitations.length ? 'The answer used exact canonical rows; the separate semantic-grounding request exposes its own hybrid execution trace' : 'Bundled fixture evidence used; vector retrieval requires a configured corpus' },
       { id: 'expand', label: 'Expand cross-domain graph', engine: 'graph', status: 'complete', detail: signal.correlatedLab ? `MI finding → animal → ${signal.correlatedLab} laboratory series` : 'MI finding → animal → treatment group' },
-      { id: 'rerank', label: 'Rerank candidate evidence', engine: 'rerank', status: 'planned', detail: 'Second-stage reranker is enabled by the Magenta deployment profile' },
+      { id: 'rerank', label: 'Rerank candidate evidence', engine: 'rerank', status: 'skipped', detail: 'No candidate set required reranking in the deterministic investigator path' },
       { id: 'synthesize', label: 'Compose cited review hypothesis', engine: 'synthesis', status: 'complete', detail: 'No autonomous mutation or regulatory conclusion' },
     ],
     guardrails: { readOnly: true, snapshotBound: true, regulatoryConclusion: false },

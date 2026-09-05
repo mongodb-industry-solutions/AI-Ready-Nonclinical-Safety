@@ -153,6 +153,24 @@ Definition relationships remain in `semantic_edges`, because their forward and
 reverse traversal workload differs. These are inspection/query projections, not a
 second semantic authority, and are rebuilt from the selected release.
 
+The openEHR RPS-dual lesson applies as an architectural principle, not as a forced
+clinical schema: preserve the governed semantic artifact, then compile
+workload-specific projections and paths from it. The map therefore does not need
+one collection per semantic product. Objects, concepts, value sets, archetypes,
+capabilities, resolvers, profiles, and adapters share the polymorphic resource
+plane; traversable definitions use the edge plane; retrieval text uses the
+profile-scoped auto-embedding plane. Each projection remains disposable because
+the immutable release is authoritative.
+
+Resolvers have three layers. Generic Context Studio primitives validate profile,
+containment, terminology, and placement. Industry packages add typed contracts
+such as `resolver.investigate-safety-signal.v1`. The deployed solution binds those
+contracts to concrete MongoDB, Atlas Search, graph, document, and agent adapters.
+The execution response is emitted from those adapters after they run: it records
+the exact operation, collection, predicate, result count, duration, and
+executed/fallback/skipped state. A declared pipeline is never presented as an
+executed one.
+
 The target solution footprint is therefore:
 
 - `semantic_releases`: immutable imported runtime artifacts and digests;
@@ -175,6 +193,11 @@ a stored vector. That is the desired source-document shape for Automated
 Embedding. The application also has 76 evidence chunks, 75 portfolio-finding
 projections and three literature chunks. All three retrieval projections now use
 Atlas Automated Embedding over their governed `text` field.
+
+Semantic release 0.3.0 materializes 77 polymorphic resources, 13 definition edges,
+and 375 profile-scoped auto-embedding source documents. The resource plane now
+includes the nonclinical-safety investigator resolver as a first-class semantic
+product rather than hiding its contract in application code.
 
 The current `cdisc_records` v1 shape is sound in substance: `data` is canonical,
 `facets` and `semantic` are derived, and `lineage` is explicit. Its weakness is that

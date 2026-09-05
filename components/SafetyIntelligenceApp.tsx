@@ -27,6 +27,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const [selectedId, setSelectedId] = useState(initialEvidence.signals[0].id);
   const [graphOpen, setGraphOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
+  const [semanticFocus, setSemanticFocus] = useState<string>();
   const [studyMenuOpen, setStudyMenuOpen] = useState(false);
   const [semantics, setSemantics] = useState(initialSemantics);
   const signal = evidence.signals.find((item) => item.id === selectedId) || evidence.signals[0];
@@ -45,7 +46,14 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   };
   const openView = (target: WorkspaceView) => {
     setRoomOpen(false);
+    if (target !== 'semantics') setSemanticFocus(undefined);
     setView(target);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const openSemantic = (focusId?: string) => {
+    setRoomOpen(false);
+    setSemanticFocus(focusId);
+    setView('semantics');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const changeStudy = (studyId: string) => {
@@ -71,7 +79,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
         <button aria-label="Portfolio similarity" className={view === 'portfolio' ? 'active' : ''} disabled={!canCompare} title={canCompare ? undefined : 'The active semantic profile cannot compare portfolio findings'} onClick={() => openView('portfolio')}><GitCompareArrows size={16} /><span>Portfolio similarity</span><em>new</em></button>
       </nav>
       <div className="nav-label">Platform</div>
-      <nav><button aria-label="Semantic model" onClick={() => openView('semantics')} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button aria-label="Solution architecture" onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Solution architecture</span></button><button aria-label="Audit and lineage" onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
+      <nav><button aria-label="Semantic model" onClick={() => openSemantic()} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button aria-label="Solution architecture" onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Solution architecture</span></button><button aria-label="Audit and lineage" onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
       <div className="source-card"><div><span className="status-dot" /> Published evidence</div><strong>{evidence.study.implementationGuide}</strong><small>Immutable · checksum verified</small></div>
     </aside>
 
@@ -84,7 +92,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
         <button className="icon-button"><CircleHelp size={17} /></button>
       </header>
 
-      {view === 'architecture' ? <ArchitectureView evidence={evidence} runtime={semantics} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : view === 'portfolio' ? <PortfolioIntelligenceView evidence={evidence} evidenceSet={portfolioEvidence} profileId={semantics.activeProfile.id} semanticReleaseId={semantics.release.releaseId} /> : <>
+      {view === 'architecture' ? <ArchitectureView evidence={evidence} runtime={semantics} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} focusId={semanticFocus} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : view === 'portfolio' ? <PortfolioIntelligenceView evidence={evidence} evidenceSet={portfolioEvidence} profileId={semantics.activeProfile.id} semanticReleaseId={semantics.release.releaseId} /> : <>
         <section className="hero-row" id="overview">
           <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
           <div className="hero-actions"><button className="secondary-action" onClick={() => scrollToSection('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={14} /> Start investigation</button></div>
@@ -129,16 +137,16 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
               </div>
             </article>
           </section>
-          <AgentPanel id="agent" study={evidence.study} signal={signal} profileId={semantics.activeProfile.id} enabled={canInvestigate} />
+          <AgentPanel id="agent" study={evidence.study} signal={signal} profileId={semantics.activeProfile.id} enabled={canInvestigate} runtime={semantics} onOpenSemantic={openSemantic} />
         </div>
         <section className="panel graph-panel graph-wide" id="graph">
-          <div className="panel-heading"><div><span className="panel-kicker">Interactive evidence network</span><h2>{signal.organ}: from dose assignment to source artifact</h2><p>Follow the highlighted path, select any node for context, or expand the graph for investigation mode.</p></div><div className="graph-actions"><button className="text-action" onClick={() => openView('semantics')}>See data model <Braces size={13} /></button><button className="secondary-action graph-expand" onClick={() => setGraphOpen(true)}><Expand size={13} /> Expand graph</button></div></div>
+              <div className="panel-heading"><div><span className="panel-kicker">Interactive evidence network</span><h2>{signal.organ}: from dose assignment to source artifact</h2><p>Follow the highlighted path, select any node for context, or expand the graph for investigation mode.</p></div><div className="graph-actions"><button className="text-action" onClick={() => openSemantic('Finding')}>See data model <Braces size={13} /></button><button className="secondary-action graph-expand" onClick={() => setGraphOpen(true)}><Expand size={13} /> Expand graph</button></div></div>
           <EvidenceGraph evidence={evidence} signal={signal} />
         </section>
         <footer className="study-footer"><span>{evidence.provenance.method}</span><a href={evidence.study.source} target="_blank" rel="noreferrer">PhUSE SENDConform · {evidence.study.sourceRevision.slice(0, 9)}</a><span>{evidence.provenance.disclaimer}</span></footer>
         {graphOpen && <div className="graph-modal-backdrop" role="presentation" onMouseDown={() => setGraphOpen(false)}><section className="graph-modal" role="dialog" aria-modal="true" aria-label={`Evidence network for ${signal.organ}`} onMouseDown={(event) => event.stopPropagation()}><header><div><span className="panel-kicker">Immersive evidence network</span><h2>{signal.organ} · {signal.finding}</h2></div><button className="icon-button" onClick={() => setGraphOpen(false)} aria-label="Close evidence graph"><X size={18} /></button></header><EvidenceGraph evidence={evidence} signal={signal} immersive /></section></div>}
       </>}
-      {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} onClose={() => setRoomOpen(false)} />}
+      {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} onClose={() => setRoomOpen(false)} onOpenSemantic={openSemantic} />}
     </main>
   </div>;
 }

@@ -1,6 +1,6 @@
 import type { EvidenceClass, PortfolioSimilarityMatch, PortfolioSimilarityResult, SafetySignal, StudyEvidence } from '@/lib/contracts';
 
-const defaultReleaseId = 'org.contextobjects.nonclinical-safety@0.2.0';
+const defaultReleaseId = 'org.contextobjects.nonclinical-safety@0.3.0';
 const severityKeys = ['ungraded', 'minimal', 'slight', 'mild', 'moderate', 'marked', 'severe'];
 
 function clamp(value: number) {

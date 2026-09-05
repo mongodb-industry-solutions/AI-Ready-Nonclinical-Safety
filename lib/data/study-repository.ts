@@ -1,4 +1,4 @@
-import type { StudyEvidence } from '@/lib/contracts';
+import type { DataQueryTrace, StudyEvidence } from '@/lib/contracts';
 import { demoEvidence } from '@/lib/data/demo';
 import { solutionDatabase } from '@/lib/data/mongodb';
 import { portfolioBenchmarks } from '@/lib/data/portfolio-benchmarks';
@@ -18,21 +18,23 @@ type EvidenceChunk = {
   metadata: Record<string, unknown>;
 };
 
-async function evidenceCollection() {
+async function evidenceCollection(ensureIndexes = false) {
   const database = await solutionDatabase();
   if (!database) return null;
   const collection = database.collection<StudyEvidenceDocument>('study_evidence');
-  await collection.createIndexes([
-    { key: { 'study.id': 1, 'study.snapshotId': 1 }, name: 'study_snapshot', unique: true },
-    { key: { 'signals.organ': 1, 'signals.reviewPriority': 1 }, name: 'signal_review' },
-  ]);
+  if (ensureIndexes) {
+    await collection.createIndexes([
+      { key: { 'study.id': 1, 'study.snapshotId': 1 }, name: 'study_snapshot', unique: true },
+      { key: { 'signals.organ': 1, 'signals.reviewPriority': 1 }, name: 'signal_review' },
+    ]);
+  }
   return collection;
 }
 
 export async function bootstrapDemoEvidence(): Promise<boolean> {
   const database = await solutionDatabase();
   if (!database) return false;
-  const collection = await evidenceCollection();
+  const collection = await evidenceCollection(true);
   if (!collection) return false;
   await collection.updateOne(
     { 'study.id': demoEvidence.study.id, 'study.snapshotId': demoEvidence.study.snapshotId },
@@ -96,11 +98,14 @@ export async function bootstrapDemoEvidence(): Promise<boolean> {
   return true;
 }
 
-export async function loadStudyEvidence(studyId?: string): Promise<StudyEvidence> {
+export async function loadStudyEvidence(studyId?: string, onQuery?: (trace: DataQueryTrace) => void): Promise<StudyEvidence> {
+  const startedAt = Date.now();
   const collection = await evidenceCollection();
-  if (!collection) return demoEvidence;
+  if (!collection) {
+    onQuery?.({ id: 'study-evidence', source: 'portable-bundle', collection: 'study_evidence', operation: 'fixture-read', predicate: studyId ? { 'study.id': studyId } : { 'study.id': demoEvidence.study.id }, status: 'fallback', resultCount: 1, durationMs: Date.now() - startedAt });
+    return demoEvidence;
+  }
 
-  await bootstrapDemoEvidence();
   const query = studyId
     ? { 'study.id': studyId }
     : { 'study.id': demoEvidence.study.id, 'study.snapshotId': demoEvidence.study.snapshotId };
@@ -114,6 +119,14 @@ export async function loadStudyEvidence(studyId?: string): Promise<StudyEvidence
       { projection: { _id: 0, importedAt: 0, importSource: 0 }, sort: { importedAt: -1 } },
     );
   }
+  if (!stored && !studyId) {
+    await bootstrapDemoEvidence();
+    stored = await collection.findOne(
+      { 'study.id': demoEvidence.study.id },
+      { projection: { _id: 0, importedAt: 0, importSource: 0 }, sort: { importedAt: -1 } },
+    );
+  }
+  onQuery?.({ id: 'study-evidence', source: 'mongodb', collection: 'study_evidence', operation: 'findOne', predicate: query, status: 'executed', resultCount: stored ? 1 : 0, durationMs: Date.now() - startedAt });
   return stored ? (stored as unknown as StudyEvidence) : demoEvidence;
 }
 

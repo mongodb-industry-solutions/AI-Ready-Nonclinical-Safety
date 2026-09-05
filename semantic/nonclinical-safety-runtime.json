@@ -2,9 +2,9 @@
   "apiVersion": "contextobjects.dev/runtime-bundle/v1",
   "kind": "SemanticRuntimeBundle",
   "release": {
-    "releaseId": "org.contextobjects.nonclinical-safety@0.2.0",
+    "releaseId": "org.contextobjects.nonclinical-safety@0.3.0",
     "packageId": "org.contextobjects.nonclinical-safety",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "title": "Nonclinical Safety Semantic Runtime",
     "maturity": "preview",
     "compiledBy": "Context Studio",
@@ -268,6 +268,16 @@
       "stages": ["compileSemanticScope", "semanticSearch", "compareNormalizedIncidence", "compareSeverityProfile", "optionalVectorSearch", "reciprocalRankFusion", "domainRerank", "authorizeResults"]
     },
     {
+      "id": "resolver.investigate-safety-signal.v1",
+      "capability": "assemble-evidence-brief",
+      "input": { "studyId": "string", "snapshotId": "string", "signalId": "string", "profileId": "string", "question": "string" },
+      "output": "InvestigationResult",
+      "executor": "nonclinical-safety-investigator",
+      "policy": ["snapshot-bound", "profile-filtered", "citations-required", "no-regulatory-conclusion", "human-review", "read-only-evidence"],
+      "containmentPlan": { "language": "contextobjects-containment-v1", "semantics": "AQL-CONTAINS", "rootArchetype": "archetype.study-evidence-aggregate.v1", "contains": ["Study", "TreatmentGroup", "Subject", "Finding", "LabMeasurement", "SourceArtifact"], "compileTargets": ["mongodb-aggregation"] },
+      "stages": ["authorizeProfile", "bindStudySnapshot", "hydrateCanonicalEvidence", "resolveSemanticMeaning", "executeHybridRetrieval", "expandEvidenceGraph", "domainRerank", "synthesizeCitations", "persistAudit"]
+    },
+    {
       "id": "resolver.evidence-brief.v1",
       "capability": "assemble-evidence-brief",
       "input": { "investigationId": "string" },
@@ -426,5 +436,5 @@
       "Profile authorization is enforced by the API, not only by the UI."
     ]
   },
-  "contentDigest": "sha256:d95142df9652bc74be55c6a17079c81beafe81a42a9a9e9ff23e93dfcce0b1a3"
+  "contentDigest": "sha256:0279692509884481edb704fb2e3692b03e9b71741cafa1d5e156bd989c73ce1e"
 }

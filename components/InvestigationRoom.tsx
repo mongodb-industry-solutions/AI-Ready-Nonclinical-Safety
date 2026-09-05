@@ -12,12 +12,13 @@ import RecordEvidencePanel from '@/components/RecordEvidencePanel';
 
 type Canvas = 'evidence' | 'records' | 'dose' | 'literature' | 'semantics';
 
-export default function InvestigationRoom({ evidence, signal, runtime, literature, onClose }: { evidence: StudyEvidence; signal: SafetySignal; runtime: SemanticRuntimeView; literature: LiteratureDocument[]; onClose: () => void }) {
+export default function InvestigationRoom({ evidence, signal, runtime, literature, onClose, onOpenSemantic }: { evidence: StudyEvidence; signal: SafetySignal; runtime: SemanticRuntimeView; literature: LiteratureDocument[]; onClose: () => void; onOpenSemantic: (focusId?: string) => void }) {
   const [canvas, setCanvas] = useState<Canvas>('evidence');
   const [action, setAction] = useState(runtime.actions[0]?.id || 'annotate');
   const [note, setNote] = useState('');
   const [saved, setSaved] = useState<ReviewActionRecord | null>(null);
   const [busy, setBusy] = useState(false);
+  const [investigatorExpanded, setInvestigatorExpanded] = useState(false);
   const lab = signal.correlatedLab ? evidence.labSeries?.[signal.correlatedLab] : undefined;
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
     const link = document.createElement('a'); link.href = url; link.download = `${evidence.study.id}-${signal.id}-evidence-brief.json`; link.click(); URL.revokeObjectURL(url);
   }
 
-  return <div className="investigation-room" role="dialog" aria-modal="true" aria-label="AI safety investigation room">
+  return <div className={`investigation-room ${investigatorExpanded ? 'investigator-focus' : ''}`} role="dialog" aria-modal="true" aria-label="AI safety investigation room">
     <header className="room-header">
       <div className="room-title"><span><Bot size={18} /></span><div><nav className="room-breadcrumb" aria-label="Breadcrumb"><button type="button" onClick={onClose}><LayoutDashboard size={11} /> Study workspace</button><ChevronRight size={11} /><em>Investigation room</em></nav><strong>{signal.organ} · {signal.finding}</strong></div></div>
       <div className="room-state"><ShieldCheck size={14} /><span>Snapshot-bound</span><i /> <Network size={14} /><span>{runtime.activeProfile.label}</span><i /><span>{runtime.release.version}</span></div>
@@ -73,7 +74,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
           {saved && <div className="saved-action"><CheckCircle2 size={14} /><span><b>{saved.status}</b><small>{saved.id}</small></span></div>}
         </section>
       </main>
-      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} onShowSource={() => setCanvas('records')} />
+      <AgentPanel study={evidence.study} signal={signal} profileId={runtime.activeProfile.id} evidence={evidence} runtime={runtime} expanded={investigatorExpanded} onToggleExpanded={() => setInvestigatorExpanded((expanded) => !expanded)} onShowSource={() => { setInvestigatorExpanded(false); setCanvas('records'); }} onOpenSemantic={onOpenSemantic} />
     </div>
   </div>;
 }

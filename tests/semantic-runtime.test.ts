@@ -45,6 +45,14 @@ describe('portable semantic runtime', () => {
     ]));
   });
 
+  it('publishes an industry-specific investigator resolver with the real API inputs', () => {
+    const runtime = semanticRuntimeForProfile('toxicologist');
+    const resolver = runtime.resolvers.find((item) => item.id === 'resolver.investigate-safety-signal.v1');
+    expect(resolver?.input).toEqual({ studyId: 'string', snapshotId: 'string', signalId: 'string', profileId: 'string', question: 'string' });
+    expect(resolver?.containmentPlan?.contains).toEqual(expect.arrayContaining(['Study', 'TreatmentGroup', 'Subject', 'Finding', 'LabMeasurement', 'SourceArtifact']));
+    expect(resolver?.stages).toContain('persistAudit');
+  });
+
   it('materializes a polymorphic semantic map and an auto-embedding source projection without vector fields', () => {
     const bundle = semanticRuntimeBundle();
     const materialized = materializeSemanticBundle(bundle);

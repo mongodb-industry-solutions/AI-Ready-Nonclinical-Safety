@@ -171,6 +171,17 @@ export interface SignalRecordEvidence {
   counts: { findings: number; laboratory: number; subjects: number; artifacts: number };
 }
 
+export interface DataQueryTrace {
+  id: string;
+  source: 'mongodb' | 'portable-bundle';
+  collection: string;
+  operation: 'find' | 'findOne' | 'fixture-read';
+  predicate: Record<string, unknown>;
+  status: 'executed' | 'fallback' | 'skipped';
+  resultCount: number;
+  durationMs: number;
+}
+
 export interface Citation {
   domain: string;
   label: string;
@@ -182,8 +193,35 @@ export interface InvestigationStep {
   id: string;
   label: string;
   engine: 'structured' | 'vector' | 'graph' | 'rerank' | 'synthesis';
-  status: 'complete' | 'planned' | 'fallback';
+  status: 'complete' | 'skipped' | 'fallback';
   detail: string;
+}
+
+export interface InvestigationExecutionContract {
+  apiVersion: 'nonclinical-safety.dev/investigation-execution/v1';
+  resolverId: string;
+  capabilityId: string;
+  semanticReleaseId: string;
+  executor: string;
+  inputSchema: Record<string, string>;
+  outputSchema: string;
+  policies: string[];
+  declaredStages: string[];
+  executedStages: InvestigationStep[];
+  dataOperations: DataQueryTrace[];
+  executedAt: string;
+  boundScope: {
+    studyId: string;
+    snapshotId: string;
+    signalId: string;
+    profileId: SemanticProfileId;
+  };
+  queryShape: {
+    readCollections: string[];
+    auditWriteCollection: 'investigations';
+    predicates: Record<string, Array<Record<string, unknown>>>;
+    immutableEvidence: true;
+  };
 }
 
 export interface InvestigationResult {
@@ -197,6 +235,7 @@ export interface InvestigationResult {
     regulatoryConclusion: false;
   };
   provider: 'deterministic' | 'magenta';
+  execution?: InvestigationExecutionContract;
 }
 
 export type SemanticProfileId = 'toxicologist' | 'study-director' | 'data-steward' | 'portfolio-lead' | 'external-reviewer';

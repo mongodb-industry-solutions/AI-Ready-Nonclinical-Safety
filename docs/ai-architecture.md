@@ -12,6 +12,12 @@ The target agent is an evidence coordinator, not a toxicologist replacement.
 
 Candidate evidence is fused with reciprocal-rank fusion, then reranked against the investigation question and current study context. Structured facts keep their exact values and are never replaced by generated text.
 
+The Investigation Room presents the compiled resolver contract separately from the execution trace. The contract states the authorized capability, semantic release, policies, bounded study/snapshot/signal predicate, declared stages, exact read collections, and separate audit write. The trace records which stages actually completed, fell back, or were skipped. This is application execution provenance; it does not claim to be MongoDB `explain()` output. Database-level explain telemetry can be attached to the same envelope in production when query-performance diagnosis is authorized.
+
+In AI-first mode the conversation conducts a visual canvas instead of replacing it. Answers compose dose-response, laboratory, evidence-topology, semantic-grounding, and execution widgets. Hybrid semantic candidates expose their hierarchy and value-set context; the investigator can choose an intended meaning, rerun the question with that governed interpretation, or open the selected object in the full semantic-map explorer.
+
+Resolvers are extensible semantic products, not a closed list of generic APIs. Context Studio owns the portable resolver schema and compiler boundary; an industry package can add resolvers such as `resolver.investigate-safety-signal.v1` with domain-specific containment, policies, stages, and result types. The solution binds those contracts to its own adapters. This follows the useful openEHR RPS-dual principle—preserve governed meaning, compile paths for the workload, and keep optimized projections rebuildable—without requiring this nonclinical model to become openEHR.
+
 ### AQL containment and hybrid retrieval
 
 AQL is an openEHR query language; MongoDB does not execute it natively. Context Studio therefore compiles the useful semantic part—`CONTAINS` relationships between archetypes—into a portable `contextobjects-containment-v1` plan. An openEHR binding may render native AQL. This solution renders the same scope as MongoDB aggregation and graph traversal, then applies Atlas Search and Vector Search in parallel, reciprocal-rank fusion, and a domain reranker. This preserves archetype meaning without coupling the semantic model to one physical query language.

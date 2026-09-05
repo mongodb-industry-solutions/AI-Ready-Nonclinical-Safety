@@ -30,7 +30,7 @@ function ModelNode({ data }: NodeProps<Node<ModelNodeData>>) {
 const nodeTypes = { model: ModelNode };
 const lensIcons = { 'business-documents': Box, 'semantic-graph': GitBranch, 'retrieval-projections': SearchCode, 'physical-mongodb': Database };
 
-export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { runtime: SemanticRuntimeView; onRuntimeChange: (runtime: SemanticRuntimeView) => void }) {
+export default function SemanticModelExplorer({ runtime, focusId, onRuntimeChange }: { runtime: SemanticRuntimeView; focusId?: string; onRuntimeChange: (runtime: SemanticRuntimeView) => void }) {
   const [lens, setLens] = useState<Lens>('business-documents');
   const [selectedId, setSelectedId] = useState('Finding');
   const [streamState, setStreamState] = useState('connecting');
@@ -68,6 +68,12 @@ export default function SemanticModelExplorer({ runtime, onRuntimeChange }: { ru
       .catch(() => { if (active) setSemanticSearchState('error'); });
     return () => { active = false; };
   }, [runtime.activeProfile.id, runtime.release.releaseId]);
+  useEffect(() => {
+    if (focusId && runtime.objects.some((object) => object.id === focusId)) {
+      setSelectedId(focusId);
+      setLens('semantic-graph');
+    }
+  }, [focusId, runtime.objects]);
   const selected = runtime.objects.find((object) => object.id === selectedId) || runtime.objects[0];
   const valueSet = runtime.valueSets.find((item) => item.id === 'finding-morphology');
   const demoValueActive = valueSet?.values.includes(newValue) || false;

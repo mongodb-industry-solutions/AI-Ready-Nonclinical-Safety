@@ -83,7 +83,7 @@ The solution projector is intentionally owned here rather than in Kehrnel. Kehrn
 |---|---|---|
 | GET | `/api/studies/{studyId}/signals` | Retrieve a snapshot-bound study evidence model |
 | GET | `/api/studies/{studyId}/signals/{signalId}/records` | Resolve a visual signal to canonical subject, finding, lab, treatment, and artifact evidence |
-| POST | `/api/investigations` | Execute a profile-authorized, cited evidence investigation |
+| POST | `/api/investigations` | Execute a profile-authorized, cited investigation and return its compiled contract plus measured data-operation trace |
 | GET | `/api/literature` | Execute containment, lexical, Atlas Automated Embedding, graph, fusion, and reranking stages |
 | GET | `/api/portfolio/similarity` | Compare a finding across study snapshots with semantic, incidence, severity, Atlas Automated Embedding, fusion, and reranking telemetry |
 | GET / POST | `/api/reviews` | Read or append governed expert review actions |
