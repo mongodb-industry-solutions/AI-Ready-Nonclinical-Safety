@@ -48,7 +48,12 @@ export interface StudyEvidence {
   doseGroups: DoseGroup[];
   signals: SafetySignal[];
   labSeries: Record<string, LabSeries>;
-  provenance: { derivedAt: string; method: string; disclaimer: string };
+  provenance: {
+    derivedAt: string;
+    method: string;
+    disclaimer: string;
+    sourceArtifacts?: Record<string, string>;
+  };
 }
 
 export interface Citation {

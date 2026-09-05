@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Activity, Beaker, Bot, Braces, ChevronDown, CircleHelp, Database, Dna, Expand, FileCheck2, FlaskConical, GitBranch, Layers3, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
+import { Activity, Bot, Braces, ChevronDown, CircleHelp, Database, Dna, Expand, FileCheck2, FlaskConical, GitBranch, Layers3, LayoutDashboard, Microscope, Search, ShieldCheck, Sparkles, UserRound, X } from 'lucide-react';
 import type { LiteratureDocument, SafetySignal, SemanticProfileId, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import { reviewScore } from '@/lib/analysis/signal-engine';
 import AgentPanel from '@/components/AgentPanel';
@@ -11,21 +11,16 @@ import LabTrajectoryChart from '@/components/LabTrajectoryChart';
 import SignalMatrix from '@/components/SignalMatrix';
 import SemanticModelExplorer from '@/components/SemanticModelExplorer';
 import InvestigationRoom from '@/components/InvestigationRoom';
+import AuditLineageView from '@/components/AuditLineageView';
 
-const nav = [
-  { id: 'overview', label: 'Study overview', icon: FlaskConical },
-  { id: 'signals', label: 'Signal landscape', icon: Activity },
-  { id: 'dose', label: 'Dose & labs', icon: Beaker },
-  { id: 'graph', label: 'Evidence graph', icon: GitBranch },
-  { id: 'agent', label: 'AI investigations', icon: Bot },
-];
+type WorkspaceView = 'workspace' | 'semantics' | 'architecture' | 'audit';
 
 function PriorityPill({ value }: { value: SafetySignal['reviewPriority'] }) {
   return <span className={`priority-pill priority-${value}`}>{value === 'high' ? 'review first' : value}</span>;
 }
 
 export default function SafetyIntelligenceApp({ evidence, initialSemantics, literature }: { evidence: StudyEvidence; initialSemantics: SemanticRuntimeView; literature: LiteratureDocument[] }) {
-  const [section, setSection] = useState('signals');
+  const [view, setView] = useState<WorkspaceView>('workspace');
   const [selectedId, setSelectedId] = useState(evidence.signals[0].id);
   const [graphOpen, setGraphOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
@@ -34,9 +29,18 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
   const lab = signal.correlatedLab ? evidence.labSeries[signal.correlatedLab] : evidence.labSeries.LYM;
   const ranked = useMemo(() => evidence.signals.map((item) => ({ ...item, score: reviewScore(item, evidence.doseGroups) })).sort((a, b) => b.score - a.score), [evidence]);
   const canInvestigate = semantics.capabilities.some((item) => item.id === 'assemble-evidence-brief');
-  const goTo = (target: string) => {
-    setSection(target);
+  const scrollToSection = (target: string) => {
     window.setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+  const openInvestigation = () => {
+    if (!canInvestigate) return;
+    setView('workspace');
+    setRoomOpen(true);
+  };
+  const openView = (target: WorkspaceView) => {
+    setRoomOpen(false);
+    setView(target);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   async function changeProfile(profile: SemanticProfileId) {
     const response = await fetch(`/api/semantics?profile=${profile}`, { cache: 'no-store' });
@@ -47,9 +51,12 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark"><Dna size={20} /></span><div><strong>Safety Intelligence</strong><small>MongoDB Solution Library</small></div></div>
       <div className="nav-label">Investigation</div>
-      <nav>{nav.map((item) => { const Icon = item.icon; return <button key={item.id} className={section === item.id ? 'active' : ''} onClick={() => goTo(item.id)}><Icon size={16} /><span>{item.label}</span>{item.id === 'signals' && <em>{evidence.signals.length}</em>}</button>; })}</nav>
+      <nav>
+        <button className={view === 'workspace' && !roomOpen ? 'active' : ''} onClick={() => openView('workspace')}><LayoutDashboard size={16} /><span>Study workspace</span></button>
+        <button className={roomOpen ? 'active' : ''} disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={16} /><span>Investigation room</span></button>
+      </nav>
       <div className="nav-label">Platform</div>
-      <nav><button onClick={() => setSection('semantics')} className={section === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button onClick={() => setSection('architecture')} className={section === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Data & AI architecture</span></button><button onClick={() => goTo('graph')}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
+      <nav><button onClick={() => openView('semantics')} className={view === 'semantics' ? 'active' : ''}><Braces size={16} /><span>Semantic model</span></button><button onClick={() => openView('architecture')} className={view === 'architecture' ? 'active' : ''}><Layers3 size={16} /><span>Data & AI architecture</span></button><button onClick={() => openView('audit')} className={view === 'audit' ? 'active' : ''}><FileCheck2 size={16} /><span>Audit & lineage</span></button></nav>
       <div className="source-card"><div><span className="status-dot" /> Published evidence</div><strong>{evidence.study.implementationGuide}</strong><small>Immutable · checksum verified</small></div>
     </aside>
 
@@ -62,10 +69,10 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
         <button className="icon-button"><CircleHelp size={17} /></button>
       </header>
 
-      {section === 'architecture' ? <Architecture evidence={evidence} onBack={() => setSection('signals')} /> : section === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : <>
+      {view === 'architecture' ? <Architecture evidence={evidence} onBack={() => openView('workspace')} /> : view === 'semantics' ? <SemanticModelExplorer runtime={semantics} onRuntimeChange={setSemantics} /> : view === 'audit' ? <AuditLineageView evidence={evidence} runtime={semantics} canInvestigate={canInvestigate} onOpenInvestigation={openInvestigation} /> : <>
         <section className="hero-row" id="overview">
           <div><div className="eyebrow">Nonclinical safety review · public demonstration study</div><h1>Signal landscape</h1><p>Move from study-wide patterns to animal-level evidence, then ask an AI investigator to explain exactly what it checked.</p></div>
-          <div className="hero-actions"><button className="secondary-action" onClick={() => goTo('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={() => setRoomOpen(true)}><Sparkles size={14} /> Start investigation</button></div>
+          <div className="hero-actions"><button className="secondary-action" onClick={() => scrollToSection('graph')}><GitBranch size={14} /> Evidence graph</button><button className="primary-action" disabled={!canInvestigate} title={canInvestigate ? undefined : 'The active semantic profile cannot run the AI investigator'} onClick={openInvestigation}><Sparkles size={14} /> Start investigation</button></div>
         </section>
 
         <section className="metric-row">
@@ -110,13 +117,13 @@ export default function SafetyIntelligenceApp({ evidence, initialSemantics, lite
           <AgentPanel id="agent" study={evidence.study} signal={signal} profileId={semantics.activeProfile.id} enabled={canInvestigate} />
         </div>
         <section className="panel graph-panel graph-wide" id="graph">
-          <div className="panel-heading"><div><span className="panel-kicker">Interactive evidence network</span><h2>{signal.organ}: from dose assignment to source artifact</h2><p>Follow the highlighted path, select any node for context, or expand the graph for investigation mode.</p></div><div className="graph-actions"><button className="text-action" onClick={() => setSection('architecture')}>See data model <Braces size={13} /></button><button className="secondary-action graph-expand" onClick={() => setGraphOpen(true)}><Expand size={13} /> Expand graph</button></div></div>
+          <div className="panel-heading"><div><span className="panel-kicker">Interactive evidence network</span><h2>{signal.organ}: from dose assignment to source artifact</h2><p>Follow the highlighted path, select any node for context, or expand the graph for investigation mode.</p></div><div className="graph-actions"><button className="text-action" onClick={() => openView('semantics')}>See data model <Braces size={13} /></button><button className="secondary-action graph-expand" onClick={() => setGraphOpen(true)}><Expand size={13} /> Expand graph</button></div></div>
           <EvidenceGraph evidence={evidence} signal={signal} />
         </section>
         <footer className="study-footer"><span>{evidence.provenance.method}</span><a href={evidence.study.source} target="_blank" rel="noreferrer">PhUSE SENDConform · {evidence.study.sourceRevision.slice(0, 9)}</a><span>{evidence.provenance.disclaimer}</span></footer>
         {graphOpen && <div className="graph-modal-backdrop" role="presentation" onMouseDown={() => setGraphOpen(false)}><section className="graph-modal" role="dialog" aria-modal="true" aria-label={`Evidence network for ${signal.organ}`} onMouseDown={(event) => event.stopPropagation()}><header><div><span className="panel-kicker">Immersive evidence network</span><h2>{signal.organ} · {signal.finding}</h2></div><button className="icon-button" onClick={() => setGraphOpen(false)} aria-label="Close evidence graph"><X size={18} /></button></header><EvidenceGraph evidence={evidence} signal={signal} immersive /></section></div>}
-        {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} onClose={() => setRoomOpen(false)} />}
       </>}
+      {roomOpen && <InvestigationRoom evidence={evidence} signal={signal} runtime={semantics} literature={literature.filter((document) => document.matchedSignalIds.includes(signal.id))} onClose={() => setRoomOpen(false)} />}
     </main>
   </div>;
 }
@@ -130,7 +137,7 @@ function Architecture({ evidence, onBack }: { evidence: StudyEvidence; onBack: (
     { n: '05', title: 'Solution app', sub: 'Expert review workspace', body: 'Interactive visuals, explanations, feedback and audit trail.', tone: 'rose' },
   ];
   return <section className="architecture-page">
-    <button className="back-link" onClick={onBack}>← Back to signal landscape</button>
+    <button className="back-link" onClick={onBack}>← Back to study workspace</button>
     <div className="architecture-title"><div className="eyebrow">How it was created</div><h1>One governed source. Many intelligent interactions.</h1><p>The business application is intentionally separate from the data factory, canonical model, and agent runtime.</p></div>
     <div className="architecture-flow">{layers.map((layer, index) => <article key={layer.n} className={`architecture-card tone-${layer.tone}`}><span>{layer.n}</span><div className="architecture-icon">{index === 0 ? <FileCheck2 /> : index === 1 ? <Database /> : index === 2 ? <GitBranch /> : index === 3 ? <Bot /> : <Activity />}</div><h2>{layer.title}</h2><b>{layer.sub}</b><p>{layer.body}</p>{index < layers.length - 1 && <i>→</i>}</article>)}</div>
     <div className="boundary-grid">
