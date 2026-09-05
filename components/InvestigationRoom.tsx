@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Activity, BookOpen, Bot, CheckCircle2, Database, Download, GitBranch, Network, Save, ShieldCheck, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Activity, BookOpen, Bot, CheckCircle2, ChevronRight, Database, Download, GitBranch, LayoutDashboard, Network, Save, ShieldCheck, X } from 'lucide-react';
 import type { LiteratureDocument, ReviewActionRecord, SafetySignal, SemanticRuntimeView, StudyEvidence } from '@/lib/contracts';
 import AgentPanel from '@/components/AgentPanel';
 import DoseResponseChart from '@/components/DoseResponseChart';
@@ -19,6 +19,12 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
   const [saved, setSaved] = useState<ReviewActionRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const lab = signal.correlatedLab ? evidence.labSeries?.[signal.correlatedLab] : undefined;
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
 
   async function commitReview() {
     if (note.trim().length < 3) return;
@@ -40,9 +46,9 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
 
   return <div className="investigation-room" role="dialog" aria-modal="true" aria-label="AI safety investigation room">
     <header className="room-header">
-      <div className="room-title"><span><Bot size={18} /></span><div><small>AI SAFETY INVESTIGATION ROOM</small><strong>{signal.organ} · {signal.finding}</strong></div></div>
+      <div className="room-title"><span><Bot size={18} /></span><div><nav className="room-breadcrumb" aria-label="Breadcrumb"><button type="button" onClick={onClose}><LayoutDashboard size={11} /> Study workspace</button><ChevronRight size={11} /><em>Investigation room</em></nav><strong>{signal.organ} · {signal.finding}</strong></div></div>
       <div className="room-state"><ShieldCheck size={14} /><span>Snapshot-bound</span><i /> <Network size={14} /><span>{runtime.activeProfile.label}</span><i /><span>{runtime.release.version}</span></div>
-      <button className="secondary-action" onClick={exportBrief}><Download size={14} /> Export brief</button><button className="icon-button" onClick={onClose}><X size={17} /></button>
+      <button className="secondary-action" onClick={exportBrief}><Download size={14} /> Export brief</button><button className="icon-button" aria-label="Close investigation room and return to study workspace" title="Return to study workspace" onClick={onClose}><X size={17} /></button>
     </header>
     <div className="room-body">
       <aside className="room-context">
