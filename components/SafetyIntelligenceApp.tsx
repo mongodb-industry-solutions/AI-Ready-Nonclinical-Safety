@@ -17,6 +17,7 @@ import PortfolioIntelligenceView from '@/components/PortfolioIntelligenceView';
 import LearningJourney from '@/components/LearningJourney';
 import EvidenceAssembly, { type EvidenceDomain } from '@/components/EvidenceAssembly';
 import type { InvestigationCanvas } from '@/components/InvestigationRoom';
+import AnatomicalSignalNavigator from '@/components/AnatomicalSignalNavigator';
 
 type WorkspaceView = 'journey' | 'workspace' | 'portfolio' | 'semantics' | 'architecture' | 'audit';
 
@@ -144,7 +145,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
             <article className="panel signal-map-panel">
               <div className="panel-heading"><div><span className="panel-kicker">Organ signal map</span><h2>Findings ranked for review</h2></div><div className="legend"><span className="legend-high" /> treated-only <span className="legend-context" /> contextual</div></div>
               <div className="signal-landscape">
-                <div className="body-map" aria-label="Stylized organ map"><div className="body-head" /><div className="body-torso"><button className={signal.organ === 'THYMUS' ? 'selected' : ''} onClick={() => setSelectedId('thymus-lymphocytes')} style={{ top: '18%', left: '43%' }} title="Thymus"><span /></button><button className={signal.organ === 'LUNG' ? 'selected' : ''} onClick={() => setSelectedId('lung-infiltration')} style={{ top: '28%', left: '28%' }} title="Lung"><span /></button><button className={signal.organ === 'HEART' ? 'selected' : ''} onClick={() => setSelectedId('heart-infiltration')} style={{ top: '34%', left: '55%' }} title="Heart"><span /></button><button className={signal.organ === 'LIVER' ? 'selected' : ''} onClick={() => setSelectedId('liver-inflammatory')} style={{ top: '51%', left: '31%' }} title="Liver"><span /></button><button className={signal.organ === 'KIDNEY' ? 'selected' : ''} onClick={() => setSelectedId('kidney-infiltration')} style={{ top: '58%', left: '59%' }} title="Kidney"><span /></button></div><div className="body-legs" /></div>
+                <AnatomicalSignalNavigator signals={ranked} selectedId={signal.id} species={evidence.study.species} onSelect={setSelectedId} />
                 <div className="signal-list">{ranked.map((item) => <button key={item.id} className={item.id === signal.id ? 'selected' : ''} onClick={() => setSelectedId(item.id)}><span className="organ-abbr">{item.organ.slice(0, 2)}</span><span className="signal-copy"><b>{item.organ}</b><small>{item.finding}</small></span><span className="signal-count">{item.affectedAnimals}/{item.totalAnimals}</span><PriorityPill value={item.reviewPriority} /></button>)}</div>
               </div>
             </article>
