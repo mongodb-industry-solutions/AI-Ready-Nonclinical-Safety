@@ -121,7 +121,7 @@ Without `MONGODB_URI`, the application provides a fully interactive experience f
 
 When `MONGODB_URI` is set, the application reads its own canonical evidence, operational read models, retrieval projections, and solution-state collections. The bundled public study summary is inserted idempotently on first use. A Kehrnel export can additionally populate `study_snapshots`, `dataset_definitions`, `cdisc_records`, `subjects`, `source_artifacts`, `validation_evidence`, and `lineage_events` without coupling the running solution to Kehrnel.
 
-Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Download that generated JSON artifact, then import it with the optional business read model:
+Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Its checked-in contract is [`contracts/cdisc-solution-evidence-v1.schema.json`](contracts/cdisc-solution-evidence-v1.schema.json). Download the generated JSON artifact, then import it with the optional business read model:
 
 ```bash
 npm run import:study -- ./path/to/solution-evidence-package.json ./path/to/study-evidence.json
