@@ -20,7 +20,7 @@ The in-product **Solution architecture** workspace and [full architecture guide]
 - A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
 - A full-screen Investigation Room with an optional AI-first canvas where the investigator composes typed graph, dose-response, laboratory, semantic-clarification, and resolver widgets while exposing citations.
 - An inspectable execution envelope for every investigation: the authorized deterministic resolver contract, immutable query scope, declared stages, and the stages that actually executed, fell back, or were skipped.
-- Record-level drilldown from a signal to the contributing MI, DM, TX, and LB rows and their checksum-verified source artifacts.
+- Record-level drilldown from a signal to its contributing evidence, followed by a paginated canonical explorer across every imported domain, subject or complete-study scope, and checksum-verified source artifact. Laboratory rows can be filtered by finding-linked test, source-supplied abnormality/range evidence, or unavailable reference range without inventing clinical thresholds.
 - A literature-evidence workspace that grounds SEND findings to attributed PubMed records, separates supporting context from alternative explanations, and exposes the hybrid retrieval path.
 - A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses, plus live hybrid search across the map itself.
 - Governed review actions stored separately from immutable SEND evidence.

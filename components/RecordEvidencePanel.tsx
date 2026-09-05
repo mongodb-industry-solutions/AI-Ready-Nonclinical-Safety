@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Database, FileCheck2, Fingerprint, LoaderCircle, Microscope } from 'lucide-react';
-import type { SafetySignal, SignalRecordEvidence, StudySummary } from '@/lib/contracts';
+import { Braces, ChevronLeft, ChevronRight, Database, FileCheck2, Fingerprint, LoaderCircle, Microscope, Rows3 } from 'lucide-react';
+import type { CanonicalEvidenceRecord, CanonicalRecordPage, SafetySignal, SignalRecordEvidence, StudySummary } from '@/lib/contracts';
 import type { EvidenceDomain } from '@/components/EvidenceAssembly';
 
 function value(record: Record<string, unknown> | undefined, keys: string[]) {
@@ -20,10 +20,50 @@ const domainFocusCopy: Record<EvidenceDomain, { title: string; detail: string }>
   LB: { title: 'Laboratory tests', detail: 'Longitudinal measurements used as biological context; they do not create the pathology finding.' },
 };
 
+const domainLabels: Record<string, string> = {
+  DM: 'Demographics', TX: 'Trial sets', MI: 'Microscopic findings', LB: 'Laboratory tests',
+  MA: 'Macroscopic findings', OM: 'Organ measurements', BW: 'Body weights', BG: 'Body-weight gain',
+  CL: 'Clinical observations', CV: 'Cardiovascular', EG: 'ECG tests', FW: 'Food and water',
+  PC: 'Toxicokinetic concentrations', PP: 'Toxicokinetic parameters', SC: 'Subject characteristics', VS: 'Vital signs',
+};
+
+const pageSize = 12;
+
+function entries(record: Record<string, unknown>) {
+  return Object.entries(record).filter(([, item]) => item !== undefined && item !== null && item !== '');
+}
+
+function recordSummary(record: CanonicalEvidenceRecord) {
+  return value(record.data, ['MISTRESC', 'MIORRES', 'LBTEST', 'TXPARM', 'DOMAIN', 'USUBJID', 'SUBJID']);
+}
+
+function laboratoryAssessment(record: CanonicalEvidenceRecord) {
+  if (record.domain !== 'LB') return undefined;
+  const sourceFlag = value(record.data, ['LBNRIND']);
+  const result = Number(record.data.LBSTRESN);
+  const lower = Number(record.data.LBSTNRLO);
+  const upper = Number(record.data.LBSTNRHI);
+  const hasResult = Number.isFinite(result);
+  const hasLower = record.data.LBSTNRLO !== undefined && record.data.LBSTNRLO !== '' && Number.isFinite(lower);
+  const hasUpper = record.data.LBSTNRHI !== undefined && record.data.LBSTNRHI !== '' && Number.isFinite(upper);
+  if (['HIGH', 'LOW', 'ABNORMAL', 'H', 'L', 'ABN', 'A'].includes(sourceFlag.toUpperCase())) return { status: 'outside', label: `source flag ${sourceFlag}` };
+  if (hasResult && hasLower && result < lower) return { status: 'outside', label: `below ${lower}` };
+  if (hasResult && hasUpper && result > upper) return { status: 'outside', label: `above ${upper}` };
+  if (hasResult && (hasLower || hasUpper)) return { status: 'within', label: 'within supplied limits' };
+  if (['NORMAL', 'N'].includes(sourceFlag.toUpperCase())) return { status: 'within', label: `source flag ${sourceFlag}` };
+  return { status: 'unassessed', label: 'reference range unavailable' };
+}
+
 export default function RecordEvidencePanel({ study, signal, focusDomain }: { study: StudySummary; signal: SafetySignal; focusDomain?: EvidenceDomain }) {
   const [result, setResult] = useState<SignalRecordEvidence | null>(null);
   const [selected, setSelected] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [recordScope, setRecordScope] = useState<'subject' | 'study'>('subject');
+  const [recordDomain, setRecordDomain] = useState<string>(focusDomain || 'MI');
+  const [recordOffset, setRecordOffset] = useState(0);
+  const [recordFilter, setRecordFilter] = useState<CanonicalRecordPage['filter']>('all');
+  const [recordPage, setRecordPage] = useState<CanonicalRecordPage | null>(null);
+  const [recordLoading, setRecordLoading] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -34,11 +74,34 @@ export default function RecordEvidencePanel({ study, signal, focusDomain }: { st
         if (!response.ok) throw new Error('Record evidence could not be loaded');
         return response.json();
       })
-      .then(setResult)
+      .then((data: SignalRecordEvidence) => {
+        setResult(data);
+        const preferred = focusDomain && data.domainInventory.some((item) => item.domain === focusDomain) ? focusDomain : data.domainInventory[0]?.domain;
+        if (preferred) setRecordDomain(preferred);
+      })
       .catch(() => { if (!controller.signal.aborted) setResult(null); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [signal.id, study.id]);
+  }, [focusDomain, signal.id, study.id]);
+
+  const selectedSubjectId = result?.subjects[selected]?.subjectId;
+  useEffect(() => {
+    if (!result?.available || !recordDomain || (recordScope === 'subject' && !selectedSubjectId)) return;
+    const controller = new AbortController();
+    const parameters = new URLSearchParams({ domain: recordDomain, scope: recordScope, filter: recordFilter, offset: String(recordOffset), limit: String(pageSize) });
+    if (selectedSubjectId) parameters.set('subjectId', selectedSubjectId);
+    if (signal.correlatedLab) parameters.set('linkedTestCode', signal.correlatedLab);
+    setRecordLoading(true);
+    fetch(`/api/studies/${encodeURIComponent(study.id)}/records?${parameters}`, { cache: 'no-store', signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Canonical records could not be loaded');
+        return response.json();
+      })
+      .then(setRecordPage)
+      .catch(() => { if (!controller.signal.aborted) setRecordPage(null); })
+      .finally(() => { if (!controller.signal.aborted) setRecordLoading(false); });
+    return () => controller.abort();
+  }, [recordDomain, recordFilter, recordOffset, recordScope, result?.available, selectedSubjectId, signal.correlatedLab, study.id]);
 
   if (loading) return <div className="record-evidence-state"><LoaderCircle className="spin" size={18} /><span><b>Resolving source records</b><small>Following MI → subject → DM / TX / LB → immutable artifact</small></span></div>;
   if (!result?.available) return <div className="record-evidence-state empty"><Database size={18} /><span><b>Canonical evidence package not imported</b><small>The aggregate demonstration remains available. Import a verified Kehrnel solution-evidence package to activate row-level drilldown.</small></span></div>;
@@ -57,9 +120,9 @@ export default function RecordEvidencePanel({ study, signal, focusDomain }: { st
       <div className="evidence-package-badge"><FileCheck2 size={13} /><span><b>Verified handoff</b><small>schema {result.modelSchemaVersion} · {result.packageId?.slice(0, 22)}…</small></span></div>
     </header>
     {focusDomain && <div className="record-domain-focus" data-domain={focusDomain}><span>{focusDomain}</span><div><b>Inspecting {domainFocusCopy[focusDomain].title}</b><small>{domainFocusCopy[focusDomain].detail}</small></div></div>}
-    <div className="record-counts"><span><b>{result.counts.subjects}</b> subjects</span><span><b>{result.counts.findings}</b> MI rows</span><span><b>{result.counts.laboratory}</b> LB rows</span><span><b>{result.counts.artifacts}</b> artifacts</span></div>
+    <div className="record-counts"><span><b>{result.counts.subjects}</b> subjects</span><span><b>{result.counts.findings}</b> MI rows</span><span><b>{result.counts.laboratory}</b> correlated LB rows</span><span><b>{result.counts.artifacts}</b> artifacts</span></div>
     <div className="record-evidence-body">
-      <aside><span>Supporting animals</span>{result.subjects.map((item, index) => <button key={item.subjectId} className={selected === index ? 'active' : ''} onClick={() => setSelected(index)}><i>{String(index + 1).padStart(2, '0')}</i><span><b>{item.subjectId}</b><small>{item.treatmentGroup || 'group not projected'} · {item.laboratoryRecords.length} lab rows</small></span></button>)}</aside>
+      <aside><span>Supporting animals</span>{result.subjects.map((item, index) => <button key={item.subjectId} className={selected === index ? 'active' : ''} onClick={() => { setSelected(index); setRecordOffset(0); }}><i>{String(index + 1).padStart(2, '0')}</i><span><b>{item.subjectId}</b><small>{item.treatmentGroup || 'group not projected'} · {Object.values(item.domainCounts).reduce((sum, count) => sum + count, 0)} source rows</small></span></button>)}</aside>
       {subject && <main>
         <section className="record-thread-head"><div><Fingerprint size={16} /><span><b>{subject.subjectId}</b><small>{subject.treatmentGroup || 'Treatment group unresolved'}</small></span></div><em>{subject.findingRecords.length} matching finding row{subject.findingRecords.length === 1 ? '' : 's'}</em></section>
         <div className="record-cards">
@@ -69,6 +132,27 @@ export default function RecordEvidencePanel({ study, signal, focusDomain }: { st
           <article data-domain="LB" className={focusDomain === 'LB' ? 'domain-focused' : ''}><header><Database size={13} /><b>LB · longitudinal context</b></header><dl><div><dt>Test</dt><dd>{value(labs[0]?.data, ['LBTESTCD', 'LBTEST'])}</dd></div><div><dt>Rows</dt><dd>{labs.length}</dd></div><div><dt>Days</dt><dd>{[...new Set(labs.map((item) => value(item.data, ['LBDY', 'LBSTDY'])))].slice(0, 6).join(', ') || '—'}</dd></div></dl><footer>{labs[0] ? `first row ${labs[0].lineage.sourceRow} · checksummed` : 'No matching LB rows'}</footer></article>
         </div>
         <div className="artifact-proof"><FileCheck2 size={14} /><span><b>Source proof</b><small>{result.sourceArtifacts.map((item) => `${item.sourceName || 'artifact'} · ${item.digest.value.slice(0, 10)}…`).join('  |  ')}</small></span></div>
+        <section className="canonical-explorer">
+          <header><div><span className="panel-kicker">Complete supportive source</span><h3>Canonical record explorer</h3><p>The cards above explain the visual claim. This explorer exposes every stored row without changing its canonical fields.</p></div><div className="record-scope" aria-label="Canonical record scope"><button className={recordScope === 'subject' ? 'active' : ''} onClick={() => { setRecordScope('subject'); setRecordOffset(0); }}>This subject</button><button className={recordScope === 'study' ? 'active' : ''} onClick={() => { setRecordScope('study'); setRecordOffset(0); }}>Entire study</button></div></header>
+          <nav className="record-domain-tabs" aria-label="Available canonical domains">{result.domainInventory.map((item) => {
+            const count = recordScope === 'subject' ? (subject.domainCounts[item.domain] || 0) : item.studyRecords;
+            return <button key={item.domain} className={recordDomain === item.domain ? 'active' : ''} disabled={count === 0} onClick={() => { setRecordDomain(item.domain); setRecordFilter('all'); setRecordOffset(0); }}><b>{item.domain}</b><span>{domainLabels[item.domain] || 'Canonical domain'}</span><em>{count.toLocaleString()}</em></button>;
+          })}</nav>
+          {recordDomain === 'LB' && <div className="laboratory-filters"><span>Laboratory evidence</span><button className={recordFilter === 'all' ? 'active' : ''} onClick={() => { setRecordFilter('all'); setRecordOffset(0); }}>All results</button><button className={recordFilter === 'outside-range' ? 'active' : ''} onClick={() => { setRecordFilter('outside-range'); setRecordOffset(0); }}>Outside supplied limits</button>{signal.correlatedLab && <button className={recordFilter === 'linked-test' ? 'active' : ''} onClick={() => { setRecordFilter('linked-test'); setRecordOffset(0); }}>Linked test · {signal.correlatedLab}</button>}<button className={recordFilter === 'unassessed' ? 'active' : ''} onClick={() => { setRecordFilter('unassessed'); setRecordOffset(0); }}>Range unavailable</button></div>}
+          <div className="canonical-records">
+            <div className="canonical-records-heading"><span><Rows3 size={13} /><b>{domainLabels[recordDomain] || recordDomain}</b></span><small>{recordPage ? `${recordPage.total.toLocaleString()} ${recordScope === 'subject' ? `rows for ${selectedSubjectId}` : 'rows in the study'}` : 'Resolving records'}</small></div>
+            {recordLoading ? <div className="canonical-record-state"><LoaderCircle className="spin" size={16} /> Loading canonical rows…</div> : !recordPage?.records.length ? <div className="canonical-record-state empty"><Database size={16} /> {recordFilter === 'all' ? `No ${recordDomain} rows exist in this scope. The absence is preserved explicitly.` : 'No rows match this evidence filter. No threshold or relationship has been inferred.'}</div> : <div className="canonical-record-list">{recordPage.records.map((record) => <details key={record.sourceId}>
+              <summary><span><b>{record.domain} · row {record.rowOrdinal}</b><small>{recordSummary(record)}</small></span>{laboratoryAssessment(record) && <em className={`laboratory-assessment ${laboratoryAssessment(record)?.status}`}>{laboratoryAssessment(record)?.label}</em>}<code>{record.sourceId}</code></summary>
+              <div className="canonical-record-document">
+                <section><h4>Canonical fields</h4><dl>{entries(record.data).map(([key, item]) => <div key={key}><dt>{key}</dt><dd>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</dd></div>)}</dl></section>
+                <section><h4>Record identity</h4><dl>{entries(record.recordKey).map(([key, item]) => <div key={key}><dt>{key}</dt><dd>{String(item)}</dd></div>)}</dl><h4>Retrieval facets</h4><dl>{entries(record.facets).map(([key, item]) => <div key={key}><dt>{key}</dt><dd>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</dd></div>)}</dl></section>
+              </div>
+              <footer><Braces size={11} /> Canonical data remains unchanged · {record.lineage.sourceDataset} row {record.lineage.sourceRow} · {record.lineage.recordHash}</footer>
+            </details>)}</div>}
+          </div>
+          <footer className="canonical-pagination"><span>Rows {recordPage?.total ? recordOffset + 1 : 0}–{Math.min(recordOffset + pageSize, recordPage?.total || 0)} of {recordPage?.total || 0}</span><div><button disabled={recordOffset === 0} onClick={() => setRecordOffset(Math.max(0, recordOffset - pageSize))}><ChevronLeft size={12} /> Previous</button><button disabled={!recordPage || recordOffset + pageSize >= recordPage.total} onClick={() => setRecordOffset(recordOffset + pageSize)}>Next <ChevronRight size={12} /></button></div></footer>
+        </section>
+        <section className="artifact-catalog"><header><FileCheck2 size={13} /><b>Immutable source artifacts</b><span>{result.sourceArtifacts.length} files</span></header><div>{result.sourceArtifacts.map((item) => <article key={item.sourceId}><b>{item.sourceName || item.sourceId}</b><small>{item.mediaType} · {item.size ? `${item.size.toLocaleString()} bytes` : 'size not supplied'}</small><code>{item.digest.algorithm}:{item.digest.value}</code></article>)}</div></section>
       </main>}
     </div>
   </div>;

@@ -77,12 +77,15 @@ The detailed [CDISC document-model decision](cdisc-document-model-decision.md) d
 
 The solution projector is intentionally owned here rather than in Kehrnel. Kehrnel knows how to preserve and export standards-conformant evidence; this application knows which microscopic observations form a safety-review signal, which laboratory series are biologically relevant, and how the user experience consumes them. The boundary keeps reusable data infrastructure independent from product-specific scientific policy.
 
+The visual read model is not an access boundary. The Source records workspace resolves a selected signal to its immediate evidence thread and also exposes a paginated canonical-record API across every domain present in the immutable snapshot. Users can switch between one subject and the complete study, inspect every non-empty canonical field, distinguish canonical data from retrieval facets, and trace each row to its source artifact and hash. Laboratory filters identify the test explicitly linked to the finding and detect values outside source-supplied reference limits or abnormality flags. If the source provides neither, the result is labelled `reference range unavailable`; the solution never invents a threshold.
+
 ## API surface
 
 | Method | Route | Responsibility |
 |---|---|---|
 | GET | `/api/studies/{studyId}/signals` | Retrieve a snapshot-bound study evidence model |
 | GET | `/api/studies/{studyId}/signals/{signalId}/records` | Resolve a visual signal to canonical subject, finding, lab, treatment, and artifact evidence |
+| GET | `/api/studies/{studyId}/records` | Page through every canonical source row by domain and subject or study scope |
 | POST | `/api/investigations` | Execute a profile-authorized, cited investigation and return its compiled contract plus measured data-operation trace |
 | GET | `/api/literature` | Execute containment, lexical, Atlas Automated Embedding, graph, fusion, and reranking stages |
 | GET | `/api/portfolio/similarity` | Compare a finding across study snapshots with semantic, incidence, severity, Atlas Automated Embedding, fusion, and reranking telemetry |

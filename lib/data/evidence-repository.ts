@@ -1,4 +1,4 @@
-import type { CanonicalEvidenceRecord, DataQueryTrace, SafetySignal, SignalRecordEvidence } from '@/lib/contracts';
+import type { CanonicalEvidenceRecord, CanonicalRecordPage, DataQueryTrace, SafetySignal, SignalRecordEvidence } from '@/lib/contracts';
 import { solutionDatabase } from '@/lib/data/mongodb';
 
 type StoredRecord = CanonicalEvidenceRecord & {
@@ -38,6 +38,7 @@ export async function loadSignalRecordEvidence(
     subjects: [],
     treatmentRecords: [],
     sourceArtifacts: [],
+    domainInventory: [],
     counts: { findings: 0, laboratory: 0, subjects: 0, artifacts: 0 },
   } satisfies SignalRecordEvidence;
   if (!database) {
@@ -70,7 +71,15 @@ export async function loadSignalRecordEvidence(
 
   if (!findingRecords.length) return empty;
   const subjectIds = [...new Set(findingRecords.map((record) => String(record.facets?.subjectId || record.data?.USUBJID || '')).filter(Boolean))];
-  const subjectScope = { studyId, snapshotId, 'facets.subjectId': { $in: subjectIds } };
+  const subjectScope = {
+    studyId,
+    snapshotId,
+    $or: [
+      { 'facets.subjectId': { $in: subjectIds } },
+      { 'data.USUBJID': { $in: subjectIds } },
+      { 'data.SUBJID': { $in: subjectIds } },
+    ],
+  };
   async function tracedRead<T>(id: string, collection: string, operation: 'find' | 'findOne', predicate: Record<string, unknown>, run: () => Promise<T>, count: (value: T) => number): Promise<T> {
     const startedAt = Date.now();
     const value = await run();
@@ -78,7 +87,7 @@ export async function loadSignalRecordEvidence(
     return value;
   }
   const subjectPredicate = { studyId, snapshotId, subjectIds };
-  const [demographics, laboratory, treatment, artifacts, snapshot] = await Promise.all([
+  const [demographics, laboratory, treatment, artifacts, snapshot, studyDomainCounts, subjectDomainCounts] = await Promise.all([
     tracedRead('subject-demographics', 'cdisc_records', 'find', { ...subjectPredicate, domain: 'DM' }, () => records.find({ ...subjectScope, domain: 'DM' }, { projection: { _id: 0 } }).toArray(), (rows) => rows.length),
     signal.correlatedLab
       ? tracedRead('correlated-laboratory', 'cdisc_records', 'find', { ...subjectPredicate, domain: 'LB', testCode: signal.correlatedLab }, () => records.find({ ...subjectScope, domain: 'LB', $or: [{ 'facets.testCode': signal.correlatedLab }, { 'data.LBTESTCD': signal.correlatedLab }] }, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).limit(500).toArray(), (rows) => rows.length)
@@ -92,6 +101,16 @@ export async function loadSignalRecordEvidence(
       { studyId, snapshotId },
       { projection: { _id: 0, evidencePackageId: 1, modelSchemaVersion: 1 } },
     ), (row) => row ? 1 : 0),
+    records.aggregate<{ _id: string; count: number }>([
+      { $match: { studyId, snapshotId } },
+      { $group: { _id: '$domain', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]).toArray(),
+    records.aggregate<{ _id: { subjectId: string; domain: string }; count: number }>([
+      { $match: subjectScope },
+      { $group: { _id: { subjectId: { $ifNull: ['$facets.subjectId', { $ifNull: ['$data.USUBJID', '$data.SUBJID'] }] }, domain: '$domain' }, count: { $sum: 1 } } },
+      { $sort: { '_id.subjectId': 1, '_id.domain': 1 } },
+    ]).toArray(),
   ]);
 
   const bySubject = new Map(demographics.map((record) => [String(record.facets?.subjectId || record.data?.USUBJID), record]));
@@ -107,6 +126,7 @@ export async function loadSignalRecordEvidence(
       return {
         subjectId,
         treatmentGroup: String(demographicRecord?.facets?.treatmentGroup || demographicRecord?.data?.SPGRPCD || ''),
+        domainCounts: Object.fromEntries(subjectDomainCounts.filter((item) => item._id.subjectId === subjectId).map((item) => [item._id.domain, item.count])),
         demographicRecord: demographicRecord ? publicRecord(demographicRecord) : undefined,
         findingRecords: findingRecords.filter((record) => String(record.facets?.subjectId || record.data?.USUBJID) === subjectId).map(publicRecord),
         laboratoryRecords: laboratory.filter((record) => String(record.facets?.subjectId || record.data?.USUBJID) === subjectId).map(publicRecord),
@@ -114,6 +134,69 @@ export async function loadSignalRecordEvidence(
     }),
     treatmentRecords: treatment.map(publicRecord),
     sourceArtifacts: artifacts as unknown as SignalRecordEvidence['sourceArtifacts'],
+    domainInventory: studyDomainCounts.map((item) => ({
+      domain: item._id,
+      studyRecords: item.count,
+    })),
     counts: { findings: findingRecords.length, laboratory: laboratory.length, subjects: subjectIds.length, artifacts: artifacts.length },
   };
+}
+
+export async function loadCanonicalRecordPage(
+  studyId: string,
+  snapshotId: string,
+  options: { domain: string; scope: 'subject' | 'study'; subjectId?: string; filter: CanonicalRecordPage['filter']; linkedTestCode?: string; offset: number; limit: number },
+): Promise<CanonicalRecordPage> {
+  const database = await solutionDatabase();
+  const base = {
+    available: false,
+    studyId,
+    snapshotId,
+    scope: options.scope,
+    ...(options.subjectId ? { subjectId: options.subjectId } : {}),
+    domain: options.domain,
+    filter: options.filter,
+    offset: options.offset,
+    limit: options.limit,
+    total: 0,
+    records: [],
+  } satisfies CanonicalRecordPage;
+  if (!database) return base;
+
+  const scopePredicate: Record<string, unknown> = { studyId, snapshotId, domain: options.domain };
+  if (options.scope === 'subject') {
+    if (!options.subjectId) return base;
+    scopePredicate.$or = [
+      { 'facets.subjectId': options.subjectId },
+      { 'data.USUBJID': options.subjectId },
+      { 'data.SUBJID': options.subjectId },
+    ];
+  }
+  const resultNumber = { $convert: { input: '$data.LBSTRESN', to: 'double', onError: null, onNull: null } };
+  const lowerLimit = { $convert: { input: '$data.LBSTNRLO', to: 'double', onError: null, onNull: null } };
+  const upperLimit = { $convert: { input: '$data.LBSTNRHI', to: 'double', onError: null, onNull: null } };
+  const sourceAbnormal = { 'data.LBNRIND': { $in: ['HIGH', 'LOW', 'ABNORMAL', 'H', 'L', 'ABN', 'A'] } };
+  const referenceRangePresent = { $or: [{ 'data.LBSTNRLO': { $exists: true, $nin: [null, ''] } }, { 'data.LBSTNRHI': { $exists: true, $nin: [null, ''] } }] };
+  const outsideRange = {
+    $or: [
+      sourceAbnormal,
+      { $expr: { $or: [
+        { $and: [{ $ne: [resultNumber, null] }, { $ne: [lowerLimit, null] }, { $lt: [resultNumber, lowerLimit] }] },
+        { $and: [{ $ne: [resultNumber, null] }, { $ne: [upperLimit, null] }, { $gt: [resultNumber, upperLimit] }] },
+      ] } },
+    ],
+  };
+  let filterPredicate: Record<string, unknown> | undefined;
+  if (options.domain === 'LB' && options.filter === 'outside-range') filterPredicate = outsideRange;
+  if (options.domain === 'LB' && options.filter === 'unassessed') filterPredicate = { $nor: [sourceAbnormal, referenceRangePresent] };
+  if (options.domain === 'LB' && options.filter === 'linked-test' && options.linkedTestCode) filterPredicate = {
+    $or: [{ 'facets.testCode': options.linkedTestCode }, { 'data.LBTESTCD': options.linkedTestCode }],
+  };
+  const predicate = filterPredicate ? { $and: [scopePredicate, filterPredicate] } : scopePredicate;
+  const collection = database.collection<StoredRecord>('cdisc_records');
+  const [total, rows] = await Promise.all([
+    collection.countDocuments(predicate),
+    collection.find(predicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).skip(options.offset).limit(options.limit).toArray(),
+  ]);
+  return { ...base, available: true, total, records: rows.map(publicRecord) };
 }

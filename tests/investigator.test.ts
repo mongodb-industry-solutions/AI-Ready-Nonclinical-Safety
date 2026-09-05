@@ -25,11 +25,17 @@ describe('AI safety investigator provenance', () => {
       packageId: 'sha256:package',
       subjects: [{
         subjectId: 'S-1',
+        domainCounts: { MI: 1, LB: 1 },
         findingRecords: [record('MI', 'mi-row-1')],
         laboratoryRecords: [record('LB', 'lb-row-1')],
       }],
       treatmentRecords: [record('TX', 'tx-row-1')],
       sourceArtifacts: [],
+      domainInventory: [
+        { domain: 'MI', studyRecords: 1 },
+        { domain: 'LB', studyRecords: 1 },
+        { domain: 'TX', studyRecords: 1 },
+      ],
       counts: { findings: 1, laboratory: 1, subjects: 1, artifacts: 0 },
     };
     const result = await investigate(demoEvidence, demoEvidence.signals[0].id, 'What supports this finding?', 'toxicologist', records);

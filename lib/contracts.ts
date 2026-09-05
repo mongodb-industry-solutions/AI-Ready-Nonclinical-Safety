@@ -145,6 +145,7 @@ export interface CanonicalEvidenceRecord {
 export interface SubjectEvidenceThread {
   subjectId: string;
   treatmentGroup?: string;
+  domainCounts: Record<string, number>;
   findingRecords: CanonicalEvidenceRecord[];
   laboratoryRecords: CanonicalEvidenceRecord[];
   demographicRecord?: CanonicalEvidenceRecord;
@@ -158,6 +159,25 @@ export interface SourceArtifactEvidence {
   digest: { algorithm: 'sha256'; value: string };
 }
 
+export interface CanonicalDomainInventory {
+  domain: string;
+  studyRecords: number;
+}
+
+export interface CanonicalRecordPage {
+  available: boolean;
+  studyId: string;
+  snapshotId: string;
+  scope: 'subject' | 'study';
+  subjectId?: string;
+  domain: string;
+  filter: 'all' | 'outside-range' | 'linked-test' | 'unassessed';
+  offset: number;
+  limit: number;
+  total: number;
+  records: CanonicalEvidenceRecord[];
+}
+
 export interface SignalRecordEvidence {
   available: boolean;
   studyId: string;
@@ -168,6 +188,7 @@ export interface SignalRecordEvidence {
   subjects: SubjectEvidenceThread[];
   treatmentRecords: CanonicalEvidenceRecord[];
   sourceArtifacts: SourceArtifactEvidence[];
+  domainInventory: CanonicalDomainInventory[];
   counts: { findings: number; laboratory: number; subjects: number; artifacts: number };
 }
 
