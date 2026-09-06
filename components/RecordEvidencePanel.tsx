@@ -22,17 +22,21 @@ const domainFocusCopy: Record<EvidenceDomain, { title: string; detail: string }>
   OM: { title: 'Organ measurements', detail: 'Absolute and normalized organ measurements linked to subject, group, sex, day and phase.' },
   BW: { title: 'Body weights', detail: 'Longitudinal animal-level body weights used as systemic context.' },
   BG: { title: 'Body-weight gain', detail: 'Interval change in body weight, preserved with its source dates and units.' },
+  FW: { title: 'Food consumption', detail: 'Longitudinal food-consumption measurements used to interpret systemic change.' },
   CL: { title: 'Clinical observations', detail: 'In-life clinical observations linked to an animal and study day.' },
   EX: { title: 'Exposure administrations', detail: 'Administered treatment, dose, route and timing for each subject.' },
   PC: { title: 'Toxicokinetic concentrations', detail: 'Measured systemic analyte concentrations by subject, time point and specimen.' },
   PP: { title: 'Toxicokinetic parameters', detail: 'Derived exposure parameters such as Cmax and AUC with source lineage.' },
+  SE: { title: 'Study elements', detail: 'Study phase and recovery-period boundaries for temporal interpretation.' },
+  DS: { title: 'Disposition', detail: 'Subject completion, early disposition, and recovery context.' },
 };
 
 const domainLabels: Record<string, string> = {
   DM: 'Demographics', TX: 'Trial sets', MI: 'Microscopic findings', LB: 'Laboratory tests',
   MA: 'Macroscopic findings', OM: 'Organ measurements', BW: 'Body weights', BG: 'Body-weight gain',
   CL: 'Clinical observations', CV: 'Cardiovascular', EG: 'ECG tests', FW: 'Food and water',
-  PC: 'Toxicokinetic concentrations', PP: 'Toxicokinetic parameters', SC: 'Subject characteristics', VS: 'Vital signs',
+  EX: 'Exposure administrations', PC: 'Toxicokinetic concentrations', PP: 'Toxicokinetic parameters',
+  SE: 'Study elements', DS: 'Disposition', SC: 'Subject characteristics', VS: 'Vital signs',
 };
 
 const pageSize = 12;
@@ -62,7 +66,7 @@ function laboratoryAssessment(record: CanonicalEvidenceRecord) {
   return { status: 'unassessed', label: 'reference range unavailable' };
 }
 
-export default function RecordEvidencePanel({ study, doseGroups, signal, focusDomain, initialScope = 'subject', initialSection, initialFilter = 'all', initialTestCode }: { study: StudySummary; doseGroups: DoseGroup[]; signal: SafetySignal; focusDomain?: EvidenceDomain; initialScope?: 'subject' | 'study'; initialSection?: 'records' | 'artifacts'; initialFilter?: CanonicalRecordPage['filter']; initialTestCode?: string }) {
+export default function RecordEvidencePanel({ study, doseGroups, signal, focusDomain, initialScope = 'subject', initialSection, initialFilter = 'all', initialTestCode, initialSourceRecordIds = [] }: { study: StudySummary; doseGroups: DoseGroup[]; signal: SafetySignal; focusDomain?: EvidenceDomain; initialScope?: 'subject' | 'study'; initialSection?: 'records' | 'artifacts'; initialFilter?: CanonicalRecordPage['filter']; initialTestCode?: string; initialSourceRecordIds?: string[] }) {
   const [result, setResult] = useState<SignalRecordEvidence | null>(null);
   const [selected, setSelected] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -71,6 +75,7 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
   const [recordOffset, setRecordOffset] = useState(0);
   const [recordFilter, setRecordFilter] = useState<CanonicalRecordPage['filter']>(initialFilter);
   const [recordTestCode, setRecordTestCode] = useState<string | undefined>(initialTestCode);
+  const [sourceRecordIds, setSourceRecordIds] = useState<string[]>(initialSourceRecordIds);
   const [recordPage, setRecordPage] = useState<CanonicalRecordPage | null>(null);
   const [recordLoading, setRecordLoading] = useState(false);
 
@@ -96,8 +101,9 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
   useEffect(() => {
     setRecordFilter(initialFilter);
     setRecordTestCode(initialTestCode);
+    setSourceRecordIds(initialSourceRecordIds);
     setRecordOffset(0);
-  }, [focusDomain, initialFilter, initialTestCode]);
+  }, [focusDomain, initialFilter, initialSourceRecordIds, initialTestCode]);
 
   const selectedSubjectId = result?.subjects[selected]?.subjectId;
   useEffect(() => {
@@ -107,6 +113,7 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
     if (selectedSubjectId) parameters.set('subjectId', selectedSubjectId);
     if (signal.correlatedLab) parameters.set('linkedTestCode', signal.correlatedLab);
     if (recordTestCode) parameters.set('testCode', recordTestCode);
+    if (sourceRecordIds.length) parameters.set('sourceIds', sourceRecordIds.join(','));
     setRecordLoading(true);
     fetch(`/api/studies/${encodeURIComponent(study.id)}/records?${parameters}`, { cache: 'no-store', signal: controller.signal })
       .then(async (response) => {
@@ -117,7 +124,7 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
       .catch(() => { if (!controller.signal.aborted) setRecordPage(null); })
       .finally(() => { if (!controller.signal.aborted) setRecordLoading(false); });
     return () => controller.abort();
-  }, [recordDomain, recordFilter, recordOffset, recordScope, recordTestCode, result?.available, selectedSubjectId, signal.correlatedLab, study.id]);
+  }, [recordDomain, recordFilter, recordOffset, recordScope, recordTestCode, result?.available, selectedSubjectId, signal.correlatedLab, sourceRecordIds, study.id]);
 
   useEffect(() => {
     if (!result?.available || initialSection !== 'artifacts') return;
@@ -161,8 +168,9 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
           <header><div><span className="panel-kicker">Complete supportive source</span><h3>Canonical record explorer</h3><p>The cards above explain the visual claim. This explorer exposes every stored row without changing its canonical fields.</p></div><div className="record-scope" aria-label="Canonical record scope"><button className={recordScope === 'subject' ? 'active' : ''} onClick={() => { setRecordScope('subject'); setRecordOffset(0); }}>This subject</button><button className={recordScope === 'study' ? 'active' : ''} onClick={() => { setRecordScope('study'); setRecordOffset(0); }}>Entire study</button></div></header>
           <nav className="record-domain-tabs" aria-label="Available canonical domains">{result.domainInventory.map((item) => {
             const count = recordScope === 'subject' ? (subject.domainCounts[item.domain] || 0) : item.studyRecords;
-            return <button key={item.domain} className={recordDomain === item.domain ? 'active' : ''} disabled={count === 0} onClick={() => { setRecordDomain(item.domain); setRecordFilter('all'); setRecordTestCode(undefined); setRecordOffset(0); }}><b>{item.domain}</b><span>{domainLabels[item.domain] || 'Canonical domain'}</span><em>{count.toLocaleString()}</em></button>;
+            return <button key={item.domain} className={recordDomain === item.domain ? 'active' : ''} disabled={count === 0} onClick={() => { setRecordDomain(item.domain); setRecordFilter('all'); setRecordTestCode(undefined); setSourceRecordIds([]); setRecordOffset(0); }}><b>{item.domain}</b><span>{domainLabels[item.domain] || 'Canonical domain'}</span><em>{count.toLocaleString()}</em></button>;
           })}</nav>
+          {sourceRecordIds.length > 0 && <div className="exact-source-filter"><Fingerprint size={13} /><span><b>Exact visual evidence</b><small>{sourceRecordIds.length} canonical source row{sourceRecordIds.length === 1 ? '' : 's'} selected from the visual point</small></span><button onClick={() => { setSourceRecordIds([]); setRecordFilter('all'); setRecordOffset(0); }}>Show all {recordDomain}</button></div>}
           {recordDomain === 'LB' && <div className="laboratory-filters"><span>Laboratory evidence</span><button className={recordFilter === 'all' && !recordTestCode ? 'active' : ''} onClick={() => { setRecordFilter('all'); setRecordTestCode(undefined); setRecordOffset(0); }}>All results</button><button className={recordFilter === 'outside-range' ? 'active' : ''} onClick={() => { setRecordFilter('outside-range'); setRecordTestCode(undefined); setRecordOffset(0); }}>Outside supplied limits</button>{recordTestCode && <button className="active" onClick={() => { setRecordTestCode(undefined); setRecordOffset(0); }}>Test · {recordTestCode} ×</button>}{signal.correlatedLab && <button className={recordFilter === 'linked-test' ? 'active' : ''} onClick={() => { setRecordFilter('linked-test'); setRecordTestCode(undefined); setRecordOffset(0); }}>Linked test · {signal.correlatedLab}</button>}<button className={recordFilter === 'unassessed' ? 'active' : ''} onClick={() => { setRecordFilter('unassessed'); setRecordTestCode(undefined); setRecordOffset(0); }}>Range unavailable</button></div>}
           <div className="canonical-records">
             <div className="canonical-records-heading"><span><Rows3 size={13} /><b>{domainLabels[recordDomain] || recordDomain}</b></span><small>{recordPage ? `${recordPage.total.toLocaleString()} ${recordScope === 'subject' ? `rows for ${selectedSubjectId}` : 'rows in the study'}` : 'Resolving records'}</small></div>
@@ -174,6 +182,7 @@ export default function RecordEvidencePanel({ study, doseGroups, signal, focusDo
               </div>
               <footer><Braces size={11} /> Canonical data remains unchanged · {record.lineage.sourceDataset} row {record.lineage.sourceRow} · {record.lineage.recordHash}</footer>
             </details>)}</div>}
+            {recordPage?.execution && <details className="canonical-query-plan"><summary><Database size={12} /> Executed MongoDB query · {recordPage.execution.resultCount} rows · {recordPage.execution.durationMs} ms</summary><div><code>{JSON.stringify(recordPage.execution.predicate, null, 2)}</code><span><b>{recordPage.execution.plan?.indexes.join(', ') || 'No explain plan available'}</b><small>{recordPage.execution.plan ? `${recordPage.execution.plan.documentsExamined ?? 0} documents examined · ${recordPage.execution.plan.keysExamined ?? 0} keys examined` : 'Rows are still snapshot-bound and source-cited.'}</small></span></div></details>}
           </div>
           <footer className="canonical-pagination"><span>Rows {recordPage?.total ? recordOffset + 1 : 0}–{Math.min(recordOffset + pageSize, recordPage?.total || 0)} of {recordPage?.total || 0}</span><div><button disabled={recordOffset === 0} onClick={() => setRecordOffset(Math.max(0, recordOffset - pageSize))}><ChevronLeft size={12} /> Previous</button><button disabled={!recordPage || recordOffset + pageSize >= recordPage.total} onClick={() => setRecordOffset(recordOffset + pageSize)}>Next <ChevronRight size={12} /></button></div></footer>
         </section>

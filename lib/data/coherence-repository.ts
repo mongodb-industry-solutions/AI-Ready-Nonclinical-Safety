@@ -5,6 +5,7 @@ import type {
   LaboratoryAbnormalitySummary,
   OperationalEvidenceRelationship,
   OperationalMeasurementSeries,
+  OperationalSubjectTimeline,
   SafetySignal,
   SemanticResolver,
 } from '@/lib/contracts';
@@ -124,7 +125,11 @@ export async function loadBiologicalCoherence(
     targetOrgan: { endpointSummaries: [], measurementSeries: [] },
     systemicContext: {
       bodyWeightSeries: [],
+      foodConsumptionSeries: [],
       exposureSeries: [],
+      measurementEndpoints: [],
+      clinicalObservations: [],
+      subjectTimelines: [],
       laboratoryCoverage: {
         endpointSummaryCount: 0,
         sourceRangeSummaryCount: 0,
@@ -137,7 +142,7 @@ export async function loadBiologicalCoherence(
     },
     relationships: [],
     filters: { sexes: [], phases: [] },
-    inventory: { endpointSummaries: 0, measurementSeries: 0, sourceDeclaredRelationships: 0, sourceRecordCitations: 0 },
+    inventory: { endpointSummaries: 0, measurementSeries: 0, sourceDeclaredRelationships: 0, sourceRecordCitations: 0, domainCounts: {} },
     execution: {
       resolverId: resolver.id,
       capabilityId: resolver.capability,
@@ -172,16 +177,22 @@ export async function loadBiologicalCoherence(
   const targetEndpointPredicate = { ...scope, organ: signal.organ };
   const targetSeriesPredicate = { ...scope, organ: signal.organ };
   const bodyWeightPredicate = { ...scope, domain: { $in: ['BW', 'BG'] } };
+  const foodConsumptionPredicate = { ...scope, domain: 'FW' };
   const exposurePredicate = { ...scope, domain: { $in: ['PC', 'PP'] } };
+  const measurementEndpointPredicate = { ...scope, domain: { $in: ['BW', 'BG', 'FW', 'OM', 'PC', 'PP'] } };
+  const clinicalObservationPredicate = { ...scope, domain: 'CL' };
   const relationshipPredicate = signal.sourceRecordIds?.length
     ? { ...scope, authority: 'source-declared', sourceRecordIds: { $in: signal.sourceRecordIds } }
     : { ...scope, authority: 'source-declared', subjectId: { $exists: true } };
 
-  const [endpointSummaries, targetSeries, bodyWeightSeries, exposureSeries, relationships, laboratoryEndpoints] = await Promise.all([
+  const [endpointSummaries, targetSeries, bodyWeightSeries, foodConsumptionSeries, exposureSeries, measurementEndpoints, clinicalObservations, relationships, laboratoryEndpoints] = await Promise.all([
     tracedFind<EndpointSummary>('target-organ-endpoints', 'study_endpoint_summaries', targetEndpointPredicate, 500),
     tracedFind<OperationalMeasurementSeries>('target-organ-measurements', 'measurement_series', targetSeriesPredicate, 100),
     tracedFind<OperationalMeasurementSeries>('body-weight-series', 'measurement_series', bodyWeightPredicate, 100),
+    tracedFind<OperationalMeasurementSeries>('food-consumption-series', 'measurement_series', foodConsumptionPredicate, 100),
     tracedFind<OperationalMeasurementSeries>('systemic-exposure-series', 'measurement_series', exposurePredicate, 100),
+    tracedFind<EndpointSummary>('measurement-endpoints', 'study_endpoint_summaries', measurementEndpointPredicate, 5000),
+    tracedFind<EndpointSummary>('clinical-observations', 'study_endpoint_summaries', clinicalObservationPredicate, 2000),
     tracedFind<OperationalEvidenceRelationship>('source-declared-relationships', 'evidence_relationships', relationshipPredicate, 100),
     tracedFind<EndpointSummary>('laboratory-endpoints', 'study_endpoint_summaries', { ...scope, domain: 'LB' }, 10000),
   ]);
@@ -215,6 +226,11 @@ export async function loadBiologicalCoherence(
     resultCount: signalSourceRecords.length,
     durationMs: Date.now() - signalSubjectStartedAt,
   });
+
+  const subjectTimelines = signalSubjectIds.length
+    ? await tracedFind<OperationalSubjectTimeline>('signal-subject-timelines', 'subject_timelines', { ...scope, subjectId: { $in: signalSubjectIds } }, 250)
+    : [];
+  if (!signalSubjectIds.length) traces.push({ id: 'signal-subject-timelines', source: 'mongodb', collection: 'subject_timelines', operation: 'find', predicate: { ...scope, reason: 'no-signal-subjects' }, status: 'skipped', resultCount: 0, durationMs: 0 });
 
   const outsideCandidateSourceIds = values(laboratoryEndpoints
     .filter((item) => (item.referenceRange?.outsideRangeCount || 0) > 0)
@@ -252,10 +268,16 @@ export async function loadBiologicalCoherence(
       : `${coverage.endpointSummaryCount} laboratory summaries are available, but this public SEND package does not supply reference intervals or abnormality flags. The application therefore does not invent normal limits.`,
   };
 
-  const allSeries = [...targetSeries, ...bodyWeightSeries, ...exposureSeries];
+  const allSeries = [...targetSeries, ...bodyWeightSeries, ...foodConsumptionSeries, ...exposureSeries];
+  const domainCounts: Record<string, number> = {};
+  for (const item of [...endpointSummaries, ...measurementEndpoints, ...clinicalObservations]) domainCounts[item.domain] = (domainCounts[item.domain] || 0) + 1;
+  for (const timeline of subjectTimelines) for (const [domain, count] of Object.entries(timeline.domainCounts || {})) domainCounts[domain] = (domainCounts[domain] || 0) + count;
   const sourceRecordCitations = new Set([
     ...endpointSummaries.flatMap((item) => item.sourceRecordIds || []),
+    ...measurementEndpoints.flatMap((item) => item.sourceRecordIds || []),
+    ...clinicalObservations.flatMap((item) => item.sourceRecordIds || []),
     ...allSeries.flatMap((item) => item.sourceRecordIds || []),
+    ...subjectTimelines.flatMap((item) => item.sourceRecordIds || []),
     ...relationships.flatMap((item) => item.sourceRecordIds || []),
   ]).size;
   return {
@@ -266,17 +288,18 @@ export async function loadBiologicalCoherence(
     organ: signal.organ,
     semanticReleaseId,
     targetOrgan: { endpointSummaries, measurementSeries: targetSeries },
-    systemicContext: { bodyWeightSeries, exposureSeries, laboratoryCoverage, laboratoryAbnormalities },
+    systemicContext: { bodyWeightSeries, foodConsumptionSeries, exposureSeries, measurementEndpoints, clinicalObservations, subjectTimelines, laboratoryCoverage, laboratoryAbnormalities },
     relationships,
     filters: {
-      sexes: values([...endpointSummaries.map((item) => item.sex), ...allSeries.map((item) => item.sex)]),
-      phases: values([...endpointSummaries.map((item) => item.phase), ...allSeries.map((item) => item.phase)]),
+      sexes: values([...endpointSummaries.map((item) => item.sex), ...measurementEndpoints.map((item) => item.sex), ...allSeries.map((item) => item.sex), ...subjectTimelines.map((item) => item.sex)]),
+      phases: values([...endpointSummaries.map((item) => item.phase), ...measurementEndpoints.map((item) => item.phase), ...allSeries.map((item) => item.phase), ...subjectTimelines.flatMap((item) => item.events.map((event) => event.phase))]),
     },
     inventory: {
       endpointSummaries: endpointSummaries.length,
       measurementSeries: allSeries.length,
       sourceDeclaredRelationships: relationships.length,
       sourceRecordCitations,
+      domainCounts,
     },
     execution: {
       resolverId: resolver.id,

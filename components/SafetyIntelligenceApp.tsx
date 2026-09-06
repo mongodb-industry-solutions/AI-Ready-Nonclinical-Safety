@@ -101,7 +101,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   const [selectedId, setSelectedId] = useState(initialEvidence.signals[0].id);
   const [graphOpen, setGraphOpen] = useState(false);
   const [roomOpen, setRoomOpen] = useState(false);
-  const [roomCanvas, setRoomCanvas] = useState<InvestigationCanvas>('coherence');
+  const [roomCanvas, setRoomCanvas] = useState<InvestigationCanvas>('assistant');
   const [recordFocus, setRecordFocus] = useState<EvidenceDomain>();
   const [semanticFocus, setSemanticFocus] = useState<string>();
   const [journeyStep, setJourneyStep] = useState(0);
@@ -141,7 +141,7 @@ export default function SafetyIntelligenceApp({ evidence: initialEvidence, portf
   };
   const openInvestigation = () => {
     if (!canInvestigate) return;
-    setRoomCanvas('coherence');
+    setRoomCanvas('assistant');
     setRecordFocus(undefined);
     setView('workspace');
     setRoomOpen(true);

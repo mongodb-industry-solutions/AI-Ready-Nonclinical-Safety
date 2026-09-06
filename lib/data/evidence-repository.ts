@@ -170,7 +170,7 @@ export async function loadSignalRecordEvidence(
 export async function loadCanonicalRecordPage(
   studyId: string,
   snapshotId: string,
-  options: { domain: string; scope: 'subject' | 'study'; subjectId?: string; filter: CanonicalRecordPage['filter']; linkedTestCode?: string; testCode?: string; offset: number; limit: number },
+  options: { domain: string; scope: 'subject' | 'study'; subjectId?: string; filter: CanonicalRecordPage['filter']; linkedTestCode?: string; testCode?: string; sourceRecordIds?: string[]; offset: number; limit: number },
 ): Promise<CanonicalRecordPage> {
   const database = await solutionDatabase();
   const base = {
@@ -217,15 +217,39 @@ export async function loadCanonicalRecordPage(
   if (options.domain === 'LB' && options.filter === 'linked-test' && options.linkedTestCode) filterPredicate = {
     $or: [{ 'facets.testCode': options.linkedTestCode }, { 'data.LBTESTCD': options.linkedTestCode }],
   };
-  const testPredicate = options.domain === 'LB' && options.testCode
-    ? { $or: [{ 'facets.testCode': options.testCode }, { 'data.LBTESTCD': options.testCode }] }
+  const sourcePredicate = options.sourceRecordIds?.length ? { sourceId: { $in: options.sourceRecordIds } } : undefined;
+  const testPredicate = options.testCode
+    ? { $or: [{ 'facets.testCode': options.testCode }, { [`data.${options.domain}TESTCD`]: options.testCode }] }
     : undefined;
-  const constraints = [scopePredicate, filterPredicate, testPredicate].filter((item): item is Record<string, unknown> => Boolean(item));
+  const constraints = [scopePredicate, filterPredicate, testPredicate, sourcePredicate].filter((item): item is Record<string, unknown> => Boolean(item));
   const predicate = constraints.length > 1 ? { $and: constraints } : constraints[0];
   const collection = database.collection<StoredRecord>('cdisc_records');
+  const startedAt = Date.now();
   const [total, rows] = await Promise.all([
     collection.countDocuments(predicate),
     collection.find(predicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).skip(options.offset).limit(options.limit).toArray(),
   ]);
-  return { ...base, available: true, total, records: rows.map(publicRecord) };
+  let plan: DataQueryTrace['plan'];
+  try {
+    plan = summarizeMongoExplain(await collection.find(predicate, { projection: { _id: 0 } }).sort({ rowOrdinal: 1 }).skip(options.offset).limit(options.limit).explain('executionStats'), rows.length);
+  } catch {
+    // The canonical rows remain available when the connected role cannot explain.
+  }
+  return {
+    ...base,
+    available: true,
+    total,
+    records: rows.map(publicRecord),
+    execution: {
+      id: 'canonical-source-drilldown',
+      source: 'mongodb',
+      collection: 'cdisc_records',
+      operation: 'find',
+      predicate,
+      status: 'executed',
+      resultCount: rows.length,
+      durationMs: Date.now() - startedAt,
+      ...(plan ? { plan } : {}),
+    },
+  };
 }

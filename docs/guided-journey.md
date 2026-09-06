@@ -78,8 +78,9 @@ does not establish causality.
 
 ### 5. Investigation
 
-Open the Investigation Room and expand **AI workspace**. Ask “Is this finding
-plausibly treatment-related?” The answer canvas should contain:
+Open the **Investigator** in the full-screen Investigation Room. Ask “Is this
+finding plausibly treatment-related?” The conversation composes its answer and
+visual widgets in the main canvas rather than confining them to a side panel:
 
 - exact canonical citations plus reconciled pathology, organ-weight, body-weight,
   exposure, phase, and relationship projections;
@@ -95,12 +96,20 @@ not only the intended query shape. Semantic lexical search, Atlas-managed vector
 search, fusion, and any literature reranking are part of the same investigation
 response.
 
+Select an inline chart to open a temporary right-side inspector for a larger
+view, then continue to its supporting canonical rows. Select a publication to
+use the same inspector for its citation and evidence boundary. The inspector is
+not a second permanent workspace.
+
 Read the contract and execution separately. The contract says what was authorized
 and could run. The trace says what actually ran, what returned, how long it took,
 and what was skipped or fell back.
 
-Open **Biological coherence** to compare the target-organ incidence with organ
-measurements, systemic context, recovery phase, and source-declared links. The
+Open **Evidence workspace** to see which dimensions actually exist for the
+study and which are relevant to the selected finding. Expand one dimension at a
+time: pathology and organ measurements, systemic response, dose and exposure,
+or study course. Compare target-organ incidence with organ measurements,
+systemic context, recovery phase, and source-declared links. The
 absence of laboratory reference intervals in this public package is displayed as
 an evidence gap; the application does not invent normal limits. Finish by
 selecting endpoint summaries and recording a human-owned target-organ,

@@ -178,11 +178,12 @@ export interface CanonicalRecordPage {
   scope: 'subject' | 'study';
   subjectId?: string;
   domain: string;
-  filter: 'all' | 'outside-range' | 'linked-test' | 'unassessed';
+  filter: 'all' | 'outside-range' | 'linked-test' | 'unassessed' | 'source-records';
   offset: number;
   limit: number;
   total: number;
   records: CanonicalEvidenceRecord[];
+  execution?: DataQueryTrace;
 }
 
 export interface SignalRecordEvidence {
@@ -270,6 +271,35 @@ export interface OperationalMeasurementSeries {
   semanticReleaseId: string;
 }
 
+export interface OperationalTimelineEvent {
+  sourceRecordId: string;
+  domain: string;
+  studyDay?: number;
+  phase?: string;
+  testCode?: string;
+  test?: string;
+  organ?: string;
+  result?: string;
+  numericResult?: number;
+  unit?: string;
+  severity?: string;
+  element?: string;
+}
+
+export interface OperationalSubjectTimeline {
+  id: string;
+  subjectId: string;
+  group?: OperationalEvidenceGroup;
+  sex?: string;
+  recoveryCohort?: boolean;
+  domainCounts: Record<string, number>;
+  events: OperationalTimelineEvent[];
+  sourceRecordIds: string[];
+  projectionDigest: string;
+  projectionVersion: string;
+  semanticReleaseId: string;
+}
+
 export interface OperationalEvidenceRelationship {
   id: string;
   from: string;
@@ -311,7 +341,11 @@ export interface BiologicalCoherenceResponse {
   };
   systemicContext: {
     bodyWeightSeries: OperationalMeasurementSeries[];
+    foodConsumptionSeries: OperationalMeasurementSeries[];
     exposureSeries: OperationalMeasurementSeries[];
+    measurementEndpoints: EndpointSummary[];
+    clinicalObservations: EndpointSummary[];
+    subjectTimelines: OperationalSubjectTimeline[];
     laboratoryCoverage: {
       endpointSummaryCount: number;
       sourceRangeSummaryCount: number;
@@ -329,6 +363,7 @@ export interface BiologicalCoherenceResponse {
     measurementSeries: number;
     sourceDeclaredRelationships: number;
     sourceRecordCitations: number;
+    domainCounts: Record<string, number>;
   };
   execution: {
     resolverId: string;

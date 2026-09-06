@@ -29,6 +29,7 @@ interface AgentPanelProps {
   onOpenLiterature?: () => void;
   onOpenPortfolio?: () => void;
   onOpenSemantic?: (focusId?: string) => void;
+  onInspectWidget?: (widget: 'dose-response' | 'laboratory-trajectory') => void;
 }
 
 function semanticObjectForHit(hit: SemanticGroundingResult['hits'][number], runtime?: SemanticRuntimeView): string | undefined {
@@ -40,7 +41,7 @@ function semanticObjectForHit(hit: SemanticGroundingResult['hits'][number], runt
   return undefined;
 }
 
-export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id, evidence, runtime, expanded = false, onToggleExpanded, onShowSource, onOpenCoherence, onOpenLiterature, onOpenPortfolio, onOpenSemantic }: AgentPanelProps) {
+export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id, evidence, runtime, expanded = false, onToggleExpanded, onShowSource, onOpenCoherence, onOpenLiterature, onOpenPortfolio, onOpenSemantic, onInspectWidget }: AgentPanelProps) {
   const [question, setQuestion] = useState(prompts[0]);
   const [result, setResult] = useState<InvestigationResult | null>(null);
   const [semanticSearch, setSemanticSearch] = useState<SemanticGroundingResult | null>(null);
@@ -113,8 +114,8 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
       </div>
 
       {expanded && result && evidence && runtime && <div className="agent-visual-canvas">
-        {widgetOrder.has('dose-response') && <section style={{ order: widgetOrder.get('dose-response') }} className="agent-viz-card agent-dose-widget"><header><span><Activity size={14} /><b>Dose-response evidence</b></span><em>MI + DM + TX</em></header><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></section>}
-        {lab && widgetOrder.has('laboratory-trajectory') && <section style={{ order: widgetOrder.get('laboratory-trajectory') }} className="agent-viz-card agent-lab-widget"><header><span><Activity size={14} /><b>{lab.label} trajectory</b></span><em>LB + DM + TX</em></header><LabTrajectoryChart series={lab} /></section>}
+        {widgetOrder.has('dose-response') && <section style={{ order: widgetOrder.get('dose-response') }} className="agent-viz-card agent-dose-widget agent-expandable-widget" role={onInspectWidget ? 'button' : undefined} tabIndex={onInspectWidget ? 0 : undefined} aria-label={onInspectWidget ? 'Open dose-response chart in context inspector' : undefined} onClick={() => onInspectWidget?.('dose-response')} onKeyDown={(event) => { if (onInspectWidget && (event.key === 'Enter' || event.key === ' ')) onInspectWidget('dose-response'); }}><header><span><Activity size={14} /><b>Dose-response evidence</b></span><em>{onInspectWidget ? 'Click to inspect' : 'MI + DM + TX'}</em></header><DoseResponseChart signal={signal} groups={evidence.doseGroups} /></section>}
+        {lab && widgetOrder.has('laboratory-trajectory') && <section style={{ order: widgetOrder.get('laboratory-trajectory') }} className="agent-viz-card agent-lab-widget agent-expandable-widget" role={onInspectWidget ? 'button' : undefined} tabIndex={onInspectWidget ? 0 : undefined} aria-label={onInspectWidget ? `Open ${lab.label} chart in context inspector` : undefined} onClick={() => onInspectWidget?.('laboratory-trajectory')} onKeyDown={(event) => { if (onInspectWidget && (event.key === 'Enter' || event.key === ' ')) onInspectWidget('laboratory-trajectory'); }}><header><span><Activity size={14} /><b>{lab.label} trajectory</b></span><em>{onInspectWidget ? 'Click to inspect' : 'LB + DM + TX'}</em></header><LabTrajectoryChart series={lab} /></section>}
         {result.coherence?.available && widgetOrder.has('biological-coherence') && <section style={{ order: widgetOrder.get('biological-coherence') }} className="agent-viz-card agent-coherence-widget">
           <header><span><MicroscopeIcon /><b>Biological coherence</b></span><em>{result.coherence.execution.resolverId}</em></header>
           <div className="agent-coherence-body">

@@ -3,7 +3,7 @@
 import { ArrowUpRight, Link2 } from 'lucide-react';
 import type { SafetySignal, StudyEvidence } from '@/lib/contracts';
 
-export type EvidenceDomain = 'MI' | 'DM' | 'TX' | 'LB' | 'MA' | 'OM' | 'BW' | 'BG' | 'CL' | 'EX' | 'PC' | 'PP';
+export type EvidenceDomain = 'MI' | 'DM' | 'TX' | 'LB' | 'MA' | 'OM' | 'BW' | 'BG' | 'FW' | 'CL' | 'EX' | 'PC' | 'PP' | 'SE' | 'DS';
 type EvidenceAssemblyDomain = 'MI' | 'DM' | 'TX' | 'LB';
 
 const domainMeaning: Record<EvidenceAssemblyDomain, { title: string; contribution: string }> = {
