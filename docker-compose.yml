@@ -19,5 +19,6 @@ services:
         required: false
     environment:
       GATEWAY_PORT: "8082"
+      RUNNER_MODE: tool
     expose:
       - "8082"

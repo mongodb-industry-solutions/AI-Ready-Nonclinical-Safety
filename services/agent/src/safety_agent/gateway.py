@@ -12,9 +12,10 @@ from pydantic import BaseModel, Field
 
 from . import main as agent_main
 from .prompt import investigation_context
+from .widgets import extract_latest_tool_executions, extract_latest_widget_receipts
 
 agent = agent_main.app.get_agent() if os.environ.get("OPENAI_API_KEY") else None
-app = FastAPI(title="Bundled Nonclinical Safety Agent", version="0.2.0")
+app = FastAPI(title="Bundled Nonclinical Safety Agent", version="1.0.0")
 
 
 class EvidenceContext(BaseModel):
@@ -22,6 +23,12 @@ class EvidenceContext(BaseModel):
     snapshotId: str
     signalId: str
     profileId: str
+    canonicalEvidence: dict[str, Any] | None = None
+    biologicalCoherence: dict[str, Any] | None = None
+    semanticGrounding: dict[str, Any] | None = None
+    literatureEvidence: dict[str, Any] | None = None
+    portfolioContext: dict[str, Any] | None = None
+    deterministicContract: dict[str, Any]
 
 
 class AskRequest(BaseModel):
@@ -53,12 +60,42 @@ async def ask(request: AskRequest) -> dict[str, Any]:
         request.context.snapshotId,
         request.context.signalId,
         request.context.profileId,
+        request.context.deterministicContract,
+        request.context.model_dump(
+            exclude={
+                "studyId",
+                "snapshotId",
+                "signalId",
+                "profileId",
+                "deterministicContract",
+            },
+            exclude_none=True,
+        ),
     )
     output = await agent.invoke(context, AgentInput(payload={"message": prompt}))
     response = dict(output.response or {})
+    widgets: list[dict[str, Any]] = []
+    steps: list[dict[str, Any]] = []
+    graph = getattr(agent, "_graph", None)
+    if graph is not None:
+        state = await graph.aget_state({"configurable": {"thread_id": session_id}})
+        messages = list(state.values.get("messages", []))
+        widgets = extract_latest_widget_receipts(messages)
+        steps = extract_latest_tool_executions(messages)
+    steps.append(
+        {
+            "id": "synthesize",
+            "label": "Compose cited review hypothesis",
+            "engine": "synthesis",
+            "status": "complete",
+            "detail": "Read-only Magenta response over deterministic tool results",
+        }
+    )
     return {
         "sessionId": session_id,
         "answer": response.get("response", ""),
+        "messageCount": response.get("message_count", 0),
+        "widgets": widgets,
         "confidence": "review",
         "citations": response.get("citations")
         or [
@@ -75,30 +112,7 @@ async def ask(request: AskRequest) -> dict[str, Any]:
                 "sourceRef": request.context.snapshotId,
             },
         ],
-        "steps": response.get("steps")
-        or [
-            {
-                "id": "scope",
-                "label": "Bind solution snapshot",
-                "engine": "structured",
-                "status": "complete",
-                "detail": f"{request.context.studyId} / {request.context.snapshotId}",
-            },
-            {
-                "id": "retrieve",
-                "label": "Retrieve and rerank evidence",
-                "engine": "rerank",
-                "status": "complete",
-                "detail": "MongoDB structured, search, vector and lineage tools",
-            },
-            {
-                "id": "synthesize",
-                "label": "Compose cited review hypothesis",
-                "engine": "synthesis",
-                "status": "complete",
-                "detail": "Read-only Magenta response",
-            },
-        ],
+        "steps": steps,
         "guardrails": {"readOnly": True, "snapshotBound": True, "regulatoryConclusion": False},
         "provider": "magenta",
     }

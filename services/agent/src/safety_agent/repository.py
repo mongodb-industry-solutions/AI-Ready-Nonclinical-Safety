@@ -12,6 +12,8 @@ from bson import json_util
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
+from .widgets import WidgetKind, widget_receipt
+
 
 def reciprocal_rank_fusion(
     result_sets: list[list[dict[str, Any]]], constant: int = 60
@@ -273,7 +275,7 @@ class SafetyRepository:
         graph_rows: list[dict[str, Any]] = []
         try:
             semantic_release_id = os.environ.get(
-                "SEMANTIC_RELEASE_ID", "org.contextobjects.nonclinical-safety@0.1.0"
+                "SEMANTIC_RELEASE_ID", "org.contextobjects.nonclinical-safety@1.0.0"
             )
             graph_paths = self.database.evidence_relationships.aggregate(
                 [
@@ -387,4 +389,33 @@ class SafetyRepository:
                 "sourceRevision": document["study"]["sourceRevision"],
                 "sourceArtifacts": document["provenance"].get("sourceArtifacts", {}),
             }
+        )
+
+    def present_widget(
+        self,
+        widget_kind: WidgetKind,
+        study_id: str,
+        snapshot_id: str,
+        signal_id: str,
+        profile_id: str,
+    ) -> str:
+        """Authorize a presentation request without allowing generated chart values."""
+
+        self._authorize(profile_id, "assemble-evidence-brief")
+        document = self._study(study_id, snapshot_id)
+        signal = next(
+            (item for item in document["signals"] if item["id"] == signal_id), None
+        )
+        if not signal:
+            raise ValueError("The requested signal is not available in this snapshot")
+        if widget_kind == "laboratory-trajectory":
+            correlated = signal.get("correlatedLab")
+            if not correlated or correlated not in document.get("labSeries", {}):
+                raise ValueError("No laboratory trajectory is bound to this finding")
+        if widget_kind == "literature-evidence" and not self.database.literature_documents.find_one(
+            {"matchedSignalIds": signal_id}, {"_id": 1}
+        ):
+            raise ValueError("No governed literature is bound to this finding")
+        return widget_receipt(
+            widget_kind, study_id, snapshot_id, signal_id, profile_id
         )

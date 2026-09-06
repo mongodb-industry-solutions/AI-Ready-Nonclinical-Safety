@@ -1,4 +1,4 @@
-import type { BiologicalCoherenceResponse, Citation, InvestigationResult, InvestigationWidget, LiteratureQueryResponse, PortfolioSimilarityResult, SemanticGroundingResult, SemanticProfileId, SignalRecordEvidence, StudyEvidence } from '@/lib/contracts';
+import type { BiologicalCoherenceResponse, Citation, InvestigationDeterministicContext, InvestigationResult, InvestigationWidget, InvestigationWidgetKind, LiteratureQueryResponse, PortfolioSimilarityResult, SemanticGroundingResult, SemanticProfileId, SignalRecordEvidence, StudyEvidence } from '@/lib/contracts';
 import { signalSummary } from '@/lib/analysis/signal-engine';
 import { agentHealth } from '@/lib/ai/agent-health';
 
@@ -42,20 +42,24 @@ function canonicalCitations(recordEvidence?: SignalRecordEvidence, coherence?: B
   return citations;
 }
 
-export async function investigate(
+type WidgetTemplate = Omit<InvestigationWidget, 'trigger'>;
+
+export interface InvestigationInvocation {
+  sessionId: string;
+  turn: number;
+  deterministicContext: InvestigationDeterministicContext;
+}
+
+function widgetCatalog(
   evidence: StudyEvidence,
   signalId: string,
-  question: string,
-  profileId: SemanticProfileId = 'toxicologist',
-  recordEvidence?: SignalRecordEvidence,
   coherence?: BiologicalCoherenceResponse,
   semanticGrounding?: SemanticGroundingResult,
   literatureEvidence?: Omit<LiteratureQueryResponse, 'source' | 'plan'>,
   portfolioContext?: PortfolioSimilarityResult,
-): Promise<InvestigationResult> {
+): WidgetTemplate[] {
   const signal = evidence.signals.find((candidate) => candidate.id === signalId) || evidence.signals[0];
-  const magentaUrl = process.env.INTERNAL_AGENT_URL?.replace(/\/$/, '');
-  const widgets: InvestigationWidget[] = [
+  return [
     { id: 'dose-response', kind: 'dose-response', title: 'Dose-response evidence', sourceDomains: ['MI', 'DM', 'TX'] },
     ...(signal.correlatedLab && evidence.labSeries?.[signal.correlatedLab]
       ? [{ id: 'laboratory-trajectory', kind: 'laboratory-trajectory' as const, title: `${evidence.labSeries[signal.correlatedLab].label} trajectory`, sourceDomains: ['LB', 'DM', 'TX'] }]
@@ -66,10 +70,81 @@ export async function investigate(
     ...(portfolioContext?.matches.length
       ? [{ id: 'portfolio-context', kind: 'portfolio-context' as const, title: 'Cross-study context', sourceDomains: ['MI', 'DM', 'TX', 'PORTFOLIO'] }]
       : []),
-    { id: 'semantic-grounding', kind: 'semantic-grounding', title: 'Semantic grounding', sourceDomains: ['SEMANTIC'] },
+    ...(semanticGrounding
+      ? [{ id: 'semantic-grounding', kind: 'semantic-grounding' as const, title: 'Semantic grounding', sourceDomains: ['SEMANTIC'] }]
+      : []),
+    ...(literatureEvidence?.documents.length
+      ? [{ id: 'literature-evidence', kind: 'literature-evidence' as const, title: 'Literature evidence', sourceDomains: ['LITERATURE'] }]
+      : []),
     { id: 'execution-plan', kind: 'execution-plan', title: 'Deterministic contract & executed plan', sourceDomains: ['MONGODB'] },
     { id: 'evidence-topology', kind: 'evidence-topology', title: 'Evidence topology', sourceDomains: ['DM', 'TX', 'MI', 'LB', 'RELREC'] },
   ];
+}
+
+function deterministicWidgetKinds(question: string, catalog: WidgetTemplate[]): InvestigationWidgetKind[] {
+  const wording = question.toLowerCase();
+  const candidates = new Set<InvestigationWidgetKind>();
+  const add = (...kinds: InvestigationWidgetKind[]) => kinds.forEach((kind) => candidates.add(kind));
+  if (/support|treatment|related|finding|incidence|severity|dose/.test(wording)) add('dose-response', 'laboratory-trajectory', 'biological-coherence');
+  if (/support/.test(wording)) add('semantic-grounding', 'execution-plan', 'evidence-topology');
+  if (/weight|food|clinical|patholog|organ|exposure|kinetic|coherence|laborator/.test(wording)) add('biological-coherence', 'laboratory-trajectory');
+  if (/similar|portfolio|other stud|compar/.test(wording)) add('portfolio-context');
+  if (/literature|pubmed|paper|publication|research/.test(wording)) add('literature-evidence');
+  if (/semantic|meaning|term|taxonomy|value set|archetype/.test(wording)) add('semantic-grounding');
+  if (/source|lineage|relationship|graph|link/.test(wording)) add('evidence-topology');
+  if (/query|plan|execut|contract|how did|provenance|support/.test(wording)) add('execution-plan');
+  if (!candidates.size) add('dose-response', 'biological-coherence');
+  return catalog.map((item) => item.kind).filter((kind) => candidates.has(kind));
+}
+
+function hydrateWidgets(
+  catalog: WidgetTemplate[],
+  rawReceipts: unknown,
+  scope: InvestigationDeterministicContext['boundScope'],
+): InvestigationWidget[] {
+  if (!Array.isArray(rawReceipts)) return [];
+  const byKind = new Map(catalog.map((widget) => [widget.kind, widget]));
+  const seen = new Set<InvestigationWidgetKind>();
+  const widgets: InvestigationWidget[] = [];
+  for (const raw of rawReceipts) {
+    if (!raw || typeof raw !== 'object') continue;
+    const receipt = raw as Record<string, unknown>;
+    const kind = receipt.widgetKind as InvestigationWidgetKind;
+    const receiptScope = receipt.scope as Record<string, unknown> | undefined;
+    const template = byKind.get(kind);
+    if (!template || seen.has(kind) || receipt.schemaVersion !== '1.0.0') continue;
+    if (!receiptScope || Object.entries(scope).some(([key, value]) => receiptScope[key] !== value)) continue;
+    seen.add(kind);
+    widgets.push({
+      ...template,
+      trigger: {
+        source: 'magenta-tool',
+        toolName: 'present_evidence_widget',
+        receiptSchemaVersion: '1.0.0',
+        ...(typeof receipt.toolCallId === 'string' ? { toolCallId: receipt.toolCallId } : {}),
+      },
+    });
+  }
+  return widgets;
+}
+
+export async function investigate(
+  evidence: StudyEvidence,
+  signalId: string,
+  question: string,
+  profileId: SemanticProfileId = 'toxicologist',
+  recordEvidence?: SignalRecordEvidence,
+  coherence?: BiologicalCoherenceResponse,
+  semanticGrounding?: SemanticGroundingResult,
+  literatureEvidence?: Omit<LiteratureQueryResponse, 'source' | 'plan'>,
+  portfolioContext?: PortfolioSimilarityResult,
+  invocation?: InvestigationInvocation,
+): Promise<InvestigationResult> {
+  const signal = evidence.signals.find((candidate) => candidate.id === signalId) || evidence.signals[0];
+  const magentaUrl = process.env.INTERNAL_AGENT_URL?.replace(/\/$/, '');
+  const catalog = widgetCatalog(evidence, signalId, coherence, semanticGrounding, literatureEvidence, portfolioContext);
+  const sessionId = invocation?.sessionId || 'unbound-deterministic-session';
+  const turn = invocation?.turn || 1;
   const sourceCitations = [
     ...canonicalCitations(recordEvidence, coherence),
     ...(semanticGrounding?.hits.slice(0, 2).map((hit) => ({
@@ -102,6 +177,7 @@ export async function investigate(
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           text: question,
+          sessionId,
           context: {
             studyId: evidence.study.id,
             snapshotId: evidence.study.snapshotId,
@@ -137,12 +213,16 @@ export async function investigate(
               execution: portfolioContext.execution,
               matches: portfolioContext.matches.slice(0, 5),
             } : undefined,
+            deterministicContract: invocation?.deterministicContext,
           },
         }),
         cache: 'no-store',
       });
       if (response.ok) {
         const result = await response.json();
+        const widgets = invocation
+          ? hydrateWidgets(catalog, result.widgets, invocation.deterministicContext.boundScope)
+          : [];
         return {
           answer: result.answer || 'The Magenta investigator completed without a textual response.',
           confidence: result.confidence || 'review',
@@ -151,6 +231,12 @@ export async function investigate(
           widgets,
           guardrails: result.guardrails || { readOnly: true, snapshotBound: true, regulatoryConclusion: false },
           provider: 'magenta',
+          session: {
+            id: result.sessionId || sessionId,
+            turn,
+            memory: 'magenta-checkpointer',
+            scopeBound: true,
+          },
           coherence,
           semanticGrounding,
           literatureEvidence,
@@ -188,11 +274,20 @@ export async function investigate(
     ? (semanticGrounding.mode === 'atlas-hybrid' ? 'complete' : 'fallback')
     : 'skipped';
   const literatureStageStatus = literatureEvidence?.documents.length ? 'complete' : 'skipped';
+  const widgets = deterministicWidgetKinds(question, catalog).map((kind) => ({
+    ...catalog.find((widget) => widget.kind === kind)!,
+    trigger: {
+      source: 'deterministic-policy' as const,
+      toolName: 'deterministic-widget-policy' as const,
+      receiptSchemaVersion: '1.0.0' as const,
+    },
+  }));
 
   return {
     answer: `${structured}${labContext}${coherenceContext}${semanticContext}${literatureContext}${portfolioNarrative} These observations support expert review; they are not an automatic target-organ, causal, adversity, or regulatory conclusion.`,
     confidence: signal.reviewPriority === 'high' ? 'strong-pattern' : 'review',
     provider: 'deterministic',
+    session: { id: sessionId, turn, memory: 'request-history', scopeBound: true },
     coherence,
     semanticGrounding,
     literatureEvidence,

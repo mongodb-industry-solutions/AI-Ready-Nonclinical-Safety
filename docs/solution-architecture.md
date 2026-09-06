@@ -26,7 +26,7 @@ flowchart LR
       P[(AI projections<br/>evidence/literature text + edges)]
       V[(Atlas internal search<br/>Automated Embedding vectors)]
       S[(Semantic control<br/>releases + polymorphic resources + edges<br/>auto-embedded search + runtime pointer)]
-      W[(Solution state<br/>investigations + review_actions)]
+      W[(Solution state<br/>investigation sessions + Magenta checkpoints<br/>investigations + review actions)]
       Q[Aggregation + Atlas Search<br/>Vector Search + graph lookup + Change Streams]
       E --> Q
       P --> Q
@@ -80,7 +80,7 @@ The primary read model embeds data that the safety workspace reads together:
 
 This read model is deterministic and rebuildable for a published snapshot. It stores its projector version, projection rule IDs, source package digest, projection digest, and a reconciliation receipt. The underlying `cdisc_records` and source artifacts are immutable authority; `study_evidence`, search documents, and semantic edges are application projections that can evolve or be rebuilt without modifying observed SEND evidence. Atlas maintains Automated Embedding vectors outside the source documents in `__mdb_internal_search`. Investigations and review actions remain separate append-only solution state.
 
-The detailed [CDISC document-model decision](cdisc-document-model-decision.md) defines the target v2 evidence envelope, explains why CDISC uses one polymorphic record collection, and distinguishes the Context Studio release from its solution-side serving projections.
+The detailed [CDISC document-model decision](cdisc-document-model-decision.md) defines the versioned evidence envelope, explains why CDISC uses one polymorphic record collection, and distinguishes the Context Studio release from its solution-side serving projections. `modelSchemaVersion` is carried by every persisted governed object so future envelope migrations are explicit.
 
 The solution projector is intentionally owned here rather than in Kehrnel. Kehrnel knows how to preserve and export standards-conformant evidence; this application knows which microscopic observations form a safety-review signal, which laboratory series are biologically relevant, and how the user experience consumes them. The boundary keeps reusable data infrastructure independent from product-specific scientific policy.
 
@@ -97,7 +97,7 @@ For the current observed-study projector, a pathology incidence is the number of
 | GET | `/api/studies/{studyId}/signals` | Retrieve a snapshot-bound study evidence model |
 | GET | `/api/studies/{studyId}/signals/{signalId}/records` | Resolve a visual signal to canonical subject, finding, lab, treatment, and artifact evidence |
 | GET | `/api/studies/{studyId}/records` | Page through every canonical source row by domain and subject or study scope |
-| POST | `/api/investigations` | Execute a profile-authorized, cited investigation and return its compiled contract plus measured data-operation trace |
+| POST | `/api/investigations` | Bind a session to one immutable scope, execute a profile-authorized investigation, and return citations, typed widget receipts, the compiled contract, and measured data-operation trace |
 | GET | `/api/literature` | Execute containment, lexical, Atlas Automated Embedding, graph, fusion, and reranking stages |
 | GET | `/api/portfolio/similarity` | Compare a finding across study snapshots with semantic, incidence, severity, Atlas Automated Embedding, fusion, and reranking telemetry |
 | GET / POST | `/api/reviews` | Read or append governed expert review actions |
@@ -111,12 +111,13 @@ The browser only calls solution-owned APIs. It does not connect directly to Kehr
 
 ## Hybrid query path
 
-1. Authorize the profile and bind the study and immutable snapshot.
-2. Compile semantic containment from archetypes into an operational MongoDB plan.
-3. Execute exact aggregation, Atlas Search, Vector Search, and graph traversal as complementary lanes.
-4. Fuse candidates with reciprocal-rank fusion and apply domain-aware reranking.
-5. Hydrate canonical records and attach source locators and execution telemetry.
-6. Let Magenta synthesize a cited hypothesis for expert acceptance, revision, or rejection.
+1. Let Magenta combine the current question with scope-bound session memory to resolve intent.
+2. Authorize the profile and bind the study, immutable snapshot, signal, and semantic release.
+3. Compile semantic containment from archetypes into an operational MongoDB plan.
+4. Execute exact aggregation, Atlas Search, Vector Search, and graph traversal as complementary lanes whenever the required facts are absent from the conversation.
+5. Fuse candidates with reciprocal-rank fusion, apply domain-aware reranking, hydrate canonical records, and attach source locators and execution telemetry.
+6. Let Magenta select presentation through registered widget tools. The returned receipt contains only widget type and scope; the application hydrates every value from deterministic resolver output.
+7. Let Magenta synthesize a cited hypothesis for expert acceptance, revision, or rejection.
 
 Exact CDISC-derived measurements remain authoritative. Vector similarity finds context; it never substitutes generated text for incidence, dose, severity, or laboratory values.
 

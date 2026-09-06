@@ -392,11 +392,36 @@ export interface InvestigationStep {
   detail: string;
 }
 
+export type InvestigationWidgetKind = 'dose-response' | 'laboratory-trajectory' | 'biological-coherence' | 'portfolio-context' | 'semantic-grounding' | 'literature-evidence' | 'execution-plan' | 'evidence-topology';
+
 export interface InvestigationWidget {
   id: string;
-  kind: 'dose-response' | 'laboratory-trajectory' | 'biological-coherence' | 'portfolio-context' | 'semantic-grounding' | 'execution-plan' | 'evidence-topology';
+  kind: InvestigationWidgetKind;
   title: string;
   sourceDomains: string[];
+  trigger: {
+    source: 'magenta-tool' | 'deterministic-policy';
+    toolName: 'present_evidence_widget' | 'deterministic-widget-policy';
+    receiptSchemaVersion: '1.0.0';
+    toolCallId?: string;
+  };
+}
+
+export interface InvestigationDeterministicContext {
+  schemaVersion: '1.0.0';
+  resolverId: string;
+  capabilityId: string;
+  semanticReleaseId: string;
+  modelSchemaVersion?: string;
+  immutableEvidence: true;
+  boundScope: {
+    studyId: string;
+    snapshotId: string;
+    signalId: string;
+    profileId: SemanticProfileId;
+  };
+  availableWidgets: InvestigationWidgetKind[];
+  dataOperations: DataQueryTrace[];
 }
 
 export interface InvestigationExecutionContract {
@@ -443,6 +468,12 @@ export interface InvestigationResult {
     regulatoryConclusion: false;
   };
   provider: 'deterministic' | 'magenta';
+  session: {
+    id: string;
+    turn: number;
+    memory: 'magenta-checkpointer' | 'request-history';
+    scopeBound: true;
+  };
   /** Snapshot-bound operational evidence assembled by the biological-coherence resolver. */
   coherence?: BiologicalCoherenceResponse;
   /** Profile-scoped lexical + Atlas-managed-vector grounding executed with the investigation. */

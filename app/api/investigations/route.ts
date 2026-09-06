@@ -6,17 +6,18 @@ import { loadBiologicalCoherence } from '@/lib/data/coherence-repository';
 import { loadPortfolioVectorScores } from '@/lib/data/portfolio-query';
 import { executeLiteratureQuery } from '@/lib/data/literature-query';
 import { loadPortfolioEvidence, loadStudyEvidence, StudyEvidenceNotFoundError } from '@/lib/data/study-repository';
-import { recordInvestigation } from '@/lib/data/review-store';
+import { bindInvestigationSession, InvestigationSessionScopeError, recordInvestigation } from '@/lib/data/review-store';
 import { loadActiveSemanticBundle } from '@/lib/semantics/repository';
 import { searchSemanticMap } from '@/lib/semantics/search';
 import { comparePortfolio } from '@/lib/analysis/portfolio-similarity';
-import type { DataQueryTrace } from '@/lib/contracts';
+import type { DataQueryTrace, InvestigationWidgetKind } from '@/lib/contracts';
 
 const requestSchema = z.object({
   studyId: z.string().min(1).max(200),
   signalId: z.string().min(1).max(200),
   profileId: z.enum(['toxicologist', 'study-director', 'data-steward', 'portfolio-lead', 'external-reviewer']).default('toxicologist'),
   question: z.string().min(3).max(2000),
+  sessionId: z.string().min(8).max(160).regex(/^[A-Za-z0-9_-]+$/).optional(),
 });
 
 export async function POST(request: Request) {
@@ -44,6 +45,22 @@ export async function POST(request: Request) {
   const signal = evidence.signals.find((candidate) => candidate.id === parsed.data.signalId);
   if (!signal) {
     return NextResponse.json({ error: `Signal ${parsed.data.signalId} was not found in study ${parsed.data.studyId}` }, { status: 404 });
+  }
+  let session;
+  try {
+    session = await bindInvestigationSession({
+      sessionId: parsed.data.sessionId,
+      studyId: evidence.study.id,
+      snapshotId: evidence.study.snapshotId,
+      signalId: signal.id,
+      profileId: parsed.data.profileId,
+      semanticReleaseId: runtime.release.releaseId,
+    });
+  } catch (error) {
+    if (error instanceof InvestigationSessionScopeError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
   }
   const coherenceResolver = runtime.resolvers.find((item) => item.id === 'resolver.biological-coherence.v1');
   const coherenceCapability = runtime.capabilities.find((item) => item.id === coherenceResolver?.capability);
@@ -77,7 +94,47 @@ export async function POST(request: Request) {
   ]);
   if (coherence) dataOperations.push(...coherence.execution.dataOperations);
   if (portfolioContext) dataOperations.push(...portfolioContext.execution.dataOperations);
-  const result = await investigate(evidence, parsed.data.signalId, parsed.data.question, parsed.data.profileId, recordEvidence, coherence, semanticGrounding, literatureEvidence, portfolioContext);
+  const availableWidgets: InvestigationWidgetKind[] = [
+    'dose-response',
+    ...(signal.correlatedLab && evidence.labSeries?.[signal.correlatedLab] ? ['laboratory-trajectory' as const] : []),
+    ...(coherence?.available ? ['biological-coherence' as const] : []),
+    ...(portfolioContext?.matches.length ? ['portfolio-context' as const] : []),
+    ...(semanticGrounding ? ['semantic-grounding' as const] : []),
+    ...(literatureEvidence?.documents.length ? ['literature-evidence' as const] : []),
+    'execution-plan',
+    'evidence-topology',
+  ];
+  const result = await investigate(
+    evidence,
+    parsed.data.signalId,
+    parsed.data.question,
+    parsed.data.profileId,
+    recordEvidence,
+    coherence,
+    semanticGrounding,
+    literatureEvidence,
+    portfolioContext,
+    {
+      sessionId: session.sessionId,
+      turn: session.turn,
+      deterministicContext: {
+        schemaVersion: '1.0.0',
+        resolverId: resolver.id,
+        capabilityId: capability.id,
+        semanticReleaseId: runtime.release.releaseId,
+        modelSchemaVersion: recordEvidence.modelSchemaVersion,
+        immutableEvidence: true,
+        boundScope: {
+          studyId: evidence.study.id,
+          snapshotId: evidence.study.snapshotId,
+          signalId: signal.id,
+          profileId: parsed.data.profileId,
+        },
+        availableWidgets,
+        dataOperations,
+      },
+    },
+  );
   const readCollections = [...new Set(dataOperations.filter((operation) => operation.source === 'mongodb' && operation.status === 'executed').map((operation) => operation.collection))];
   const predicates = dataOperations.reduce<Record<string, Array<Record<string, unknown>>>>((byCollection, operation) => {
     if (!byCollection[operation.collection]) byCollection[operation.collection] = [];
@@ -128,6 +185,8 @@ export async function POST(request: Request) {
     },
   };
   const investigationId = await recordInvestigation({
+    sessionId: session.sessionId,
+    turn: session.turn,
     studyId: evidence.study.id,
     snapshotId: evidence.study.snapshotId,
     signalId: signal.id,

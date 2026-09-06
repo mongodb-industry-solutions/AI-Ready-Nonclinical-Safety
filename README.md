@@ -30,8 +30,8 @@ problem, the shape, why it works, and **when not to use it**.
 - A full-width interactive evidence and lineage network with dose-specific branches, node inspection, minimap, and immersive graph mode.
 - A full-screen Investigation Room with an interactive evidence-path navigator and an optional AI-first canvas where the investigator composes typed graph, dose-response, laboratory, semantic-clarification, and resolver widgets while exposing citations.
 - A progressive Evidence Workspace that first reports which evidence dimensions exist and why they matter, then expands one focused workbench at a time: BW/BG and FW trajectories, MI/MA/OM concordance, EX and PC/PP exposure, CL/SE/DS study course, relationships, expert decision, or the measured query plan. Every chart point and event opens its exact immutable source rows.
-- A feed-first investigator experience: example questions compose explanations and typed visual widgets in the main conversation canvas. The right inspector is contextual rather than permanent and appears only when a user expands a chart or publication.
-- An inspectable execution envelope for every investigation: the authorized deterministic resolver contract, immutable query scope, server-selected typed widgets, real MongoDB `executionStats` (winning index, keys/documents examined, rows returned, and duration), and every structured, graph, semantic, vector, literature, fusion, and reranking stage that actually executed, fell back, or was skipped.
+- A feed-first investigator experience: Magenta uses scope-bound session memory to understand follow-up intent, invokes registered deterministic evidence tools for facts, and selects typed visual widgets through a registered presentation tool. The main conversation canvas hydrates those widget receipts from resolver output; the right inspector appears only when a user expands a chart or publication.
+- An inspectable execution envelope for every investigation: the authorized deterministic resolver contract, immutable query scope, Magenta tool-selected typed widgets, actual registered tool calls, real MongoDB `executionStats` (winning index, keys/documents examined, rows returned, and duration), and every structured, graph, semantic, vector, literature, fusion, and reranking stage that actually executed, fell back, or was skipped.
 - Record-level drilldown from a signal to its contributing evidence, followed by a paginated canonical explorer across every imported domain, subject or complete-study scope, and checksum-verified source artifact. Laboratory rows can be filtered by finding-linked test, source-supplied abnormality/range evidence, or unavailable reference range without inventing clinical thresholds.
 - A literature-evidence workspace that grounds SEND findings to attributed PubMed records, separates supporting context from alternative explanations, and exposes the hybrid retrieval path.
 - A profile-aware semantic model explorer with synchronized business-document, semantic-graph, retrieval, and physical-MongoDB lenses, plus live hybrid search across the map itself.
@@ -95,6 +95,7 @@ The agent needs two things: the solution database and an LLM key.
 MONGODB_URI=mongodb+srv://...
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini        # must be a model your key can call
+OPENAI_BASE_URL=https://...     # optional OpenAI-compatible / Azure / Grove gateway
 INTERNAL_AGENT_URL=http://localhost:8082   # only when running the app outside compose
 ```
 
@@ -167,7 +168,7 @@ flowchart LR
 | Bundled Magenta service | Orchestrate solution-owned read-only tools, memory, traces, reranking, and human review within the same deployment. |
 | This repository | Deliver the business workflow, visual explanation, evidence assembly, and expert experience. |
 
-The solution never makes canonical CDISC records, semantic projections, or agent memory competing sources of truth. Published evidence is immutable; semantic releases are versioned; expert decisions are append-only solution state.
+The solution never makes canonical CDISC records, semantic projections, or agent memory competing sources of truth. Memory carries dialogue intent only; every factual turn rebinds to a deterministic study/snapshot/signal/profile scope. Published evidence is immutable; semantic releases are versioned; expert decisions are append-only solution state.
 
 ## Portable Semantic Runtime
 

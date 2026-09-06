@@ -16,6 +16,15 @@ The Investigation Room presents the compiled resolver contract separately from t
 
 In AI-first mode the conversation conducts a full-width visual canvas instead of replacing it. Answers compose dose-response, laboratory, evidence-topology, semantic-grounding, and execution widgets inline with the explanation. The right inspector is opened only for a user-selected chart or publication. Hybrid semantic candidates expose their hierarchy and value-set context; the investigator can choose an intended meaning, rerun the question with that governed interpretation, or open the selected object in the full semantic-map explorer.
 
+## Two context planes
+
+The investigator deliberately separates conversational context from evidence context:
+
+- **Session memory** stores dialogue continuity: the user's focus, prior questions, requested comparisons, and preferred presentation. It is bound to one study, snapshot, signal, profile, and semantic release. The bundled deployment persists Magenta checkpoints with a configurable TTL.
+- **Deterministic context** stores the authorized resolver contract and fresh results: canonical facts, semantic release, executed MongoDB operations, citations, and available visual renderers. Memory is never accepted as evidence.
+
+For each turn Magenta interprets the question with memory, calls one or more registered resolver tools for facts that are not present in the current deterministic context, and finally calls `present_evidence_widget`. That presentation tool returns a schema-versioned receipt containing only a widget kind and bound scope. The Next.js application validates the receipt and hydrates the chart, graph, or plan from deterministic resolver output. A model therefore chooses *how to explain*; it cannot invent the values being visualized.
+
 The adjacent Evidence Workspace uses progressive disclosure. Its overview answers
 which SEND dimensions are present and why each dimension matters to the active
 finding. Focused tabs then expose BW/BG, FW, LB, MI/MA, OM, EX, PC/PP, and
@@ -55,7 +64,8 @@ The deployed literature adapter returns an execution envelope alongside its resu
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Scope
+  [*] --> RecallIntent
+  RecallIntent --> Scope
   Scope --> Plan
   Plan --> StructuredQuery
   Plan --> SemanticRetrieve
@@ -65,7 +75,9 @@ stateDiagram-v2
   GraphExpand --> Rerank
   Rerank --> Synthesize
   Synthesize --> VerifyCitations
-  VerifyCitations --> Present
+  VerifyCitations --> SelectWidget
+  SelectWidget --> HydrateWidget
+  HydrateWidget --> Present
   Present --> [*]
 ```
 
@@ -76,5 +88,6 @@ stateDiagram-v2
 - The default tool set is read-only.
 - Every assertion must cite canonical evidence or a named derived projection.
 - The interface presents tool activity and retrieval evidence, not hidden chain-of-thought.
-- Agent memory can retain user preferences and reviewed interpretations, never silently modify source evidence.
+- Agent memory can retain user preferences and reviewed interpretations, but each factual response is rebound to deterministic resolver output for the immutable scope.
+- Presentation receipts are accepted only from the registered Magenta tool, at schema `1.0.0`, for a renderer allowed by the server-side catalog and an exact scope match.
 - Regulatory conclusions and write operations require explicit expert workflows outside this first release.
