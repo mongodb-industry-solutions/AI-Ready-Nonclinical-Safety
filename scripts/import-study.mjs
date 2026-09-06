@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 import { MongoClient } from 'mongodb';
+import { enforceCdiscRecordValidator } from './lib/cdisc-record-validator.mjs';
 import { projectOperationalEvidence, projectStudyEvidence } from './lib/study-evidence-projector.mjs';
 
 const arguments_ = process.argv.slice(2);
@@ -10,7 +11,7 @@ const evidenceClassArgument = arguments_.find((value) => value.startsWith('--evi
 const selectedEvidenceClass = evidenceClassArgument?.split('=')[1];
 const replaceSnapshot = arguments_.includes('--replace-snapshot');
 const allowedEvidenceClasses = ['observed-public', 'synthetic-benchmark', 'sponsor-observed'];
-if (!inputPath) throw new Error('Usage: npm run import:study -- <solution-evidence-package.json|study-evidence.json> [--evidence-class=synthetic-benchmark] [--replace-snapshot]');
+if (!inputPath) throw new Error('Usage: npm run import:study -- <cdisc-solution-evidence-v2.json> [--evidence-class=synthetic-benchmark] [--replace-snapshot]');
 if (selectedEvidenceClass && !allowedEvidenceClasses.includes(selectedEvidenceClass)) throw new Error(`Unsupported evidence class: ${selectedEvidenceClass}`);
 if (arguments_.some((value) => value !== inputPath && value !== evidenceClassArgument && value !== '--replace-snapshot')) throw new Error('A separate business projection is not accepted; package imports derive and reconcile StudyEvidence automatically');
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required');
@@ -37,20 +38,13 @@ function requireArray(value, label) {
   return value;
 }
 
-function validateStudyEvidence(value) {
-  if (!value?.study?.id || !value?.study?.snapshotId || !Array.isArray(value?.signals)) {
-    throw new Error('Study projection must satisfy the StudyEvidence contract');
-  }
-  return value;
-}
-
 function validatePackage(value) {
   const document = requireObject(value, 'Evidence package');
-  if (document.apiVersion !== 'kehrnel.dev/cdisc-solution-evidence/v1') {
+  if (document.apiVersion !== 'kehrnel.dev/cdisc-solution-evidence/v2') {
     throw new Error(`Unsupported evidence package apiVersion: ${document.apiVersion || 'missing'}`);
   }
   if (document.kind !== 'CDISCSolutionEvidencePackage') throw new Error('Invalid evidence package kind');
-  if (!/^1\./.test(String(document.modelSchemaVersion || ''))) {
+  if (!/^2\./.test(String(document.modelSchemaVersion || ''))) {
     throw new Error(`Unsupported modelSchemaVersion: ${document.modelSchemaVersion || 'missing'}`);
   }
   const manifest = requireObject(document.manifest, 'manifest');
@@ -65,6 +59,23 @@ function validatePackage(value) {
   for (const key of ['datasets', 'records', 'entities', 'materializations', 'sourceArtifacts', 'validationRuns', 'validationFindings', 'transformations']) {
     const values = requireArray(evidence[key], `evidence.${key}`);
     if (manifest.counts?.[key] !== values.length) throw new Error(`Manifest count mismatch for ${key}`);
+  }
+  for (const [index, record] of evidence.records.entries()) {
+    if (!record?._id || !record?.canonical || !record?._control || !record?._index || !record?._provenance) {
+      throw new Error(`evidence.records[${index}] does not satisfy the CDISC v2 envelope`);
+    }
+    if (record._control.studyId !== manifest.studyId || record._control.snapshotId !== manifest.snapshotId || record._control.evidencePackageId !== manifest.packageId) {
+      throw new Error(`evidence.records[${index}] control scope does not match the package manifest`);
+    }
+    if (!/^2\./.test(String(record._control.modelSchemaVersion || '')) || record._control.publicationState !== 'published') {
+      throw new Error(`evidence.records[${index}] is not a published modelSchemaVersion 2 record`);
+    }
+    if (!record.canonical.domain || !record.canonical.data || !record.canonical.recordKey || !record._index.semanticText || !record._provenance.recordHash) {
+      throw new Error(`evidence.records[${index}] omits required canonical, retrieval, or provenance content`);
+    }
+    for (const [label, optional] of [['_index.facets', record._index.facets], ['_index.entityRefs', record._index.entityRefs], ['_enrichment', record._enrichment]]) {
+      if (optional && Object.keys(optional).length === 0) throw new Error(`evidence.records[${index}] persists empty optional field ${label}`);
+    }
   }
   return document;
 }
@@ -150,18 +161,19 @@ async function upsertMany(collection, documents) {
 }
 
 const input = JSON.parse(await readFile(inputPath, 'utf8'));
-const isPackage = input?.apiVersion === 'kehrnel.dev/cdisc-solution-evidence/v1';
-const packageDocument = isPackage ? validatePackage(input) : null;
-const projection = packageDocument ? projectStudyEvidence(packageDocument, { evidenceClass: selectedEvidenceClass }) : validateStudyEvidence(input);
+const packageDocument = validatePackage(input);
+const projection = projectStudyEvidence(packageDocument, { evidenceClass: selectedEvidenceClass });
 const semanticRuntime = JSON.parse(await readFile(new URL('../semantic/nonclinical-safety-runtime.json', import.meta.url), 'utf8'));
 const semanticReleaseId = semanticRuntime?.release?.releaseId;
 if (!semanticReleaseId) throw new Error('The compiled semantic runtime does not declare release.releaseId');
-const operational = packageDocument ? projectOperationalEvidence(packageDocument, { semanticReleaseId }) : null;
+const operational = projectOperationalEvidence(packageDocument, { semanticReleaseId });
 
 const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
 try {
   const database = client.db(process.env.MONGODB_DATABASE || 'nonclinical_safety_solution');
+  await enforceCdiscRecordValidator(database);
+  const targetTenantId = process.env.CDISC_TENANT_ID || 'public-demo';
 
   if (packageDocument) {
     const { manifest, evidence, modelSchemaVersion } = packageDocument;
@@ -217,7 +229,8 @@ try {
       _id: localId(manifest.studyId, manifest.snapshotId, item.sourceId || item.domain), ...stamp, ...item,
     })));
     await upsertMany(database.collection('cdisc_records'), evidence.records.map((item) => ({
-      _id: localId(manifest.studyId, manifest.snapshotId, item.sourceId), ...stamp, ...item,
+      ...item,
+      _control: { ...item._control, tenantId: targetTenantId },
     })));
     await upsertMany(database.collection('subjects'), evidence.entities
       .filter((item) => item.entityType === 'animalSubject' || item.entityType === 'humanSubject')
@@ -249,12 +262,16 @@ try {
 
     await database.collection('study_snapshots').createIndex({ studyId: 1, snapshotId: 1 }, { name: 'study_snapshot', unique: true });
     await database.collection('dataset_definitions').createIndex({ studyId: 1, snapshotId: 1, domain: 1 }, { name: 'dataset_domain', unique: true });
-    await database.collection('cdisc_records').createIndexes([
-      { key: { studyId: 1, snapshotId: 1, sourceId: 1 }, name: 'record_source_identity', unique: true },
-      { key: { studyId: 1, snapshotId: 1, domain: 1, rowOrdinal: 1 }, name: 'record_domain_order' },
-      { key: { studyId: 1, snapshotId: 1, 'facets.subjectId': 1, domain: 1 }, name: 'subject_evidence' },
-      { key: { studyId: 1, snapshotId: 1, 'facets.organ': 1, 'facets.finding': 1 }, name: 'finding_evidence' },
-      { key: { studyId: 1, snapshotId: 1, 'facets.testCode': 1, 'facets.studyDay': 1 }, name: 'laboratory_evidence' },
+    const canonicalRecords = database.collection('cdisc_records');
+    const obsoleteRecordIndexes = new Set(['record_source_identity', 'record_domain_order_v2', 'subject_evidence_v2', 'finding_evidence_v2', 'laboratory_evidence', 'measurement_evidence_v2']);
+    for (const index of await canonicalRecords.listIndexes().toArray()) {
+      if (obsoleteRecordIndexes.has(index.name)) await canonicalRecords.dropIndex(index.name);
+    }
+    await canonicalRecords.createIndexes([
+      { key: { '_control.tenantId': 1, '_control.studyId': 1, '_control.snapshotId': 1, 'canonical.domain': 1, 'canonical.rowOrdinal': 1 }, name: 'record_domain_order' },
+      { key: { '_control.tenantId': 1, '_control.studyId': 1, '_control.snapshotId': 1, '_index.facets.subjectId': 1, 'canonical.domain': 1 }, name: 'subject_evidence' },
+      { key: { '_control.tenantId': 1, '_control.studyId': 1, '_control.snapshotId': 1, '_index.facets.organ': 1, '_index.facets.finding': 1 }, name: 'finding_evidence' },
+      { key: { '_control.tenantId': 1, '_control.studyId': 1, '_control.snapshotId': 1, '_index.facets.testCode': 1, '_index.facets.studyDay': 1 }, name: 'measurement_evidence' },
     ]);
     await database.collection('subjects').createIndex({ studyId: 1, snapshotId: 1, subjectId: 1 }, { name: 'subject_identity', unique: true });
     await database.collection('source_artifacts').createIndex({ studyId: 1, snapshotId: 1, 'digest.value': 1 }, { name: 'artifact_digest' });
@@ -303,10 +320,10 @@ try {
     { 'study.id': projection.study.id, 'study.snapshotId': projection.study.snapshotId },
     {
       ...projection,
-      modelSchemaVersion: packageDocument?.modelSchemaVersion || '1.0.0',
+      modelSchemaVersion: packageDocument.modelSchemaVersion,
       importedAt: new Date(),
-      importSource: packageDocument ? 'kehrnel-export' : 'solution-api',
-      ...(packageDocument?.manifest.packageId ? { evidencePackageId: packageDocument.manifest.packageId } : {}),
+      importSource: 'kehrnel-export',
+      evidencePackageId: packageDocument.manifest.packageId,
     },
     { upsert: true },
   );
@@ -354,9 +371,7 @@ try {
     );
   }
 
-  const name = packageDocument
-    ? `${packageDocument.manifest.studyId}/${packageDocument.manifest.snapshotId}: ${packageDocument.manifest.counts.records} canonical records, ${packageDocument.manifest.counts.sourceArtifacts} source artifacts, ${operational.endpointSummaries.length} endpoint summaries, ${operational.measurementSeries.length} measurement series, ${operational.subjectTimelines.length} subject timelines, and ${operational.evidenceRelationships.length} evidence relationships`
-    : `${projection.study.id}/${projection.study.snapshotId}: solution read model`;
+  const name = `${packageDocument.manifest.studyId}/${packageDocument.manifest.snapshotId}: ${packageDocument.manifest.counts.records} canonical records, ${packageDocument.manifest.counts.sourceArtifacts} source artifacts, ${operational.endpointSummaries.length} endpoint summaries, ${operational.measurementSeries.length} measurement series, ${operational.subjectTimelines.length} subject timelines, and ${operational.evidenceRelationships.length} evidence relationships`;
   console.log(`Imported ${name}.`);
 } finally {
   await client.close();

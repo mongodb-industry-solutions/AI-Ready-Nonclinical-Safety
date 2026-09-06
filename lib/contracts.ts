@@ -515,6 +515,18 @@ export interface SemanticResolver {
   };
 }
 
+export interface SemanticQueryContract {
+  id: string;
+  label: string;
+  queryClass: 'operational' | 'semantic' | 'research';
+  resolverId: string;
+  semanticIntent: string;
+  scope: string[];
+  deterministicPredicates: string[];
+  physicalPlan: Record<string, unknown>;
+  evidenceOutput: string[];
+}
+
 export interface HybridQueryPlan {
   resolverId: string;
   capabilityId: string;
@@ -588,7 +600,7 @@ export interface SemanticSubscription {
 }
 
 export interface SemanticSearchHit {
-  resourceType: 'object' | 'profile' | 'capability' | 'resolver' | 'action' | 'surface' | 'valueSet' | 'concept' | 'archetype' | 'storageBinding' | 'sourceAdapter' | 'subscription' | 'edge';
+  resourceType: 'object' | 'profile' | 'capability' | 'resolver' | 'action' | 'surface' | 'valueSet' | 'concept' | 'archetype' | 'storageBinding' | 'sourceAdapter' | 'subscription' | 'queryContract' | 'projectionRecipe' | 'edge';
   resourceId: string;
   label: string;
   excerpt: string;
@@ -643,14 +655,17 @@ export interface SemanticStorageBinding {
   semanticObject: string;
   archetype: string;
   adapter: string;
-  representation: 'document' | 'embedded-fragment' | 'object' | 'api-resource';
+  representation: 'canonical-row' | 'document' | 'embedded-fragment' | 'object' | 'api-resource';
   location: string;
   path: string;
-  authority: 'source' | 'projection' | 'solution-state';
+  authority: 'canonical' | 'artifact' | 'external-source' | 'projection' | 'solution-state';
+  dataContract?: string;
+  selector?: Record<string, unknown>;
+  scopePrefix?: string[];
 }
 
 export interface SemanticRuntimeBundle {
-  apiVersion: 'contextobjects.dev/runtime-bundle/v1';
+  apiVersion: 'contextobjects.dev/runtime-bundle/v2';
   kind: 'SemanticRuntimeBundle';
   release: {
     releaseId: string;
@@ -662,21 +677,37 @@ export interface SemanticRuntimeBundle {
     sourceStandard: string;
     description: string;
   };
+  requires: {
+    dataContract: 'kehrnel.dev/cdisc-solution-evidence/v2';
+    modelSchemaVersion: '2.0.0';
+    semanticPackages: string[];
+  };
+  modules: Array<{
+    packageId: string;
+    version: string;
+    kind: string;
+    contentDigest: string;
+  }>;
   objects: SemanticObject[];
   edges: SemanticEdge[];
   profiles: SemanticProfile[];
   capabilities: SemanticCapability[];
   resolvers: SemanticResolver[];
+  queryContracts: SemanticQueryContract[];
   actions: SemanticAction[];
   surfaces: SemanticSurface[];
   valueSets: SemanticValueSet[];
   taxonomy: { concepts: SemanticConcept[] };
   archetypes: SemanticArchetype[];
   storageBindings: SemanticStorageBinding[];
+  projectionRecipes: Array<Record<string, unknown>>;
+  indexes: Array<Record<string, unknown>>;
   sourceAdapters: SemanticSourceAdapter[];
   subscriptions: SemanticSubscription[];
   governance: {
     evidenceCollections: string[];
+    projectionCollections: string[];
+    semanticCollections: string[];
     solutionWriteCollections: string[];
     writeWorkflow: string[];
     rules: string[];

@@ -58,7 +58,7 @@ describe('portable semantic runtime', () => {
     const materialized = materializeSemanticBundle(bundle);
     expect(new Set(materialized.resources.map((resource) => resource.resourceType))).toEqual(new Set([
       'object', 'profile', 'capability', 'resolver', 'action', 'surface', 'valueSet', 'concept',
-      'archetype', 'storageBinding', 'sourceAdapter', 'subscription',
+      'archetype', 'storageBinding', 'sourceAdapter', 'subscription', 'queryContract', 'projectionRecipe',
     ]));
     expect(materialized.edges).toHaveLength(bundle.edges.length);
     expect(materialized.searchDocuments.length).toBeGreaterThan(materialized.resources.length + materialized.edges.length);
@@ -69,5 +69,20 @@ describe('portable semantic runtime', () => {
     const portfolioArchetype = materialized.searchDocuments.find((document) => document.resourceId === 'archetype.study-evidence-aggregate.v1' && document.profileId === 'portfolio-lead');
     expect(portfolioArchetype?.text).not.toContain('Subject');
     expect(portfolioArchetype?.text).not.toContain('SourceArtifact');
+  });
+
+  it('binds portable meaning to the CDISC v2 MongoDB envelope without treating projections as source authority', () => {
+    const bundle = semanticRuntimeBundle();
+    expect(bundle.apiVersion).toBe('contextobjects.dev/runtime-bundle/v2');
+    expect(bundle.requires).toMatchObject({ dataContract: 'kehrnel.dev/cdisc-solution-evidence/v2', modelSchemaVersion: '2.0.0' });
+    expect(bundle.modules.map((module) => module.packageId)).toEqual([
+      'org.contextobjects.cdisc-core',
+      'org.contextobjects.nonclinical-safety',
+      'org.contextobjects.persistence.mongodb-cdisc',
+    ]);
+    const findingBinding = bundle.storageBindings.find((binding) => binding.id === 'binding.finding.cdisc');
+    expect(findingBinding).toMatchObject({ location: 'cdisc_records', path: 'canonical.data', authority: 'canonical' });
+    expect(findingBinding?.selector).toMatchObject({ 'canonical.domain': 'MI' });
+    expect(bundle.queryContracts.map((contract) => contract.queryClass)).toEqual(['operational', 'semantic', 'research']);
   });
 });

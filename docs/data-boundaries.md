@@ -10,7 +10,7 @@ Healthcare Data Lab is the operator-facing laboratory. It selects public example
 
 ## Kehrnel
 
-Kehrnel owns the reusable CDISC metamodel, deterministic generator, and enablement-time query learning. A recipe records its seed, scenario, generator version, model digest, intended signal, expected anomalies, and watermark. Its `cdisc_export_solution_evidence` operation emits a published, checksum-protected `kehrnel.dev/cdisc-solution-evidence/v1` package containing the snapshot, dataset metamodels, canonical records, entity projections, artifacts, validation evidence, and transformation lineage. Kehrnel is upstream tooling, not a runtime service dependency of this solution.
+Kehrnel owns the reusable CDISC metamodel, deterministic generator, and enablement-time query learning. A recipe records its seed, scenario, generator version, model digest, intended signal, expected anomalies, and watermark. Its `cdisc_export_solution_evidence` operation emits a published, checksum-protected `kehrnel.dev/cdisc-solution-evidence/v2` package containing the snapshot, dataset metamodels, canonical records, entity projections, artifacts, validation evidence, and transformation lineage. The internal `/v2` marker versions the evidence envelope; the public CDISC solution library launches at `1.0.0`. Kehrnel is upstream tooling, not a runtime service dependency of this solution.
 
 The `safety-signal` SEND scenario exists to test cross-domain questions rather than create random rows. It should generate coherent dose groups, animal assignments, pathology incidence, severity, longitudinal laboratories, and explicit expected evidence patterns.
 

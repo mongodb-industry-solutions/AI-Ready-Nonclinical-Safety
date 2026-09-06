@@ -33,7 +33,7 @@ gap. Nimort-01 does supply ranges: the resolver currently hydrates 38 canonical
 outside-range rows across albumin, potassium, and chloride and reports overlap
 with animals in the selected pathology signal. These values remain source facts,
 not solution-invented thresholds. The active Context Studio semantic release is
-`org.contextobjects.nonclinical-safety@0.4.1`.
+`org.contextobjects.nonclinical-safety@1.0.0`.
 
 ## Evidence reconnaissance
 
@@ -71,7 +71,7 @@ on the shared demonstration cluster.
 - Preserve every source value in canonical records and omit absent fields.
 - Derive only reusable domain-neutral facets and entity references.
 - Validate and publish immutable snapshots.
-- Export every ingested domain through `kehrnel.dev/cdisc-solution-evidence/v1`.
+- Export every ingested domain through the internally versioned `kehrnel.dev/cdisc-solution-evidence/v2` contract.
 - Never derive adverse findings, NOAEL, or business-review conclusions.
 
 ### Context Studio
@@ -144,7 +144,7 @@ evidence chain. The preferred journey is:
 
 ## Delivery gates
 
-Status at semantic release 0.4.1:
+Status at semantic release 1.0.0:
 
 | Gate | Status | Evidence |
 |---|---|---|
@@ -152,7 +152,7 @@ Status at semantic release 0.4.1:
 | 1 · supply path | Complete on feature branches | All-domain checksum-pinned examples and a curated 63,836-record active corpus |
 | 2 · operational projections | Complete baseline | Three curated immutable active snapshots, reconciled projections, portfolio corpus, and workload indexes |
 | 3 · investigation room | Complete focused increment | Feed-first investigator, progressive Evidence Workspace across BW/BG, FW, CL, MA/MI, OM, EX, PC/PP, and SE/DS, contextual chart/document inspector, exact source navigation, and measured query traces |
-| 4 · agent and semantics | Implemented with runtime boundary | Compiled 0.4.1 resolver; exact, graph, semantic lexical/vector, literature, fusion, and rerank telemetry share one envelope; deterministic path always available; Magenta activates when configured |
+| 4 · agent and semantics | Implemented with runtime boundary | Compiled 1.0.0 resolver; exact, graph, semantic lexical/vector, literature, fusion, and rerank telemetry share one envelope; deterministic path always available; Magenta activates when configured |
 | 5 · assessment and evaluation | Partial | Cited target-organ assessment implemented; expert evaluation and NOAEL remain |
 
 ### Gate 0 — data reconnaissance

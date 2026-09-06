@@ -1,6 +1,6 @@
 {
   "name": "ai-ready-nonclinical-safety",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "A self-contained AI-ready nonclinical safety intelligence application built on MongoDB and Magenta.",
@@ -10,7 +10,9 @@
     "build": "next build",
     "start": "next start",
     "import:study": "node --env-file=.env.local scripts/import-study.mjs",
+    "compile:semantics": "node scripts/compile-semantic-runtime.mjs",
     "import:semantics": "node --env-file=.env.local scripts/import-semantics.mjs",
+    "migrate:cdisc-v2": "node --env-file=.env.local scripts/migrate-cdisc-v2.mjs",
     "import:literature": "node --env-file=.env.local scripts/import-literature.mjs",
     "rebuild:portfolio": "node --env-file=.env.local scripts/rebuild-portfolio-projections.mjs",
     "setup:indexes": "node --env-file=.env.local scripts/setup-atlas-indexes.mjs",

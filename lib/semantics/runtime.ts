@@ -4,8 +4,11 @@ import type { SemanticProfileId, SemanticRuntimeBundle, SemanticRuntimeView } fr
 const bundle = runtimeBundle as unknown as SemanticRuntimeBundle;
 
 export function semanticRuntimeBundle(): SemanticRuntimeBundle {
-  if (bundle.apiVersion !== 'contextobjects.dev/runtime-bundle/v1' || bundle.kind !== 'SemanticRuntimeBundle') {
+  if (bundle.apiVersion !== 'contextobjects.dev/runtime-bundle/v2' || bundle.kind !== 'SemanticRuntimeBundle') {
     throw new Error('Unsupported semantic runtime bundle');
+  }
+  if (bundle.requires.dataContract !== 'kehrnel.dev/cdisc-solution-evidence/v2' || bundle.requires.modelSchemaVersion !== '2.0.0') {
+    throw new Error('Semantic runtime is not bound to the CDISC v2 evidence contract');
   }
   return bundle;
 }

@@ -1,0 +1,1385 @@
+{
+  "apiVersion": "contextobjects.dev/semantic-module/v1",
+  "kind": "SemanticModule",
+  "packageId": "org.contextobjects.nonclinical-safety",
+  "version": "1.0.0",
+  "title": "Nonclinical Safety Extension",
+  "description": "Industry archetypes, profiles, capabilities, resolvers, actions, and presentation contracts for SEND safety evidence investigation.",
+  "objects": [
+    {
+      "id": "EndpointSummary",
+      "label": "Endpoint summary",
+      "kind": "intelligence",
+      "description": "Rebuildable study, endpoint, sex, group, and phase aggregation with exact source-record membership.",
+      "sourceDomains": [
+        "MI",
+        "MA",
+        "CL",
+        "LB",
+        "OM",
+        "BW",
+        "BG",
+        "FW",
+        "PC",
+        "PP"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 230,
+        "y": 570
+      }
+    },
+    {
+      "id": "TargetOrganAssessment",
+      "label": "Target-organ assessment",
+      "kind": "workflow",
+      "description": "Versioned expert-controlled assessment that binds pathology, measurements, exposure, recovery, and rationale without mutating source evidence.",
+      "terminology": [
+        "target-organ-conclusion",
+        "adversity-decision",
+        "reversibility-decision"
+      ],
+      "retrieval": [
+        "exact",
+        "text",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 690,
+        "y": 570
+      }
+    },
+    {
+      "id": "Publication",
+      "label": "Scientific publication",
+      "kind": "evidence",
+      "description": "External contextual evidence with bibliographic identity, content-rights status, retrieval provenance, and explicit relevance to a study concept.",
+      "sourceDomains": [
+        "PubMed",
+        "PMC OA"
+      ],
+      "terminology": [
+        "MeSH",
+        "solution concept dictionary"
+      ],
+      "retrieval": [
+        "exact",
+        "text",
+        "vector",
+        "graph",
+        "rerank"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 460,
+        "y": 760
+      }
+    },
+    {
+      "id": "DocumentChunk",
+      "label": "Evidence passage",
+      "kind": "evidence",
+      "description": "Licensed, section-aware text fragment with a source locator, semantic bindings, embedding, and parent-publication provenance.",
+      "sourceDomains": [
+        "S3 document",
+        "PubMed abstract",
+        "PMC OA full text"
+      ],
+      "retrieval": [
+        "text",
+        "vector",
+        "rerank"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 690,
+        "y": 760
+      }
+    },
+    {
+      "id": "EvidenceAssertion",
+      "label": "Evidence assertion",
+      "kind": "intelligence",
+      "description": "Snapshot-bound and cited hypothesis assembled from governed evidence.",
+      "retrieval": [
+        "text",
+        "vector",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 460,
+        "y": 570
+      }
+    },
+    {
+      "id": "ReviewDecision",
+      "label": "Review decision",
+      "kind": "workflow",
+      "description": "Solution-owned expert decision that does not mutate source evidence.",
+      "retrieval": [
+        "exact",
+        "text",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 920,
+        "y": 570
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "endpoint-summary-safety-summarizes-finding",
+      "from": "EndpointSummary",
+      "to": "Finding",
+      "label": "summarizes",
+      "predicate": "safety:summarizes"
+    },
+    {
+      "id": "target-organ-assessment-safety-assesses-finding",
+      "from": "TargetOrganAssessment",
+      "to": "Finding",
+      "label": "assesses",
+      "predicate": "safety:assesses"
+    },
+    {
+      "id": "target-organ-assessment-safety-considers-endpoint-summary",
+      "from": "TargetOrganAssessment",
+      "to": "EndpointSummary",
+      "label": "considers",
+      "predicate": "safety:considers"
+    },
+    {
+      "id": "finding-safety-contextualized-by-literature-publication",
+      "from": "Finding",
+      "to": "Publication",
+      "label": "contextualized by literature",
+      "predicate": "safety:contextualizedByLiterature"
+    },
+    {
+      "id": "publication-safety-has-evidence-passage-document-chunk",
+      "from": "Publication",
+      "to": "DocumentChunk",
+      "label": "has evidence passage",
+      "predicate": "safety:hasEvidencePassage"
+    },
+    {
+      "id": "document-chunk-safety-context-for-assertion-evidence-assertion",
+      "from": "DocumentChunk",
+      "to": "EvidenceAssertion",
+      "label": "context for assertion",
+      "predicate": "safety:contextForAssertion"
+    },
+    {
+      "id": "finding-safety-supports-assertion-evidence-assertion",
+      "from": "Finding",
+      "to": "EvidenceAssertion",
+      "label": "supports assertion",
+      "predicate": "safety:supportsAssertion"
+    },
+    {
+      "id": "evidence-assertion-safety-reviewed-as-review-decision",
+      "from": "EvidenceAssertion",
+      "to": "ReviewDecision",
+      "label": "reviewed as",
+      "predicate": "safety:reviewedAs"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "toxicologist",
+      "label": "Toxicologist",
+      "description": "Investigates and classifies safety evidence.",
+      "grants": [
+        "query:*",
+        "action:annotate",
+        "action:classify",
+        "action:request-follow-up",
+        "action:submit"
+      ],
+      "maskedFields": []
+    },
+    {
+      "id": "study-director",
+      "label": "Study director",
+      "description": "Approves or returns evidence assessments.",
+      "grants": [
+        "query:*",
+        "action:*"
+      ],
+      "maskedFields": []
+    },
+    {
+      "id": "data-steward",
+      "label": "Data steward",
+      "description": "Inspects lineage, terminology, mappings, and discrepancies.",
+      "grants": [
+        "query:lineage",
+        "query:model",
+        "action:create-discrepancy"
+      ],
+      "maskedFields": [
+        "reviewerNarrative"
+      ]
+    },
+    {
+      "id": "portfolio-lead",
+      "label": "Portfolio lead",
+      "description": "Reads aggregate and cross-study similarity evidence.",
+      "grants": [
+        "query:portfolio",
+        "query:similarity",
+        "query:model"
+      ],
+      "hiddenObjects": [
+        "Subject",
+        "SourceArtifact",
+        "ReviewDecision"
+      ],
+      "maskedFields": [
+        "subjectId",
+        "sourcePath",
+        "reviewerIdentity"
+      ]
+    },
+    {
+      "id": "external-reviewer",
+      "label": "External reviewer",
+      "description": "Reads published evidence, lineage, and submitted briefs.",
+      "grants": [
+        "query:published",
+        "query:lineage",
+        "query:model"
+      ],
+      "maskedFields": [
+        "internalNotes",
+        "reviewerIdentity"
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "rank-findings",
+      "label": "Rank findings for review",
+      "mode": "read",
+      "description": "Structured incidence and severity analysis for one snapshot.",
+      "engines": [
+        "aggregation"
+      ],
+      "reads": [
+        "Study",
+        "TreatmentGroup",
+        "Finding"
+      ],
+      "indexes": [
+        "study_snapshot_signal"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director",
+        "portfolio-lead",
+        "external-reviewer"
+      ]
+    },
+    {
+      "id": "expand-evidence-neighborhood",
+      "label": "Expand evidence neighborhood",
+      "mode": "read",
+      "description": "Graph traversal from finding to subjects, groups, labs, and lineage.",
+      "engines": [
+        "graph-lookup"
+      ],
+      "reads": [
+        "Finding",
+        "Subject",
+        "TreatmentGroup",
+        "LabMeasurement",
+        "SourceArtifact"
+      ],
+      "indexes": [
+        "semantic_edge_from_to",
+        "study_subject_domain"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director",
+        "data-steward",
+        "external-reviewer"
+      ]
+    },
+    {
+      "id": "resolve-biological-coherence",
+      "label": "Resolve biological coherence",
+      "mode": "read",
+      "description": "Assemble pathology, organ and body weight, laboratory, clinical observation, exposure, and phase evidence for one target-organ hypothesis.",
+      "engines": [
+        "aggregation",
+        "graph-lookup"
+      ],
+      "reads": [
+        "Finding",
+        "OrganMeasurement",
+        "BodyWeightMeasurement",
+        "LabMeasurement",
+        "ClinicalObservation",
+        "MacroscopicFinding",
+        "ExposureAdministration",
+        "PkConcentration",
+        "PkParameter",
+        "StudyPhase",
+        "EvidenceRelationship"
+      ],
+      "indexes": [
+        "endpoint_summary_scope",
+        "measurement_series_scope",
+        "evidence_relationship_from_to"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director",
+        "data-steward",
+        "external-reviewer"
+      ]
+    },
+    {
+      "id": "assess-reversibility",
+      "label": "Assess reversibility evidence",
+      "mode": "read",
+      "description": "Compare terminal and recovery cohorts for the same endpoint with exact source-record membership.",
+      "engines": [
+        "aggregation",
+        "graph-lookup"
+      ],
+      "reads": [
+        "EndpointSummary",
+        "StudyPhase",
+        "Finding",
+        "OrganMeasurement",
+        "LabMeasurement"
+      ],
+      "indexes": [
+        "endpoint_summary_phase",
+        "subject_timeline_phase"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director",
+        "external-reviewer"
+      ]
+    },
+    {
+      "id": "review-target-organ",
+      "label": "Review target-organ assessment",
+      "mode": "write",
+      "description": "Record an expert adversity and reversibility assessment over cited immutable evidence.",
+      "engines": [
+        "aggregation",
+        "governed-action"
+      ],
+      "reads": [
+        "EndpointSummary",
+        "Finding",
+        "EvidenceRelationship",
+        "TargetOrganAssessment"
+      ],
+      "indexes": [
+        "target_organ_assessment_history"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director"
+      ]
+    },
+    {
+      "id": "retrieve-similar-findings",
+      "label": "Retrieve similar findings",
+      "mode": "read",
+      "description": "Cross-study retrieval over semantic concepts, normalized dose incidence, severity profiles, and optional embeddings, followed by reciprocal-rank fusion and domain reranking.",
+      "engines": [
+        "aggregation",
+        "atlas-search",
+        "vector-search",
+        "graph-lookup",
+        "rerank"
+      ],
+      "reads": [
+        "Finding",
+        "Study",
+        "Compound"
+      ],
+      "indexes": [
+        "finding_text",
+        "finding_embedding"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director",
+        "portfolio-lead"
+      ]
+    },
+    {
+      "id": "retrieve-literature-evidence",
+      "label": "Retrieve literature evidence",
+      "mode": "read",
+      "description": "Ground study concepts to PubMed or licensed full text, perform hybrid retrieval, and rerank by species, organ, morphology, and study design.",
+      "engines": [
+        "atlas-search",
+        "vector-search",
+        "graph-lookup",
+        "rerank"
+      ],
+      "reads": [
+        "Finding",
+        "Publication",
+        "DocumentChunk",
+        "Compound"
+      ],
+      "indexes": [
+        "literature_text",
+        "literature_embedding",
+        "literature_concepts"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director",
+        "data-steward",
+        "portfolio-lead",
+        "external-reviewer"
+      ]
+    },
+    {
+      "id": "assemble-evidence-brief",
+      "label": "Assemble evidence brief",
+      "mode": "read",
+      "description": "Cited synthesis over authorized evidence and review state.",
+      "engines": [
+        "aggregation",
+        "atlas-search",
+        "vector-search",
+        "graph-lookup",
+        "agent-synthesis"
+      ],
+      "reads": [
+        "Finding",
+        "LabMeasurement",
+        "SourceArtifact",
+        "EvidenceAssertion",
+        "ReviewDecision"
+      ],
+      "indexes": [
+        "finding_text",
+        "finding_embedding",
+        "semantic_edge_from_to",
+        "review_history"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director",
+        "external-reviewer"
+      ]
+    },
+    {
+      "id": "inspect-semantic-model",
+      "label": "Inspect semantic model",
+      "mode": "read",
+      "description": "Explains business objects, concepts, resolvers, collections, and indexes.",
+      "engines": [
+        "semantic-registry"
+      ],
+      "reads": [
+        "Compound",
+        "Study",
+        "TreatmentGroup",
+        "Subject",
+        "Finding",
+        "LabMeasurement",
+        "SourceArtifact",
+        "EvidenceAssertion",
+        "ReviewDecision"
+      ],
+      "indexes": [
+        "semantic_object_id"
+      ],
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director",
+        "data-steward",
+        "portfolio-lead",
+        "external-reviewer"
+      ]
+    }
+  ],
+  "resolvers": [
+    {
+      "id": "resolver.rank-findings.v1",
+      "capability": "rank-findings",
+      "input": {
+        "studyId": "string",
+        "snapshotId": "string"
+      },
+      "output": "RankedFinding[]",
+      "executor": "mongodb-aggregation",
+      "policy": [
+        "snapshot-bound",
+        "read-only"
+      ],
+      "stages": [
+        "matchStudySnapshot",
+        "unwindSignals",
+        "scoreIncidenceSeverity",
+        "sortReviewPriority"
+      ]
+    },
+    {
+      "id": "resolver.evidence-neighborhood.v1",
+      "capability": "expand-evidence-neighborhood",
+      "input": {
+        "studyId": "string",
+        "snapshotId": "string",
+        "findingId": "string"
+      },
+      "output": "EvidenceSubgraph",
+      "executor": "mongodb-graph-lookup",
+      "policy": [
+        "snapshot-bound",
+        "profile-filtered",
+        "read-only"
+      ],
+      "stages": [
+        "authorizeProfile",
+        "seedFinding",
+        "graphLookup",
+        "applyFieldMask",
+        "attachLineage"
+      ]
+    },
+    {
+      "id": "resolver.biological-coherence.v1",
+      "capability": "resolve-biological-coherence",
+      "input": {
+        "studyId": "string",
+        "snapshotId": "string",
+        "findingId": "string",
+        "profileId": "string",
+        "sex": "string",
+        "phase": "string"
+      },
+      "output": "BiologicalCoherenceEvidence",
+      "executor": "mongodb-aggregation",
+      "policy": [
+        "snapshot-bound",
+        "profile-filtered",
+        "citations-required",
+        "read-only",
+        "no-adversity-conclusion"
+      ],
+      "containmentPlan": {
+        "language": "contextobjects-containment-v1",
+        "semantics": "AQL-CONTAINS",
+        "rootArchetype": "archetype.biological-coherence.v1",
+        "contains": [
+          "Study",
+          "TreatmentGroup",
+          "Subject",
+          "StudyPhase",
+          "Finding",
+          "OrganMeasurement",
+          "BodyWeightMeasurement",
+          "LabMeasurement",
+          "ClinicalObservation",
+          "MacroscopicFinding",
+          "ExposureAdministration",
+          "PkConcentration",
+          "PkParameter",
+          "EvidenceRelationship"
+        ],
+        "compileTargets": [
+          "mongodb-aggregation"
+        ]
+      },
+      "stages": [
+        "authorizeProfile",
+        "bindStudySnapshot",
+        "resolveTargetOrgan",
+        "loadEndpointSummaries",
+        "loadMeasurementSeries",
+        "traverseEvidenceRelationships",
+        "compareDoseSexPhase",
+        "attachSourceRecords"
+      ]
+    },
+    {
+      "id": "resolver.reversibility.v1",
+      "capability": "assess-reversibility",
+      "input": {
+        "studyId": "string",
+        "snapshotId": "string",
+        "endpointId": "string",
+        "profileId": "string"
+      },
+      "output": "ReversibilityComparison",
+      "executor": "mongodb-aggregation",
+      "policy": [
+        "snapshot-bound",
+        "profile-filtered",
+        "read-only",
+        "no-adversity-conclusion"
+      ],
+      "containmentPlan": {
+        "language": "contextobjects-containment-v1",
+        "semantics": "AQL-CONTAINS",
+        "rootArchetype": "archetype.biological-coherence.v1",
+        "contains": [
+          "Study",
+          "TreatmentGroup",
+          "Subject",
+          "StudyPhase",
+          "EndpointSummary"
+        ],
+        "compileTargets": [
+          "mongodb-aggregation"
+        ]
+      },
+      "stages": [
+        "authorizeProfile",
+        "bindEndpoint",
+        "partitionTerminalAndRecovery",
+        "compareIncidenceAndMagnitude",
+        "attachSourceRecords"
+      ]
+    },
+    {
+      "id": "resolver.target-organ-assessment.v1",
+      "capability": "review-target-organ",
+      "input": {
+        "studyId": "string",
+        "snapshotId": "string",
+        "signalId": "string",
+        "organ": "string",
+        "profileId": "string",
+        "targetOrganConclusion": "string",
+        "adversityDecision": "string",
+        "reversibility": "string",
+        "rationale": "string",
+        "citedEndpointIds": "string[]"
+      },
+      "output": "TargetOrganAssessmentReceipt",
+      "executor": "mongodb-governed-action",
+      "policy": [
+        "snapshot-bound",
+        "profile-filtered",
+        "citations-required",
+        "human-review",
+        "append-only",
+        "immutable-evidence"
+      ],
+      "stages": [
+        "authorizeProfile",
+        "validateDecisionValueSets",
+        "resolveEvidenceCitations",
+        "appendAssessment",
+        "persistAudit"
+      ]
+    },
+    {
+      "id": "resolver.similar-findings.v1",
+      "capability": "retrieve-similar-findings",
+      "input": {
+        "studyId": "string",
+        "signalId": "string",
+        "profileId": "string",
+        "limit": "number"
+      },
+      "output": "ExplainablePortfolioMatch[]",
+      "executor": "mongodb-portfolio-hybrid",
+      "policy": [
+        "profile-filtered",
+        "citations-required",
+        "evidence-class-boundary",
+        "read-only"
+      ],
+      "containmentPlan": {
+        "language": "contextobjects-containment-v1",
+        "semantics": "AQL-CONTAINS",
+        "rootArchetype": "archetype.study-evidence-aggregate.v1",
+        "contains": [
+          "Study",
+          "TreatmentGroup",
+          "Finding"
+        ],
+        "compileTargets": [
+          "mongodb-aggregation",
+          "openehr-aql"
+        ]
+      },
+      "stages": [
+        "compileSemanticScope",
+        "semanticSearch",
+        "compareNormalizedIncidence",
+        "compareSeverityProfile",
+        "optionalVectorSearch",
+        "reciprocalRankFusion",
+        "domainRerank",
+        "authorizeResults"
+      ]
+    },
+    {
+      "id": "resolver.investigate-safety-signal.v1",
+      "capability": "assemble-evidence-brief",
+      "input": {
+        "studyId": "string",
+        "snapshotId": "string",
+        "signalId": "string",
+        "profileId": "string",
+        "question": "string"
+      },
+      "output": "InvestigationResult",
+      "executor": "nonclinical-safety-investigator",
+      "policy": [
+        "snapshot-bound",
+        "profile-filtered",
+        "citations-required",
+        "no-regulatory-conclusion",
+        "human-review",
+        "read-only-evidence"
+      ],
+      "containmentPlan": {
+        "language": "contextobjects-containment-v1",
+        "semantics": "AQL-CONTAINS",
+        "rootArchetype": "archetype.study-evidence-aggregate.v1",
+        "contains": [
+          "Study",
+          "TreatmentGroup",
+          "Subject",
+          "Finding",
+          "LabMeasurement",
+          "SourceArtifact"
+        ],
+        "compileTargets": [
+          "mongodb-aggregation"
+        ]
+      },
+      "stages": [
+        "authorizeProfile",
+        "bindStudySnapshot",
+        "hydrateCanonicalEvidence",
+        "resolveSemanticMeaning",
+        "executeHybridRetrieval",
+        "expandEvidenceGraph",
+        "domainRerank",
+        "synthesizeCitations",
+        "persistAudit"
+      ]
+    },
+    {
+      "id": "resolver.evidence-brief.v1",
+      "capability": "assemble-evidence-brief",
+      "input": {
+        "investigationId": "string"
+      },
+      "output": "EvidenceBrief",
+      "executor": "magenta-agent-graph",
+      "policy": [
+        "citations-required",
+        "no-regulatory-conclusion",
+        "human-review"
+      ],
+      "stages": [
+        "plan",
+        "executeAuthorizedTools",
+        "rerankEvidence",
+        "synthesize",
+        "verifyCitations"
+      ]
+    },
+    {
+      "id": "resolver.literature-evidence.v1",
+      "capability": "retrieve-literature-evidence",
+      "input": {
+        "findingId": "string",
+        "species": "string",
+        "query": "string",
+        "limit": "number"
+      },
+      "output": "LiteratureEvidence[]",
+      "executor": "mongodb-hybrid-search",
+      "policy": [
+        "license-aware",
+        "profile-filtered",
+        "citations-required",
+        "context-not-causality"
+      ],
+      "containmentPlan": {
+        "language": "contextobjects-containment-v1",
+        "semantics": "AQL-CONTAINS",
+        "rootArchetype": "archetype.contextual-literature-evidence.v1",
+        "contains": [
+          "Finding",
+          "Publication",
+          "DocumentChunk"
+        ],
+        "compileTargets": [
+          "mongodb-aggregation",
+          "openehr-aql"
+        ]
+      },
+      "stages": [
+        "groundConcepts",
+        "filterLicensedCorpus",
+        "lexicalSearch",
+        "vectorSearch",
+        "graphExpand",
+        "domainRerank",
+        "attachPassageCitations"
+      ]
+    }
+  ],
+  "queryContracts": [
+    {
+      "id": "query.operational-safety-evidence.v1",
+      "label": "Operational safety evidence",
+      "queryClass": "operational",
+      "resolverId": "resolver.biological-coherence.v1",
+      "semanticIntent": "Resolve exact snapshot-bound SEND evidence across finding, treatment, subject, phase, laboratory, pathology, body-weight, food-consumption, organ-weight, and exposure contexts.",
+      "scope": [
+        "tenantId",
+        "studyId",
+        "snapshotId",
+        "profileId",
+        "signalId"
+      ],
+      "deterministicPredicates": [
+        "canonical.domain",
+        "_index.facets.subjectId",
+        "_index.facets.organ",
+        "_index.facets.testCode",
+        "_index.facets.studyDay"
+      ],
+      "physicalPlan": {
+        "engine": "mongodb-aggregation",
+        "authority": "cdisc_records",
+        "hydrate": [
+          "study_endpoint_summaries",
+          "measurement_series",
+          "subject_timelines",
+          "evidence_relationships"
+        ]
+      },
+      "evidenceOutput": [
+        "canonicalSourceRows",
+        "sourceArtifacts",
+        "executedQueryPlan",
+        "executionStats"
+      ]
+    },
+    {
+      "id": "query.semantic-context.v1",
+      "label": "Semantic context resolution",
+      "queryClass": "semantic",
+      "resolverId": "resolver.investigate-safety-signal.v1",
+      "semanticIntent": "Resolve terminology, value sets, archetype containment, profile visibility, and logical-to-physical placement before executing evidence tools.",
+      "scope": [
+        "semanticReleaseId",
+        "profileId",
+        "question"
+      ],
+      "deterministicPredicates": [
+        "resourceType",
+        "resourceId",
+        "visibleTo",
+        "from",
+        "predicate",
+        "to"
+      ],
+      "physicalPlan": {
+        "engine": "mongodb-aggregation+graph-lookup",
+        "authority": "semantic_releases.bundle",
+        "hydrate": [
+          "semantic_resources",
+          "semantic_edges",
+          "semantic_search_documents"
+        ]
+      },
+      "evidenceOutput": [
+        "resolvedConcepts",
+        "valueSetBindings",
+        "containmentPlan",
+        "physicalBindings",
+        "executedQueryPlan"
+      ]
+    },
+    {
+      "id": "query.research-evidence.v1",
+      "label": "Hybrid research evidence",
+      "queryClass": "research",
+      "resolverId": "resolver.literature-evidence.v1",
+      "semanticIntent": "Discover cross-study and literature context through exact, lexical, managed-vector, and graph lanes; fuse and domain-rerank before exact hydration.",
+      "scope": [
+        "semanticReleaseId",
+        "profileId",
+        "studyId",
+        "snapshotId",
+        "signalId",
+        "question"
+      ],
+      "deterministicPredicates": [
+        "matchedSignalIds",
+        "concepts",
+        "provenance.pmid"
+      ],
+      "physicalPlan": {
+        "engine": "atlas-search+auto-embedding+graph-lookup",
+        "authority": "licensed-literature-and-published-study-projections",
+        "candidateOnly": [
+          "atlas-search",
+          "atlas-vector-search"
+        ],
+        "hydrate": [
+          "literature_documents",
+          "literature_chunks",
+          "portfolio_findings",
+          "cdisc_records"
+        ]
+      },
+      "evidenceOutput": [
+        "rankedCandidates",
+        "retrievalLanes",
+        "rerankFeatures",
+        "canonicalSourceRows",
+        "executedQueryPlan"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "annotate",
+      "label": "Add expert annotation",
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director"
+      ],
+      "writesCollection": "review_actions",
+      "approval": "none",
+      "immutableEvidence": true
+    },
+    {
+      "id": "classify",
+      "label": "Classify biological relevance",
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director"
+      ],
+      "writesCollection": "review_actions",
+      "approval": "none",
+      "immutableEvidence": true
+    },
+    {
+      "id": "request-follow-up",
+      "label": "Request follow-up",
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director"
+      ],
+      "writesCollection": "review_actions",
+      "approval": "none",
+      "immutableEvidence": true
+    },
+    {
+      "id": "submit",
+      "label": "Submit assessment",
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director"
+      ],
+      "writesCollection": "review_actions",
+      "approval": "study-director",
+      "immutableEvidence": true
+    },
+    {
+      "id": "approve",
+      "label": "Approve evidence brief",
+      "allowedProfiles": [
+        "study-director"
+      ],
+      "writesCollection": "review_actions",
+      "approval": "four-eyes",
+      "immutableEvidence": true
+    },
+    {
+      "id": "reject",
+      "label": "Return for revision",
+      "allowedProfiles": [
+        "study-director"
+      ],
+      "writesCollection": "review_actions",
+      "approval": "none",
+      "immutableEvidence": true
+    },
+    {
+      "id": "create-discrepancy",
+      "label": "Create data discrepancy",
+      "allowedProfiles": [
+        "data-steward"
+      ],
+      "writesCollection": "review_actions",
+      "approval": "none",
+      "immutableEvidence": true
+    },
+    {
+      "id": "assess-target-organ",
+      "label": "Record target-organ assessment",
+      "allowedProfiles": [
+        "toxicologist",
+        "study-director"
+      ],
+      "writesCollection": "target_organ_assessments",
+      "approval": "study-director",
+      "immutableEvidence": true
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "business-documents",
+      "label": "Business documents",
+      "description": "Domain objects and cohesive document fragments."
+    },
+    {
+      "id": "semantic-graph",
+      "label": "Semantic graph",
+      "description": "Concepts, terminology, predicates, and relationships."
+    },
+    {
+      "id": "retrieval-projections",
+      "label": "Search, graph & vectors",
+      "description": "Resolver contracts and hybrid retrieval indexes."
+    },
+    {
+      "id": "physical-mongodb",
+      "label": "Physical placements",
+      "description": "MongoDB collections, API resources, object storage, paths, authority, and protected write boundaries."
+    }
+  ],
+  "valueSets": [],
+  "taxonomy": {
+    "concepts": []
+  },
+  "archetypes": [
+    {
+      "id": "archetype.study-evidence-aggregate.v1",
+      "label": "Study evidence aggregate",
+      "description": "Snapshot-bound study root composed from protocol, treatment, finding, laboratory, and lineage roles.",
+      "members": [
+        {
+          "role": "root",
+          "semanticObject": "Study",
+          "cardinality": "1"
+        },
+        {
+          "role": "intervention",
+          "semanticObject": "TreatmentGroup",
+          "cardinality": "1..*"
+        },
+        {
+          "role": "participant",
+          "semanticObject": "Subject",
+          "cardinality": "1..*"
+        },
+        {
+          "role": "observation",
+          "semanticObject": "Finding",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "measurement",
+          "semanticObject": "LabMeasurement",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "lineage",
+          "semanticObject": "SourceArtifact",
+          "cardinality": "1..*"
+        }
+      ]
+    },
+    {
+      "id": "archetype.contextual-literature-evidence.v1",
+      "label": "Contextual literature evidence",
+      "description": "Bibliographic identity plus permitted passages, semantic bindings, rights, and source locators.",
+      "members": [
+        {
+          "role": "publication",
+          "semanticObject": "Publication",
+          "cardinality": "1"
+        },
+        {
+          "role": "passage",
+          "semanticObject": "DocumentChunk",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "contextualizes",
+          "semanticObject": "Finding",
+          "cardinality": "1..*"
+        }
+      ]
+    },
+    {
+      "id": "archetype.governed-evidence-brief.v1",
+      "label": "Governed evidence brief",
+      "description": "Cited agent hypothesis and append-only expert disposition over immutable evidence.",
+      "members": [
+        {
+          "role": "assertion",
+          "semanticObject": "EvidenceAssertion",
+          "cardinality": "1"
+        },
+        {
+          "role": "decision",
+          "semanticObject": "ReviewDecision",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "studyEvidence",
+          "semanticObject": "Finding",
+          "cardinality": "1..*"
+        },
+        {
+          "role": "literatureContext",
+          "semanticObject": "Publication",
+          "cardinality": "0..*"
+        }
+      ]
+    },
+    {
+      "id": "archetype.biological-coherence.v1",
+      "label": "Target-organ biological coherence",
+      "description": "Snapshot-bound target-organ evidence across pathology, organ and body weight, laboratory, clinical observation, exposure, study phase, and source-declared relationships.",
+      "members": [
+        {
+          "role": "root",
+          "semanticObject": "Finding",
+          "cardinality": "1"
+        },
+        {
+          "role": "grossPathology",
+          "semanticObject": "MacroscopicFinding",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "organMeasurement",
+          "semanticObject": "OrganMeasurement",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "bodyWeight",
+          "semanticObject": "BodyWeightMeasurement",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "laboratory",
+          "semanticObject": "LabMeasurement",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "clinicalObservation",
+          "semanticObject": "ClinicalObservation",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "administration",
+          "semanticObject": "ExposureAdministration",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "concentration",
+          "semanticObject": "PkConcentration",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "parameter",
+          "semanticObject": "PkParameter",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "phase",
+          "semanticObject": "StudyPhase",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "relationship",
+          "semanticObject": "EvidenceRelationship",
+          "cardinality": "0..*"
+        },
+        {
+          "role": "summary",
+          "semanticObject": "EndpointSummary",
+          "cardinality": "0..*"
+        }
+      ]
+    },
+    {
+      "id": "archetype.target-organ-assessment.v1",
+      "label": "Governed target-organ assessment",
+      "description": "Expert-controlled adversity and reversibility decision with cited endpoint summaries and immutable review history.",
+      "members": [
+        {
+          "role": "assessment",
+          "semanticObject": "TargetOrganAssessment",
+          "cardinality": "1"
+        },
+        {
+          "role": "evidence",
+          "semanticObject": "EndpointSummary",
+          "cardinality": "1..*"
+        },
+        {
+          "role": "decision",
+          "semanticObject": "ReviewDecision",
+          "cardinality": "1..*"
+        }
+      ]
+    }
+  ],
+  "sourceAdapters": [
+    {
+      "id": "mongodb",
+      "kind": "database",
+      "role": "Operational evidence and semantic projections",
+      "changeFeed": "mongodb-change-stream"
+    },
+    {
+      "id": "pubmed",
+      "kind": "api",
+      "role": "Bibliographic metadata, abstracts, MeSH terms, and identifiers",
+      "changeFeed": "scheduled-cursor"
+    },
+    {
+      "id": "s3-documents",
+      "kind": "object-storage",
+      "role": "Licensed PDFs and source documents",
+      "changeFeed": "object-created-event"
+    },
+    {
+      "id": "pmc-open-access",
+      "kind": "document-corpus",
+      "role": "Permitted full-text scientific articles",
+      "changeFeed": "scheduled-cursor"
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "semantic-runtime-live",
+      "transport": "server-sent-events",
+      "source": "mongodb-change-stream",
+      "endpoint": "/api/semantics/stream",
+      "resume": "mongodb-resume-token",
+      "snapshot": "/api/semantics",
+      "events": [
+        "semantic.release.activated",
+        "semantic.object.changed",
+        "terminology.value.observed",
+        "terminology.valueset.compiled",
+        "profile.projection.changed",
+        "review.action.committed"
+      ],
+      "policy": [
+        "profile-filtered",
+        "tenant-bound",
+        "resume-safe",
+        "snapshot-on-invalid-cursor"
+      ]
+    }
+  ],
+  "governance": {
+    "evidenceCollections": [
+      "study_snapshots",
+      "dataset_definitions",
+      "cdisc_records",
+      "subjects",
+      "source_artifacts"
+    ],
+    "solutionWriteCollections": [
+      "investigations",
+      "review_actions",
+      "target_organ_assessments"
+    ],
+    "writeWorkflow": [
+      "propose",
+      "simulate",
+      "diff",
+      "validate",
+      "approve",
+      "commit",
+      "audit"
+    ],
+    "rules": [
+      "Published SEND evidence is immutable.",
+      "Every answer is bound to one study snapshot and profile.",
+      "Every synthesized assertion exposes source citations.",
+      "Authorization is enforced by the API.",
+      "Canonical CDISC v2 rows are the operational source authority; projections are always rebuildable.",
+      "Vector retrieval proposes candidates only; deterministic queries hydrate and calculate evidence."
+    ],
+    "projectionCollections": [
+      "study_evidence",
+      "evidence_chunks",
+      "portfolio_findings",
+      "literature_documents",
+      "literature_chunks",
+      "study_endpoint_summaries",
+      "measurement_series",
+      "subject_timelines",
+      "evidence_relationships"
+    ],
+    "semanticCollections": [
+      "semantic_releases",
+      "semantic_resources",
+      "semantic_edges",
+      "semantic_search_documents",
+      "semantic_change_events"
+    ]
+  }
+}

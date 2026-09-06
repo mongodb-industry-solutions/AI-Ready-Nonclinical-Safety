@@ -5,10 +5,13 @@ import { MongoClient } from 'mongodb';
 const source = new URL('../semantic/nonclinical-safety-runtime.json', import.meta.url);
 const bundle = JSON.parse(await readFile(source, 'utf8'));
 
-if (bundle.apiVersion !== 'contextobjects.dev/runtime-bundle/v1' || bundle.kind !== 'SemanticRuntimeBundle') {
+if (bundle.apiVersion !== 'contextobjects.dev/runtime-bundle/v2' || bundle.kind !== 'SemanticRuntimeBundle') {
   throw new Error('Unsupported semantic runtime bundle');
 }
-for (const field of ['objects', 'edges', 'profiles', 'capabilities', 'resolvers', 'actions', 'surfaces', 'valueSets', 'archetypes', 'storageBindings', 'sourceAdapters', 'subscriptions']) {
+if (bundle.requires?.dataContract !== 'kehrnel.dev/cdisc-solution-evidence/v2' || bundle.requires?.modelSchemaVersion !== '2.0.0') {
+  throw new Error('Semantic runtime is not compatible with the CDISC v2 evidence contract');
+}
+for (const field of ['modules', 'objects', 'edges', 'profiles', 'capabilities', 'resolvers', 'queryContracts', 'actions', 'surfaces', 'valueSets', 'archetypes', 'storageBindings', 'projectionRecipes', 'indexes', 'sourceAdapters', 'subscriptions']) {
   if (!Array.isArray(bundle[field])) throw new Error(`Semantic bundle is missing ${field}`);
 }
 if (!bundle.taxonomy || !Array.isArray(bundle.taxonomy.concepts)) throw new Error('Semantic bundle is missing taxonomy concepts');
@@ -64,6 +67,11 @@ try {
     ['storageBinding', bundle.storageBindings, (record) => objectProfiles.get(record.semanticObject) || allProfiles],
     ['sourceAdapter', bundle.sourceAdapters, () => allProfiles],
     ['subscription', bundle.subscriptions, () => allProfiles],
+    ['queryContract', bundle.queryContracts, (record) => {
+      const resolver = bundle.resolvers.find((item) => item.id === record.resolverId);
+      return resolver ? capabilityProfiles.get(resolver.capability) || allProfiles : allProfiles;
+    }],
+    ['projectionRecipe', bundle.projectionRecipes, () => allProfiles],
   ];
   const resources = definitions.flatMap(([resourceType, records, visibility]) => records.map((record) => ({
     _id: `${release.releaseId}|${resourceType}|${record.id}`,
@@ -134,11 +142,10 @@ try {
   const searchCollection = database.collection('semantic_search_documents');
   const searchIndexes = await searchCollection.listIndexes().toArray();
   if (searchIndexes.some((index) => index.name === 'semantic_search_resource')) await searchCollection.dropIndex('semantic_search_resource');
-  if (searchIndexes.some((index) => index.name === 'semantic_search_scope')) await searchCollection.dropIndex('semantic_search_scope');
   await searchCollection.deleteMany({ releaseId: release.releaseId });
   if (searchDocuments.length) await searchCollection.insertMany(searchDocuments);
   await searchCollection.createIndex({ releaseId: 1, profileId: 1, resourceType: 1, resourceId: 1 }, { unique: true, name: 'semantic_search_profile_resource' });
-  await searchCollection.createIndex({ releaseId: 1, profileId: 1 }, { name: 'semantic_search_scope_v2' });
+  await searchCollection.createIndex({ releaseId: 1, profileId: 1 }, { name: 'semantic_search_scope' });
   await database.collection('semantic_runtime_pointer').replaceOne({ id: 'active' }, { id: 'active', releaseId: release.releaseId, digest, activatedAt: new Date() }, { upsert: true });
   console.log(`Imported ${release.releaseId} (${digest}): ${resources.length} polymorphic resources, ${edges.length} graph edges, ${searchDocuments.length} auto-embedding source documents.`);
 } finally {

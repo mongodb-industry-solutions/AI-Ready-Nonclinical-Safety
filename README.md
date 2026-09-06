@@ -8,7 +8,7 @@ The application starts with the question a toxicologist actually asks:
 
 It then progressively reveals the data model, governed queries, hybrid retrieval, evidence graph, and agent execution that produced the answer.
 
-The in-product **Solution architecture** workspace and [full architecture guide](docs/solution-architecture.md) show exactly where CDISC is used, how SEND domains become traceable MongoDB documents, which APIs form the runtime boundary, and how search, embeddings, graph traversal, semantic resolution, and Magenta work together. The [vertical expansion program](docs/vertical-expansion-program.md) defines the evidence-first path from the current signal-triage experience to a cross-domain target-organ assessment and expert-controlled NOAEL workbench.
+The in-product **Solution architecture** workspace and [full architecture guide](docs/solution-architecture.md) show exactly where CDISC is used, how SEND domains become traceable MongoDB documents, which APIs form the runtime boundary, and how search, embeddings, graph traversal, semantic resolution, and Magenta work together. The [Context Studio export contract](docs/semantic-runtime-export.md) explains how portable semantic modules compile into the runtime. The [vertical expansion program](docs/vertical-expansion-program.md) defines the evidence-first path from the current signal-triage experience to a cross-domain target-organ assessment and expert-controlled NOAEL workbench.
 
 ## Reusable patterns
 
@@ -126,9 +126,10 @@ fallback as though the agent had run.
 
 Set `MONGODB_URI` to persist study evidence, search chunks, and investigation sessions in the solution database. The application owns these deployed collections and APIs.
 
-Import the checked-in Context Studio runtime release into that database with:
+Compile the checked-in Context Studio workspace export and import its immutable runtime release with:
 
 ```bash
+npm run compile:semantics
 npm run import:semantics
 ```
 
@@ -170,7 +171,7 @@ The solution never makes canonical CDISC records, semantic projections, or agent
 
 ## Portable Semantic Runtime
 
-[`semantic/nonclinical-safety-runtime.json`](semantic/nonclinical-safety-runtime.json) is the deployable output of Context Studio. It contains:
+[`semantic/nonclinical-safety-runtime.json`](semantic/nonclinical-safety-runtime.json) is the deployable output compiled from three public `1.0.0` modules: CDISC Core, Nonclinical Safety, and the MongoDB CDISC Persistence Binding. It contains:
 
 - business and evidence objects plus typed relationships;
 - taxonomy concepts, terminology/value-set bindings, synonyms, and broader/narrower hierarchy;
@@ -187,6 +188,8 @@ With MongoDB configured, the semantic API resolves the active release from `sema
 
 The application imports that artifact; it never imports Context Studio internals. A production identity provider must supply the profile—this demonstrator exposes a profile picker so the authorization projections are visible.
 
+`_control.modelSchemaVersion` is mandatory on every canonical CDISC record and the semantic release declares the compatible version. MongoDB collection validation enforces the envelope. This lets a future physical-model change advance the internal schema contract without renaming or confusing the public solution libraries.
+
 The source package also contains a portable Context Studio workspace blueprint. It defines four independent layers—semantics, archetypes, placements, and interfaces—so the same meaning can be bound to multiple physical representations without treating storage as ontology. A live Context Studio installation can install the package into a governed workspace, compile an immutable release, and export this runtime bundle; the application does not require that workspace at runtime.
 
 ## Data Modes
@@ -201,7 +204,7 @@ When `MONGODB_URI` is set, the application reads its own canonical evidence, ope
 
 The verified active public corpus exercises **63,836 canonical records and 374 animals across three complete studies**. PDS2014 contributes 42,041 records and 124 animals; PointCross contributes the strongest cross-study comparator; and Nimort-01 supplies the only current public example with populated laboratory range evidence. The study selector opens every retained active immutable snapshot as a complete workspace, and the portfolio atlas compares their bounded pathology projections alongside clearly separated synthetic benchmarks. `study_snapshot_pointers` activates a new immutable version only after import and reconciliation succeed. On this shared demonstration cluster, inactive snapshots and lower-value fully materialized studies are pruned after verification; their checksum-pinned Kehrnel packages remain reloadable. Kehrnel exposes those source packages with revision, license, checksums, and validation findings retained in every export.
 
-Kehrnel emits `kehrnel.dev/cdisc-solution-evidence/v1` from the `cdisc_export_solution_evidence` operation. Its checked-in contract is [`contracts/cdisc-solution-evidence-v1.schema.json`](contracts/cdisc-solution-evidence-v1.schema.json). Download the generated JSON artifact, then import it:
+Kehrnel emits the internally versioned `kehrnel.dev/cdisc-solution-evidence/v2` contract from the `cdisc_export_solution_evidence` operation. Its checked-in contract is [`contracts/cdisc-solution-evidence-v2.schema.json`](contracts/cdisc-solution-evidence-v2.schema.json). This does not change the public solution or semantic-package version: they launch at `1.0.0`. Download the generated JSON artifact, then import it:
 
 ```bash
 npm run import:study -- ./path/to/solution-evidence-package.json

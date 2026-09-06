@@ -13,7 +13,9 @@ export type SemanticResourceType =
   | 'archetype'
   | 'storageBinding'
   | 'sourceAdapter'
-  | 'subscription';
+  | 'subscription'
+  | 'queryContract'
+  | 'projectionRecipe';
 
 export interface SemanticResourceProjection {
   _id: string;
@@ -132,6 +134,11 @@ export function materializeSemanticBundle(bundle: SemanticRuntimeBundle): {
     ['storageBinding', bundle.storageBindings as unknown as Array<Record<string, unknown>>, (record) => objectProfiles.get(record.semanticObject as string) || allProfiles],
     ['sourceAdapter', bundle.sourceAdapters as unknown as Array<Record<string, unknown>>, () => allProfiles],
     ['subscription', bundle.subscriptions as unknown as Array<Record<string, unknown>>, () => allProfiles],
+    ['queryContract', bundle.queryContracts as unknown as Array<Record<string, unknown>>, (record) => {
+      const resolver = bundle.resolvers.find((item) => item.id === record.resolverId);
+      return resolver ? capabilityProfiles.get(resolver.capability) || allProfiles : allProfiles;
+    }],
+    ['projectionRecipe', bundle.projectionRecipes as Array<Record<string, unknown>>, () => allProfiles],
   ];
 
   const resources = definitions.flatMap(([resourceType, records, visibility]) => records.map((record) => {

@@ -99,4 +99,4 @@ dataset metamodel, not in every row.
 - Shape and rationale: [`docs/cdisc-document-model-decision.md`](../docs/cdisc-document-model-decision.md)
 - Import and upsert: [`scripts/import-study.mjs`](../scripts/import-study.mjs)
 - Reads: [`lib/data/evidence-repository.ts`](../lib/data/evidence-repository.ts)
-- Package contract: [`contracts/cdisc-solution-evidence-v1.schema.json`](../contracts/cdisc-solution-evidence-v1.schema.json)
+- Package contract: [`contracts/cdisc-solution-evidence-v2.schema.json`](../contracts/cdisc-solution-evidence-v2.schema.json)

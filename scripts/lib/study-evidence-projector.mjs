@@ -115,6 +115,34 @@ function asNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function projectionRecord(record) {
+  if (!record?._id || !record?.canonical || !record?._control || !record?._index || !record?._provenance) {
+    throw new Error('CDISC projector requires the v2 canonical evidence envelope');
+  }
+  return {
+    sourceId: record._id,
+    domain: record.canonical.domain,
+    rowOrdinal: record.canonical.rowOrdinal,
+    recordKey: record.canonical.recordKey,
+    data: record.canonical.data,
+    facets: record._index.facets || {},
+    semantic: {
+      text: record._index.semanticText,
+      projectionVersion: record._index.projectionVersion,
+    },
+    lineage: {
+      recordHash: record._provenance.recordHash,
+      sourceArtifactId: record._provenance.sourceArtifactId,
+      sourceDataset: record._provenance.sourceDatasetId,
+      sourceRow: record._provenance.sourceRow,
+    },
+  };
+}
+
+function projectionRecords(packageDocument) {
+  return packageDocument.evidence.records.map(projectionRecord);
+}
+
 function mean(values) {
   return Number((values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(6));
 }
@@ -774,7 +802,7 @@ function buildEvidenceRelationships(records, contexts, semanticReleaseId) {
 export function projectOperationalEvidence(packageDocument, options = {}) {
   const semanticReleaseId = options.semanticReleaseId;
   if (!semanticReleaseId) throw new Error('semanticReleaseId is required for operational projections');
-  const records = packageDocument.evidence.records;
+  const records = projectionRecords(packageDocument);
   const doseGroups = buildDoseGroups(records);
   const contexts = treatmentContexts(records, doseGroups);
   const mainTerminalDay = terminalDay(records, contexts);
@@ -815,13 +843,13 @@ export function projectOperationalEvidence(packageDocument, options = {}) {
   };
 }
 
-function projectionReconciliation(packageDocument, domainCounts, animalCount) {
+function projectionReconciliation(packageDocument, records, domainCounts, animalCount) {
   const { evidence, manifest } = packageDocument;
   const datasetCounts = Object.fromEntries(evidence.datasets.map((dataset) => [dataset.domain, dataset.recordCount]));
   const domainCountsMatch = Object.entries(domainCounts).every(([domain, count]) => datasetCounts[domain] === count);
-  const recordCountMatches = evidence.records.length === manifest.counts.records
+  const recordCountMatches = records.length === manifest.counts.records
     && Object.values(domainCounts).reduce((sum, count) => sum + count, 0) === manifest.counts.records;
-  const subjectCountMatches = new Set(evidence.records.filter((record) => record.domain === 'DM').map(subjectId)).size === animalCount;
+  const subjectCountMatches = new Set(records.filter((record) => record.domain === 'DM').map(subjectId)).size === animalCount;
   if (!domainCountsMatch || !recordCountMatches || !subjectCountMatches) {
     throw new Error('Study evidence projection did not reconcile to the canonical package');
   }
@@ -836,7 +864,7 @@ function projectionReconciliation(packageDocument, domainCounts, animalCount) {
 
 export function projectStudyEvidence(packageDocument, options = {}) {
   const { evidence, manifest, modelSchemaVersion } = packageDocument;
-  const records = evidence.records;
+  const records = projectionRecords(packageDocument);
   const datasets = [...evidence.datasets].sort((left, right) => {
     const leftIndex = DOMAIN_ORDER.indexOf(left.domain);
     const rightIndex = DOMAIN_ORDER.indexOf(right.domain);
@@ -860,7 +888,7 @@ export function projectStudyEvidence(packageDocument, options = {}) {
     `${artifact.digest.algorithm}:${artifact.digest.value}`,
   ]));
   const derivedAt = evidence.snapshot.publishedAt || evidence.snapshot.createdAt;
-  const reconciliation = projectionReconciliation(packageDocument, domainCounts, demographics.length);
+  const reconciliation = projectionReconciliation(packageDocument, records, domainCounts, demographics.length);
 
   const study = {
       id: manifest.studyId,

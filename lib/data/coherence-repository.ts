@@ -43,6 +43,16 @@ type LaboratoryAbnormalityRecord = {
   data?: Record<string, unknown>;
 };
 
+type StoredCanonicalRecord = {
+  _id: string;
+  canonical: { data: Record<string, unknown> };
+  _index: { facets?: { subjectId?: string; testCode?: string } };
+};
+
+function laboratoryRecord(record: StoredCanonicalRecord): LaboratoryAbnormalityRecord {
+  return { sourceId: record._id, facets: record._index.facets, data: record.canonical.data };
+}
+
 export function summarizeLaboratoryAbnormalities(
   records: LaboratoryAbnormalityRecord[],
   selectedSignalSubjectIds: string[],
@@ -203,19 +213,20 @@ export async function loadBiologicalCoherence(
     outsideRangeSummaryCount: laboratoryEndpoints.filter((item) => (item.referenceRange?.outsideRangeCount || 0) > 0).length,
   };
 
-  const canonicalRecords = db.collection<{
-    sourceId: string;
-    facets?: { subjectId?: string };
-    data?: Record<string, unknown>;
-  }>('cdisc_records');
+  const canonicalRecords = db.collection<StoredCanonicalRecord>('cdisc_records');
+  const canonicalScope = {
+    '_control.tenantId': process.env.CDISC_TENANT_ID || 'public-demo',
+    '_control.studyId': studyId,
+    '_control.snapshotId': snapshotId,
+  };
   const signalSubjectStartedAt = Date.now();
   const signalSourcePredicate = signal.sourceRecordIds?.length
-    ? { studyId, snapshotId, domain: 'MI', sourceId: { $in: signal.sourceRecordIds } }
-    : { studyId, snapshotId, domain: 'MI', sourceId: { $in: [] } };
+    ? { ...canonicalScope, 'canonical.domain': 'MI', _id: { $in: signal.sourceRecordIds } }
+    : { ...canonicalScope, 'canonical.domain': 'MI', _id: { $in: [] } };
   const signalSourceRecords = signal.sourceRecordIds?.length
-    ? await canonicalRecords.find(signalSourcePredicate, { projection: { _id: 0, sourceId: 1, 'facets.subjectId': 1, 'data.USUBJID': 1, 'data.SUBJID': 1 } }).toArray()
+    ? await canonicalRecords.find(signalSourcePredicate, { projection: { _id: 1, '_index.facets.subjectId': 1, 'canonical.data.USUBJID': 1, 'canonical.data.SUBJID': 1 } }).toArray()
     : [];
-  const signalSubjectIds = values(signalSourceRecords.map((record) => String(record.facets?.subjectId || record.data?.USUBJID || record.data?.SUBJID || '')));
+  const signalSubjectIds = values(signalSourceRecords.map((record) => String(record._index.facets?.subjectId || record.canonical.data.USUBJID || record.canonical.data.SUBJID || '')));
   traces.push({
     id: 'signal-subject-identities',
     source: 'mongodb',
@@ -235,25 +246,34 @@ export async function loadBiologicalCoherence(
   const outsideCandidateSourceIds = values(laboratoryEndpoints
     .filter((item) => (item.referenceRange?.outsideRangeCount || 0) > 0)
     .flatMap((item) => item.sourceRecordIds));
-  const resultNumber = { $convert: { input: '$data.LBSTRESN', to: 'double', onError: null, onNull: null } };
-  const lowerLimit = { $convert: { input: '$data.LBSTNRLO', to: 'double', onError: null, onNull: null } };
-  const upperLimit = { $convert: { input: '$data.LBSTNRHI', to: 'double', onError: null, onNull: null } };
+  const resultNumber = { $convert: { input: '$canonical.data.LBSTRESN', to: 'double', onError: null, onNull: null } };
+  const lowerLimit = { $convert: { input: '$canonical.data.LBSTNRLO', to: 'double', onError: null, onNull: null } };
+  const upperLimit = { $convert: { input: '$canonical.data.LBSTNRHI', to: 'double', onError: null, onNull: null } };
   const abnormalityPredicate = {
-    studyId,
-    snapshotId,
-    domain: 'LB',
-    sourceId: { $in: outsideCandidateSourceIds },
+    ...canonicalScope,
+    'canonical.domain': 'LB',
+    _id: { $in: outsideCandidateSourceIds },
     $or: [
-      { 'data.LBNRIND': { $in: ['HIGH', 'LOW', 'ABNORMAL', 'H', 'L', 'ABN', 'A'] } },
+      { 'canonical.data.LBNRIND': { $in: ['HIGH', 'LOW', 'ABNORMAL', 'H', 'L', 'ABN', 'A'] } },
       { $expr: { $or: [
         { $and: [{ $ne: [resultNumber, null] }, { $ne: [lowerLimit, null] }, { $lt: [resultNumber, lowerLimit] }] },
         { $and: [{ $ne: [resultNumber, null] }, { $ne: [upperLimit, null] }, { $gt: [resultNumber, upperLimit] }] },
       ] } },
     ],
   };
-  const abnormalityRecords = outsideCandidateSourceIds.length
-    ? await tracedFind<LaboratoryAbnormalityRecord>('laboratory-abnormalities', 'cdisc_records', abnormalityPredicate, 5000)
-    : [];
+  let abnormalityRecords: LaboratoryAbnormalityRecord[] = [];
+  if (outsideCandidateSourceIds.length) {
+    const abnormalityStartedAt = Date.now();
+    const stored = await canonicalRecords.find(abnormalityPredicate, { projection: { _id: 1, '_index.facets': 1, 'canonical.data': 1 } }).limit(5000).toArray();
+    abnormalityRecords = stored.map(laboratoryRecord);
+    let plan: DataQueryTrace['plan'];
+    try {
+      plan = summarizeMongoExplain(await canonicalRecords.find(abnormalityPredicate, { projection: { _id: 1, '_index.facets': 1, 'canonical.data': 1 } }).limit(5000).explain('executionStats'), stored.length);
+    } catch {
+      // Evidence results remain usable when explain is unavailable.
+    }
+    traces.push({ id: 'laboratory-abnormalities', source: 'mongodb', collection: 'cdisc_records', operation: 'find', predicate: abnormalityPredicate, status: 'executed', resultCount: stored.length, durationMs: Date.now() - abnormalityStartedAt, ...(plan ? { plan } : {}) });
+  }
   if (!outsideCandidateSourceIds.length) traces.push({ id: 'laboratory-abnormalities', source: 'mongodb', collection: 'cdisc_records', operation: 'find', predicate: { studyId, snapshotId, domain: 'LB', reason: 'no-outside-range-endpoint-candidates' }, status: 'skipped', resultCount: 0, durationMs: 0 });
   const abnormalitySummary = summarizeLaboratoryAbnormalities(abnormalityRecords, signalSubjectIds);
   const laboratoryAbnormalities = abnormalitySummary.summaries;

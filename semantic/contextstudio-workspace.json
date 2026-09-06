@@ -1,0 +1,30 @@
+{
+  "apiVersion": "contextobjects.dev/workspace/v1",
+  "kind": "ContextStudioWorkspaceExport",
+  "workspaceId": "nonclinical-safety-evidence-studio",
+  "release": {
+    "releaseId": "org.contextobjects.nonclinical-safety@1.0.0",
+    "packageId": "org.contextobjects.nonclinical-safety",
+    "version": "1.0.0",
+    "title": "Nonclinical Safety Semantic Runtime",
+    "maturity": "preview",
+    "compiledBy": "Context Studio",
+    "sourceStandard": "CDISC SENDIG 3.0",
+    "description": "Portable semantic, resolver, authorization, projection, and presentation contract for cross-domain nonclinical safety investigation."
+  },
+  "requires": {
+    "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+    "modelSchemaVersion": "2.0.0",
+    "semanticPackages": [
+      "org.contextobjects.cdisc-core@1.0.0",
+      "org.contextobjects.nonclinical-safety@1.0.0",
+      "org.contextobjects.persistence.mongodb-cdisc@1.0.0"
+    ]
+  },
+  "modules": [
+    "packages/org.contextobjects.cdisc-core/module.json",
+    "packages/org.contextobjects.nonclinical-safety/module.json",
+    "packages/org.contextobjects.persistence.mongodb-cdisc/module.json"
+  ],
+  "output": "nonclinical-safety-runtime.json"
+}

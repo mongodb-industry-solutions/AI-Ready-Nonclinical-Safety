@@ -1,0 +1,627 @@
+{
+  "apiVersion": "contextobjects.dev/persistence-binding/v1",
+  "kind": "PersistenceBindingModule",
+  "packageId": "org.contextobjects.persistence.mongodb-cdisc",
+  "version": "1.0.0",
+  "title": "MongoDB CDISC Persistence Binding",
+  "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+  "modelSchemaVersion": "2.0.0",
+  "storageBindings": [
+    {
+      "id": "binding.compound.cdisc",
+      "semanticObject": "Compound",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "TS"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.study.cdisc",
+      "semanticObject": "Study",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "TS"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.group.cdisc",
+      "semanticObject": "TreatmentGroup",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "TX"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.subject.cdisc",
+      "semanticObject": "Subject",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "DM"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.finding.cdisc",
+      "semanticObject": "Finding",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "MI"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.lab.cdisc",
+      "semanticObject": "LabMeasurement",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "LB"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.organ-measurement.cdisc",
+      "semanticObject": "OrganMeasurement",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "OM"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.body-weight.cdisc",
+      "semanticObject": "BodyWeightMeasurement",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": {
+          "$in": [
+            "BW",
+            "BG"
+          ]
+        }
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.clinical-observation.cdisc",
+      "semanticObject": "ClinicalObservation",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "CL"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.macroscopic-finding.cdisc",
+      "semanticObject": "MacroscopicFinding",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "MA"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.exposure.cdisc",
+      "semanticObject": "ExposureAdministration",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "EX"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.pk-concentration.cdisc",
+      "semanticObject": "PkConcentration",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "PC"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.pk-parameter.cdisc",
+      "semanticObject": "PkParameter",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "PP"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.study-phase.cdisc",
+      "semanticObject": "StudyPhase",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": {
+          "$in": [
+            "SE",
+            "DS",
+            "TA",
+            "TE"
+          ]
+        }
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.food-consumption.cdisc",
+      "semanticObject": "FoodConsumption",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "FW"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.relationship.cdisc",
+      "semanticObject": "EvidenceRelationship",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "canonical-row",
+      "location": "cdisc_records",
+      "path": "canonical.data",
+      "authority": "canonical",
+      "dataContract": "kehrnel.dev/cdisc-solution-evidence/v2",
+      "selector": {
+        "_control.modelSchemaVersion": "2.0.0",
+        "canonical.domain": "RELREC"
+      },
+      "scopePrefix": [
+        "_control.tenantId",
+        "_control.studyId",
+        "_control.snapshotId"
+      ]
+    },
+    {
+      "id": "binding.finding.portfolio",
+      "semanticObject": "Finding",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "portfolio_findings",
+      "path": "finding",
+      "authority": "projection",
+      "dataContract": "nonclinical-safety.dev/portfolio-finding/v1"
+    },
+    {
+      "id": "binding.endpoint-summary.mongodb",
+      "semanticObject": "EndpointSummary",
+      "archetype": "archetype.biological-coherence.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "study_endpoint_summaries",
+      "path": "endpoint",
+      "authority": "projection",
+      "dataContract": "nonclinical-safety.dev/endpoint-summary/v1"
+    },
+    {
+      "id": "binding.measurement-series.mongodb",
+      "semanticObject": "OrganMeasurement",
+      "archetype": "archetype.biological-coherence.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "measurement_series",
+      "path": "series",
+      "authority": "projection",
+      "dataContract": "nonclinical-safety.dev/measurement-series/v1"
+    },
+    {
+      "id": "binding.subject-timeline.mongodb",
+      "semanticObject": "StudyPhase",
+      "archetype": "archetype.biological-coherence.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "subject_timelines",
+      "path": "timeline",
+      "authority": "projection",
+      "dataContract": "nonclinical-safety.dev/subject-timeline/v1"
+    },
+    {
+      "id": "binding.evidence-relationship.mongodb",
+      "semanticObject": "EvidenceRelationship",
+      "archetype": "archetype.biological-coherence.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "evidence_relationships",
+      "path": "edge",
+      "authority": "projection",
+      "dataContract": "nonclinical-safety.dev/evidence-relationship/v1"
+    },
+    {
+      "id": "binding.target-organ-assessment.mongodb",
+      "semanticObject": "TargetOrganAssessment",
+      "archetype": "archetype.target-organ-assessment.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "target_organ_assessments",
+      "path": "assessment",
+      "authority": "solution-state"
+    },
+    {
+      "id": "binding.artifact.mongodb",
+      "semanticObject": "SourceArtifact",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "source_artifacts",
+      "path": "artifact",
+      "authority": "artifact"
+    },
+    {
+      "id": "binding.artifact.s3",
+      "semanticObject": "SourceArtifact",
+      "archetype": "archetype.study-evidence-aggregate.v1",
+      "adapter": "s3-evidence",
+      "representation": "object",
+      "location": "source-artifacts",
+      "path": "{studyId}/{sha256}",
+      "authority": "artifact"
+    },
+    {
+      "id": "binding.publication.pubmed",
+      "semanticObject": "Publication",
+      "archetype": "archetype.contextual-literature-evidence.v1",
+      "adapter": "pubmed-api",
+      "representation": "api-resource",
+      "location": "pubmed.ncbi.nlm.nih.gov",
+      "path": "/{pmid}",
+      "authority": "external-source"
+    },
+    {
+      "id": "binding.publication.mongodb",
+      "semanticObject": "Publication",
+      "archetype": "archetype.contextual-literature-evidence.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "literature_documents",
+      "path": "publication",
+      "authority": "projection"
+    },
+    {
+      "id": "binding.chunk.mongodb",
+      "semanticObject": "DocumentChunk",
+      "archetype": "archetype.contextual-literature-evidence.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "literature_chunks",
+      "path": "chunk",
+      "authority": "projection"
+    },
+    {
+      "id": "binding.chunk.s3",
+      "semanticObject": "DocumentChunk",
+      "archetype": "archetype.contextual-literature-evidence.v1",
+      "adapter": "s3-evidence",
+      "representation": "object",
+      "location": "licensed-literature",
+      "path": "{pmid}/source.pdf",
+      "authority": "external-source"
+    },
+    {
+      "id": "binding.assertion.mongodb",
+      "semanticObject": "EvidenceAssertion",
+      "archetype": "archetype.governed-evidence-brief.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "investigations",
+      "path": "result",
+      "authority": "solution-state"
+    },
+    {
+      "id": "binding.decision.mongodb",
+      "semanticObject": "ReviewDecision",
+      "archetype": "archetype.governed-evidence-brief.v1",
+      "adapter": "mongodb-atlas",
+      "representation": "document",
+      "location": "review_actions",
+      "path": "decision",
+      "authority": "solution-state"
+    }
+  ],
+  "projectionRecipes": [
+    {
+      "id": "projection.study-evidence.v1",
+      "sourceAuthority": "cdisc_records",
+      "target": "study_evidence",
+      "inputs": [
+        "TS",
+        "TX",
+        "DM",
+        "MI",
+        "LB"
+      ],
+      "purpose": "Bounded study workspace cache",
+      "rebuild": "snapshot-bound"
+    },
+    {
+      "id": "projection.operational-evidence.v1",
+      "sourceAuthority": "cdisc_records",
+      "targets": [
+        "study_endpoint_summaries",
+        "measurement_series",
+        "subject_timelines",
+        "evidence_relationships"
+      ],
+      "inputs": [
+        "DM",
+        "TX",
+        "MI",
+        "MA",
+        "LB",
+        "OM",
+        "BW",
+        "BG",
+        "FW",
+        "CL",
+        "EX",
+        "PC",
+        "PP",
+        "SE",
+        "DS",
+        "RELREC"
+      ],
+      "purpose": "Operational safety queries and click-through",
+      "rebuild": "snapshot-bound"
+    },
+    {
+      "id": "projection.semantic-serving.v1",
+      "sourceAuthority": "semantic_releases.bundle",
+      "targets": [
+        "semantic_resources",
+        "semantic_edges",
+        "semantic_search_documents"
+      ],
+      "purpose": "Profile-scoped inspection, graph traversal, and managed-vector retrieval",
+      "rebuild": "release-bound"
+    }
+  ],
+  "indexes": [
+    {
+      "collection": "cdisc_records",
+      "name": "record_domain_order",
+      "keys": {
+        "_control.tenantId": 1,
+        "_control.studyId": 1,
+        "_control.snapshotId": 1,
+        "canonical.domain": 1,
+        "canonical.rowOrdinal": 1
+      }
+    },
+    {
+      "collection": "cdisc_records",
+      "name": "subject_evidence",
+      "keys": {
+        "_control.tenantId": 1,
+        "_control.studyId": 1,
+        "_control.snapshotId": 1,
+        "_index.facets.subjectId": 1,
+        "canonical.domain": 1
+      }
+    },
+    {
+      "collection": "cdisc_records",
+      "name": "finding_evidence",
+      "keys": {
+        "_control.tenantId": 1,
+        "_control.studyId": 1,
+        "_control.snapshotId": 1,
+        "_index.facets.organ": 1,
+        "_index.facets.finding": 1
+      }
+    },
+    {
+      "collection": "cdisc_records",
+      "name": "measurement_evidence",
+      "keys": {
+        "_control.tenantId": 1,
+        "_control.studyId": 1,
+        "_control.snapshotId": 1,
+        "_index.facets.testCode": 1,
+        "_index.facets.studyDay": 1
+      }
+    },
+    {
+      "collection": "semantic_resources",
+      "name": "release_type_visibility",
+      "keys": {
+        "releaseId": 1,
+        "resourceType": 1,
+        "visibleTo": 1
+      }
+    },
+    {
+      "collection": "semantic_edges",
+      "name": "semantic_edge_forward",
+      "keys": {
+        "releaseId": 1,
+        "from": 1,
+        "predicate": 1,
+        "to": 1
+      }
+    },
+    {
+      "collection": "semantic_edges",
+      "name": "semantic_edge_reverse",
+      "keys": {
+        "releaseId": 1,
+        "to": 1,
+        "predicate": 1,
+        "from": 1
+      }
+    },
+    {
+      "collection": "semantic_search_documents",
+      "name": "semantic_map_auto_embed",
+      "type": "atlas-vector-search",
+      "sourcePath": "text",
+      "storage": "__mdb_internal_search"
+    }
+  ]
+}

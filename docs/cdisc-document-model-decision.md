@@ -1,6 +1,6 @@
 # CDISC document model and semantic-map foundation
 
-Status: accepted architecture review  
+Status: implemented
 Scope: Kehrnel evidence packages and the deployed nonclinical-safety solution
 
 ## Decision
@@ -33,9 +33,8 @@ namespaces:
     semanticText: "MI | organ THYMUS | finding ...",
     projectionVersion: "..."
   },
-  _enrichment: {
-    terminologyBindings: [],
-    reviewedAssertions: []
+  _enrichment: { // optional; omitted when empty
+    terminologyBindings: [{ system: "CDISC CT", code: "THYMUS" }]
   },
   _provenance: {
     sourceArtifactId: "...",
@@ -197,17 +196,17 @@ measurement series, 374 subject timelines, and 60,045 relationships. Evidence,
 portfolio, literature, and semantic retrieval projections use Atlas Automated
 Embedding over their governed `text` fields.
 
-Semantic release 0.4.1 materializes 107 polymorphic resources, 24 definition edges,
-and 563 profile-scoped auto-embedding source documents. The resource plane now
+Semantic release 1.0.0 materializes 124 polymorphic resources, 24 definition edges,
+and 644 profile-scoped auto-embedding source documents. The resource plane now
 includes the nonclinical-safety investigator resolver as a first-class semantic
 product rather than hiding its contract in application code.
 
-The current `cdisc_records` v1 shape is sound in substance: `data` is canonical,
-`facets` and `semantic` are derived, and `lineage` is explicit. Its weakness is that
-control, identity and derived namespaces are mixed at the root. A v2 envelope should
-make the boundary unambiguous. It should be introduced through a versioned Kehrnel
-export and a deterministic full rebuild. This blueprint deliberately has no dual-read,
-legacy-field, or manual-embedding compatibility path.
+The connected `cdisc_records` collection now uses the separated envelope shown
+above. The previous root-level shape was rebuilt rather than dual-read: all 63,836
+record hashes reconciled, all operational projections were regenerated, and the
+superseded collection was removed. MongoDB collection validation requires
+`_control.modelSchemaVersion`, and the active semantic release requires the same
+data-contract version before activation.
 
 The obsolete manual-vector indexes have been removed. The active indexes use
 `autoEmbed`, and the corresponding vectors exist only in Atlas's internal search
@@ -220,16 +219,11 @@ preserve exact replay and direct interoperability. Explicit values such as zero,
 
 ## Delivery sequence
 
-1. Use Atlas Automated Embedding on the bounded evidence, literature, portfolio,
-   and semantic-map retrieval projections and query them with text directly.
-2. Specify and validate the CDISC evidence-envelope v2 contract in Kehrnel.
-3. Cut the solution importer to v2 and rebuild all projections from the canonical
-   namespace; do not keep a v1 compatibility branch.
-4. Benchmark explain plans, index size, import throughput and study/subject/domain
-   query latency before making v2 the default.
-5. Keep semantic serving authority explicit through rebuildable
-   `semantic_resources`, `semantic_edges`, and auto-embedded
-   `semantic_search_documents` projections.
+1. Publish the matching internal evidence-envelope contract from Kehrnel.
+2. Run the golden operational, semantic, and research query suite against the
+   public `1.0.0` packages before the solution-library release.
+3. Retain semantic serving authority through rebuildable `semantic_resources`,
+   `semantic_edges`, and auto-embedded `semantic_search_documents` projections.
 
 This keeps the blueprint ambitious where it creates durable value: traceable CDISC
 evidence, workload-shaped MongoDB documents, invisible managed embeddings, and a

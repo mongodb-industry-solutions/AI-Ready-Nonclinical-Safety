@@ -32,7 +32,7 @@ const apiContracts = [
   { method: 'GET', path: '/api/semantics/search', title: 'Hybrid semantic retrieval', input: 'q, profile, limit', output: 'Ranked concepts, archetypes, resolvers, bindings and edges', policy: 'Release- and profile-scoped; Atlas-managed embeddings' },
   { method: 'GET · SSE', path: '/api/semantics/stream', title: 'Live semantics', input: 'profile, Last-Event-ID', output: 'Resume-safe semantic events', policy: 'Snapshot first; Change Stream updates' },
   { method: 'POST', path: '/api/semantics/value-sets/observe', title: 'Terminology observation', input: 'valueSetId, value, source, profile', output: 'Candidate release + profile projection', policy: 'Validate, compile, activate; no evidence mutation' },
-  { method: 'GET', path: '/api/health', title: 'Runtime health', input: 'none', output: 'Data, agent and review-store modes', policy: 'Configuration status only' },
+  { method: 'GET', path: '/api/health', title: 'Runtime health', input: 'none', output: 'Runtime modes + active data/semantic contract versions', policy: 'Readiness and compatibility status only' },
 ];
 
 const domainMappings = [
@@ -52,7 +52,7 @@ export default function ArchitectureView({ evidence, runtime, onBack }: Architec
     <button className="back-link" onClick={onBack}>← Back to study workspace</button>
     <div className="architecture-title-row">
       <div className="architecture-title"><div className="eyebrow">Reference solution architecture</div><h1>CDISC meaning, operationalized for AI.</h1><p>CDISC SEND remains the governed evidence and traceability anchor. MongoDB turns that standard into a connected document, search, vector, graph, and agent-ready operating model without changing what the source evidence means.</p></div>
-      <div className="architecture-release"><CheckCircle2 size={17} /><span><b>{runtime.release.sourceStandard}</b><small>{runtime.release.title} · {runtime.release.version}</small></span></div>
+      <div className="architecture-release"><CheckCircle2 size={17} /><span><b>{runtime.release.sourceStandard}</b><small>{runtime.release.title} · {runtime.release.version} · CDISC contract verified</small></span></div>
     </div>
 
     <nav className="architecture-lenses" aria-label="Architecture views">{lenses.map(({ id, label, description, icon: Icon }) => <button key={id} className={lens === id ? 'active' : ''} onClick={() => setLens(id)}><Icon size={16} /><span><b>{label}</b><small>{description}</small></span></button>)}</nav>
@@ -112,6 +112,23 @@ function DataModel({ evidence, runtime }: { evidence: StudyEvidence; runtime: Se
     <div className="model-definition"><div><span className="panel-kicker">The modeling decision</span><h2>Preserve the standard. Project for the workload.</h2><p>The source SEND domains remain attributable and replayable. A snapshot-bound document places the fields needed together for the investigation screen, while independent projections add search text, Atlas-managed embeddings, graph edges, semantics, and review state.</p></div><div className="model-equation"><span>CDISC facts</span><b>+</b><span>semantic bindings</span><b>+</b><span>AI projections</span><b>=</b><strong>operational evidence</strong></div></div>
     <section className="domain-map-panel"><header><div><span className="panel-kicker">Standards mapping</span><h2>Where CDISC SEND is used</h2></div><span>{evidence.study.implementationGuide}</span></header><div className="domain-map-head"><span>CDISC domain</span><span>Meaning</span><span>Semantic object</span><span>MongoDB representation</span><span>Business use</span></div>{domainMappings.map((mapping) => <div className="domain-map-row" key={mapping.domain}><b>{mapping.domain}</b><span>{mapping.source}</span><span>{mapping.object}</span><code>{bindings.get(mapping.object.split(' + ')[0])?.location || mapping.path}<small>{mapping.path}</small></code><span>{mapping.purpose}</span></div>)}</section>
     <div className="document-model-grid">
+      <article className="document-shape"><header><div><span className="panel-kicker">Canonical evidence object</span><h2>One row, explicit responsibilities</h2></div><em>interoperable · sparse · versioned</em></header><pre><code>{`{
+  _id: "stable source identity",
+  canonical: {
+    standard: { family, implementationGuide, version },
+    domain, rowOrdinal, recordKey, data
+  },
+  _control: {
+    tenantId, studyId, snapshotId,
+    publicationState, modelSchemaVersion,
+    evidencePackageId
+  },
+  _index: { facets, entityRefs, semanticText },
+  _enrichment?: { terminologyBindings, reviewedAssertions },
+  _provenance: {
+    sourceArtifactId, sourceDatasetId, sourceRow, recordHash
+  }
+}`}</code></pre><footer><FileCheck2 size={13} /> Only populated optional fields exist. Raw XPT and Define-XML remain the byte-level interoperability authority.</footer></article>
       <article className="document-shape"><header><div><span className="panel-kicker">Primary operational read model</span><h2>StudyEvidence document</h2></div><em>rebuildable · digest verified</em></header><pre><code>{`{
   study: {
     id: "${evidence.study.id}",
@@ -138,7 +155,7 @@ function Interfaces({ selectedApi, onSelectApi }: { selectedApi: number; onSelec
   return <div className="interfaces-view">
     <div className="api-workbench"><section className="api-list"><header><span className="panel-kicker">Solution-owned interfaces</span><h2>Operational APIs</h2><p>The browser never calls Kehrnel, Context Studio, MongoDB, or Magenta directly.</p></header>{apiContracts.map((api, index) => <button className={selectedApi === index ? 'active' : ''} key={api.path} onClick={() => onSelectApi(index)}><em>{api.method}</em><span><b>{api.title}</b><code>{api.path}</code></span><ArrowRight size={13} /></button>)}</section><section className="api-inspector"><div className="api-method"><span>{selected.method}</span><code>{selected.path}</code></div><h2>{selected.title}</h2><dl><div><dt>Input contract</dt><dd>{selected.input}</dd></div><div><dt>Response contract</dt><dd>{selected.output}</dd></div><div><dt>Governance</dt><dd>{selected.policy}</dd></div></dl><div className="api-boundary"><ShieldCheck size={16} /><p><b>Why the API boundary matters</b>The route resolves the active semantic release and profile, applies solution policy, and returns an auditable response. Storage and agent internals stay replaceable.</p></div></section></div>
     <section className="query-pipeline"><header><div><span className="panel-kicker">Hybrid evidence resolution</span><h2>One question, several complementary retrieval modes</h2><p>Exact CDISC facts remain authoritative. Similarity and graph results discover context; reranking prioritizes it; citations reconnect the answer to evidence.</p></div></header><div>{queryStages.map(([number, title, detail], index) => <article key={number}><span>{number}</span><b>{title}</b><small>{detail}</small>{index < queryStages.length - 1 && <ArrowRight size={15} />}</article>)}</div></section>
-    <div className="interface-separation"><article><Database size={16} /><div><b>Structured truth</b><p>Aggregation returns incidence, dose, severity, laboratory values and identifiers without generative interpretation.</p></div></article><article><Network size={16} /><div><b>Context discovery</b><p>Search, vectors and graph traversal locate semantically related evidence that exact keys alone cannot reveal.</p></div></article><article><Bot size={16} /><div><b>Governed synthesis</b><p>Magenta can only invoke capabilities granted by the compiled profile and must emit citations.</p></div></article></div>
+    <div className="interface-separation"><article><Database size={16} /><div><b>Operational queries</b><p>Indexed aggregation calculates cohorts, dose, incidence, laboratory values and timelines from exact snapshot-bound evidence.</p></div></article><article><Network size={16} /><div><b>Semantic queries</b><p>Terminology and archetype containment resolve meaning into profile-authorized physical MongoDB paths.</p></div></article><article><Bot size={16} /><div><b>Research queries</b><p>Lexical, managed-vector and graph lanes discover candidates; reranking prioritizes them; deterministic hydration supplies the cited facts.</p></div></article></div>
   </div>;
 }
 

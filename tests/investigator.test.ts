@@ -49,7 +49,7 @@ describe('AI safety investigator provenance', () => {
     const grounding: SemanticGroundingResult = {
       query: 'thymus lymphocyte depletion',
       mode: 'atlas-hybrid',
-      releaseId: 'org.contextobjects.nonclinical-safety@0.4.1',
+      releaseId: 'org.contextobjects.nonclinical-safety@1.0.0',
       profileId: 'toxicologist',
       hits: [{ resourceType: 'concept', resourceId: 'lymphocyte-depletion', label: 'Lymphocyte depletion', excerpt: 'Governed morphology', score: 100, lanes: ['lexical', 'vector'], sourceRef: 'semantic:lymphocyte-depletion' }],
       stages: [

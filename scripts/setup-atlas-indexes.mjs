@@ -1,5 +1,6 @@
 import process from 'node:process';
 import { MongoClient } from 'mongodb';
+import { enforceCdiscRecordValidator } from './lib/cdisc-record-validator.mjs';
 
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required');
 
@@ -16,6 +17,18 @@ const client = new MongoClient(process.env.MONGODB_URI);
 await client.connect();
 try {
   const database = client.db(process.env.MONGODB_DATABASE || 'nonclinical_safety_solution');
+  await enforceCdiscRecordValidator(database);
+  const canonicalRecords = database.collection('cdisc_records');
+  const supersededCanonicalIndexes = new Set(['record_source_identity', 'record_domain_order_v2', 'subject_evidence_v2', 'finding_evidence_v2', 'laboratory_evidence', 'measurement_evidence_v2']);
+  for (const index of await canonicalRecords.listIndexes().toArray()) {
+    if (supersededCanonicalIndexes.has(index.name)) await canonicalRecords.dropIndex(index.name);
+  }
+  await canonicalRecords.createIndexes([
+    { key: { '_control.tenantId': 1, '_control.studyId': 1, '_control.snapshotId': 1, 'canonical.domain': 1, 'canonical.rowOrdinal': 1 }, name: 'record_domain_order' },
+    { key: { '_control.tenantId': 1, '_control.studyId': 1, '_control.snapshotId': 1, '_index.facets.subjectId': 1, 'canonical.domain': 1 }, name: 'subject_evidence' },
+    { key: { '_control.tenantId': 1, '_control.studyId': 1, '_control.snapshotId': 1, '_index.facets.organ': 1, '_index.facets.finding': 1 }, name: 'finding_evidence' },
+    { key: { '_control.tenantId': 1, '_control.studyId': 1, '_control.snapshotId': 1, '_index.facets.testCode': 1, '_index.facets.studyDay': 1 }, name: 'measurement_evidence' },
+  ]);
   await database.collection('study_endpoint_summaries').createIndexes([
     { key: { studyId: 1, snapshotId: 1, domain: 1, testCode: 1 }, name: 'endpoint_summary_domain' },
   ]);

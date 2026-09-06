@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { OPERATIONAL_EVIDENCE_PROJECTION_VERSION, projectOperationalEvidence, projectStudyEvidence, STUDY_EVIDENCE_PROJECTION_VERSION } from '../scripts/lib/study-evidence-projector.mjs';
 
 const record = (domain, sourceId, data, facets = {}) => ({
-  domain,
-  sourceId,
-  data,
-  facets,
-  lineage: { recordHash: `sha256:${sourceId}`, sourceDataset: domain, sourceRow: 1 },
+  _id: sourceId,
+  canonical: {
+    standard: { family: 'SEND', implementationGuide: 'SENDIG', version: '3.1.1' },
+    domain,
+    rowOrdinal: 1,
+    recordKey: { STUDYID: 'TEST-1', DOMAIN: domain, [`${domain}SEQ`]: 1 },
+    data,
+  },
+  _control: { tenantId: 'public-demo', studyId: 'TEST-1', snapshotId: 'published-v1', publicationState: 'published', modelSchemaVersion: '2.0.0', evidencePackageId: 'sha256:package' },
+  _index: { facets, semanticText: `${domain} test evidence`, projectionVersion: '2.0.0' },
+  _provenance: { recordHash: `sha256:${sourceId}`, sourceArtifactId: `artifact:${domain}`, sourceDatasetId: domain, sourceRow: 1 },
 });
 
 const records = [
@@ -22,7 +28,7 @@ const records = [
 ];
 
 const packageDocument = {
-  modelSchemaVersion: '1.0.0',
+  modelSchemaVersion: '2.0.0',
   manifest: {
     studyId: 'TEST-1',
     snapshotId: 'published-v1',
@@ -38,7 +44,7 @@ const packageDocument = {
     records,
     datasets: ['DM', 'TX', 'MI', 'LB'].map((domain) => ({
       domain,
-      recordCount: records.filter((item) => item.domain === domain).length,
+      recordCount: records.filter((item) => item.canonical.domain === domain).length,
       standard: { family: 'SEND', implementationGuide: 'SENDIG', implementationGuideVersion: '3.1.1' },
     })),
     sourceArtifacts: [{
@@ -79,20 +85,20 @@ describe('canonical SEND study evidence projector', () => {
   it('accepts the SEND field conventions emitted by the Kehrnel safety-signal generator', () => {
     const syntheticRecords = records.map((item) => structuredClone(item));
     for (const item of syntheticRecords) {
-      if (item.domain === 'DM') {
-        item.data.SPGRPCD = item.data.SETCD;
-        delete item.data.SETCD;
-        delete item.facets.treatmentGroup;
+      if (item.canonical.domain === 'DM') {
+        item.canonical.data.SPGRPCD = item.canonical.data.SETCD;
+        delete item.canonical.data.SETCD;
+        delete item._index.facets.treatmentGroup;
       }
-      if (item.domain === 'TX' && item.data.TXPARMCD === 'TRTDOS') {
-        item.data.TXVALN = Number(item.data.TXVAL);
-        item.data.TXVALU = 'mg/kg/day';
-        item.data.TXVAL = item.data.TXVALN === 0 ? 'Vehicle control' : 'High dose';
+      if (item.canonical.domain === 'TX' && item.canonical.data.TXPARMCD === 'TRTDOS') {
+        item.canonical.data.TXVALN = Number(item.canonical.data.TXVAL);
+        item.canonical.data.TXVALU = 'mg/kg/day';
+        item.canonical.data.TXVAL = item.canonical.data.TXVALN === 0 ? 'Vehicle control' : 'High dose';
       }
-      if (item.domain === 'TX' && item.data.TXPARMCD === 'TRTDOSU') item.data.TXVAL = '';
-      if (item.domain === 'MI') {
-        item.data.MISTRESC = 'DECREASED LYMPHOCYTES, CORTEX';
-        item.facets.finding = '';
+      if (item.canonical.domain === 'TX' && item.canonical.data.TXPARMCD === 'TRTDOSU') item.canonical.data.TXVAL = '';
+      if (item.canonical.domain === 'MI') {
+        item.canonical.data.MISTRESC = 'DECREASED LYMPHOCYTES, CORTEX';
+        item._index.facets.finding = '';
       }
     }
     const syntheticPackage = structuredClone(packageDocument);
@@ -126,7 +132,7 @@ describe('canonical SEND study evidence projector', () => {
     publicPackage.evidence.records = publicRecords;
     publicPackage.evidence.datasets = ['DM', 'TX', 'MI', 'LB', 'TS'].map((domain) => ({
       domain,
-      recordCount: publicRecords.filter((item) => item.domain === domain).length,
+      recordCount: publicRecords.filter((item) => item.canonical.domain === domain).length,
       standard: { family: 'SEND', implementationGuide: 'SENDIG', implementationGuideVersion: '3.0' },
     }));
 
@@ -148,7 +154,7 @@ describe('canonical SEND study evidence projector', () => {
 
   it('builds reconciled operational projections with explicit source-declared and inferred relationships', () => {
     const operationalPackage = structuredClone(packageDocument);
-    operationalPackage.evidence.records.find((item) => item.sourceId === 'mi-thymus').data.MISEQ = 1;
+    operationalPackage.evidence.records.find((item) => item._id === 'mi-thymus').canonical.data.MISEQ = 1;
     operationalPackage.evidence.records.push(
       record('MA', 'ma-thymus', { USUBJID: 'S-2', MASEQ: 2, MASPEC: 'THYMUS', MATESTCD: 'GROSPATH', MATEST: 'Gross Pathological Examination', MASTRESC: 'SMALL', MADY: 29 }, { subjectId: 'S-2', organ: 'THYMUS', finding: 'SMALL', studyDay: 29, testCode: 'GROSPATH' }),
       record('RELREC', 'rel-mi', { USUBJID: 'S-2', RELID: 'R1', RDOMAIN: 'MI', IDVAR: 'MISEQ', IDVARVAL: '1' }, { subjectId: 'S-2' }),
@@ -157,7 +163,7 @@ describe('canonical SEND study evidence projector', () => {
     operationalPackage.manifest.counts.records = operationalPackage.evidence.records.length;
     operationalPackage.evidence.datasets = ['DM', 'TX', 'MI', 'LB', 'MA', 'RELREC'].map((domain) => ({
       domain,
-      recordCount: operationalPackage.evidence.records.filter((item) => item.domain === domain).length,
+      recordCount: operationalPackage.evidence.records.filter((item) => item.canonical.domain === domain).length,
       standard: { family: 'SEND', implementationGuide: 'SENDIG', implementationGuideVersion: '3.0' },
     }));
 
