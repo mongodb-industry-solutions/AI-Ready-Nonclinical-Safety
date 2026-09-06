@@ -792,6 +792,7 @@ export interface TargetOrganAssessmentRecord {
 }
 
 export interface LiteratureDocument {
+  schemaVersion: string;
   id: string;
   pmid: string;
   doi: string;
@@ -805,6 +806,15 @@ export interface LiteratureDocument {
   relevance: string;
   concepts: string[];
   matchedSignalIds: string[];
+  fullText?: {
+    availability: 'open-access' | 'licensed';
+    format: 'pdf';
+    provider: string;
+    pmcid?: string;
+    pdfUrl: string;
+    license: string;
+    verifiedAt: string;
+  };
 }
 
 export interface RankedLiteratureDocument extends LiteratureDocument {
@@ -825,6 +835,7 @@ export interface LiteratureQueryResponse {
 
 export interface LiteratureEvidence {
   source: {
+    schemaVersion: string;
     provider: string;
     retrievedAt: string;
     usage: string;

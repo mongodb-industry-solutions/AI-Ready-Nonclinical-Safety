@@ -5,23 +5,28 @@ import { rankLiterature, reciprocalRankFusion } from '@/lib/data/literature-quer
 describe('external literature evidence', () => {
   it('links curated PubMed evidence to a study signal without claiming causality', () => {
     const documents = relatedLiterature('thymus-lymphocytes');
-    expect(documents).toHaveLength(3);
-    expect(documents.map((document) => document.evidenceRole)).toEqual([
-      'pathology-reference',
-      'analogous-pattern',
-      'alternative-explanation',
-    ]);
+    expect(documents.length).toBeGreaterThanOrEqual(6);
+    expect(new Set(documents.map((document) => document.evidenceRole))).toEqual(new Set([
+      'pathology-reference', 'analogous-pattern', 'alternative-explanation',
+    ]));
     expect(documents.every((document) => document.relevance.length > 40)).toBe(true);
   });
 
   it('keeps bibliographic identity and licensing boundaries explicit', () => {
     const source = literatureSource();
     expect(source.fullTextPolicy).toMatch(/open-access|licensed/i);
+    expect(source.schemaVersion).toBe('1.0.0');
+    expect(allLiterature().filter((document) => document.fullText)).toHaveLength(13);
     for (const document of allLiterature()) {
+      expect(document.schemaVersion).toBe('1.0.0');
       expect(document.pmid).toMatch(/^\d+$/);
       expect(document.doi).toBeTruthy();
       expect(document.url).toBe(`https://pubmed.ncbi.nlm.nih.gov/${document.pmid}/`);
-      expect(document).not.toHaveProperty('fullText');
+      if (document.fullText) {
+        expect(document.fullText.pdfUrl).toMatch(/^https:\/\/europepmc\.org\/articles\/PMC\d+\?pdf=render$/);
+        expect(document.fullText.license).toBeTruthy();
+        expect(document.fullText.verifiedAt).toBeTruthy();
+      }
     }
   });
 

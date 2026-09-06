@@ -11,6 +11,7 @@ import EvidenceWorkspace, { type EvidenceWorkspacePreview } from '@/components/E
 import MeasurementTrajectoryChart from '@/components/MeasurementTrajectoryChart';
 import DoseResponseChart from '@/components/DoseResponseChart';
 import LabTrajectoryChart from '@/components/LabTrajectoryChart';
+import LiteratureDocumentViewer from '@/components/LiteratureDocumentViewer';
 
 export type InvestigationCanvas = 'assistant' | 'workspace' | 'records' | 'literature' | 'semantics' | 'coherence' | 'evidence' | 'dose';
 type EvidenceContextStep = 'study' | 'treatment' | 'subject' | 'finding' | 'laboratory' | 'artifact';
@@ -128,6 +129,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
   }
 
   const activeCanvas = canvas === 'coherence' || canvas === 'evidence' || canvas === 'dose' ? 'workspace' : canvas;
+  const documentPreviewOpen = Boolean(preview && 'document' in preview);
 
   return <div className="investigation-room" data-sherpa-state="investigation-room" role="dialog" aria-modal="true" aria-label="AI safety investigation room">
     <header className="room-header">
@@ -135,7 +137,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
       <div className="room-state"><ShieldCheck size={14} /><span>Snapshot-bound</span><i /> <Network size={14} /><span>{runtime.activeProfile.label}</span><i /><span>{runtime.release.version}</span></div>
       <button className="secondary-action" onClick={exportBrief}><Download size={14} /> Export brief</button><button className="icon-button" aria-label="Close investigation room and return to study workspace" title="Return to study workspace" onClick={onClose}><X size={17} /></button>
     </header>
-    <div className={`room-body room-body-feed ${preview ? 'inspector-open' : ''}`}>
+    <div className={`room-body room-body-feed ${preview ? 'inspector-open' : ''} ${documentPreviewOpen ? 'inspector-document' : ''}`}>
       <aside className="room-context">
         <span className="panel-kicker">Investigation navigator</span><h2>Evidence path</h2><p className="context-guidance">Select a node to inspect that layer of the governed evidence chain.</p>
         <div className="context-score"><strong>{signal.affectedAnimals}/{signal.totalAnimals}</strong><span>affected animals</span><em>{signal.pattern}</em></div>
@@ -158,7 +160,7 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
           {saved && <div className="saved-action"><CheckCircle2 size={14} /><span><b>{saved.status}</b><small>{saved.id}</small></span></div>}
         </section>}
       </main>
-      {preview && <aside className="room-inspector"><header><div><span className="panel-kicker">Context inspector</span><h3>{preview.title}</h3><p>{preview.detail}</p></div><button className="icon-button" onClick={() => setPreview(undefined)} aria-label="Close inspector"><X size={15} /></button></header>{'series' in preview ? <><MeasurementTrajectoryChart series={preview.series} endpoints={preview.endpoints} height={420} onSelectPoint={(point) => showSource(point.domain as EvidenceDomain, point.sourceRecordIds, point.testCode)} /><button className="inspector-source-action" onClick={() => showSource(preview.domain, [], preview.series[0]?.testCode)}><Database size={13} /> Browse supporting canonical rows</button></> : 'document' in preview ? <article className="literature-inspector"><span>{preview.document.evidenceRole}</span><h3>{preview.document.title}</h3><p>{preview.document.authors.join(', ')}</p><blockquote>{preview.document.relevance}</blockquote><div>{preview.document.concepts.map((concept) => <i key={concept}>{concept}</i>)}</div><a href={preview.document.url} target="_blank" rel="noreferrer">Open PubMed record</a><small>{preview.execution?.mode || 'curated evidence'} · contextual evidence, not causal proof</small></article> : <div className="agent-widget-inspector">{preview.widget === 'dose-response' ? <DoseResponseChart signal={signal} groups={evidence.doseGroups} /> : lab ? <LabTrajectoryChart series={lab} /> : <p>No laboratory trajectory is bound to this finding.</p>}<button className="inspector-source-action" onClick={() => showSource(preview.widget === 'dose-response' ? 'MI' : 'LB')}><Database size={13} /> Open supporting canonical rows</button></div>}</aside>}
+      {preview && <aside className={`room-inspector ${documentPreviewOpen ? 'room-document-inspector' : ''}`}><header><div><span className="panel-kicker">{documentPreviewOpen ? 'Literature evidence' : 'Context inspector'}</span><h3>{preview.title}</h3><p>{preview.detail}</p></div><button className="icon-button" onClick={() => setPreview(undefined)} aria-label="Close inspector"><X size={15} /></button></header>{'series' in preview ? <><MeasurementTrajectoryChart series={preview.series} endpoints={preview.endpoints} height={420} onSelectPoint={(point) => showSource(point.domain as EvidenceDomain, point.sourceRecordIds, point.testCode)} /><button className="inspector-source-action" onClick={() => showSource(preview.domain, [], preview.series[0]?.testCode)}><Database size={13} /> Browse supporting canonical rows</button></> : 'document' in preview ? <LiteratureDocumentViewer document={preview.document} execution={preview.execution} /> : <div className="agent-widget-inspector">{preview.widget === 'dose-response' ? <DoseResponseChart signal={signal} groups={evidence.doseGroups} /> : lab ? <LabTrajectoryChart series={lab} /> : <p>No laboratory trajectory is bound to this finding.</p>}<button className="inspector-source-action" onClick={() => showSource(preview.widget === 'dose-response' ? 'MI' : 'LB')}><Database size={13} /> Open supporting canonical rows</button></div>}</aside>}
     </div>
   </div>;
 }

@@ -58,6 +58,8 @@ flowchart LR
 
 Every passage carries its parent publication, source locator, content-rights status, checksum, and semantic concept bindings. Retrieval rejects content outside the active user profile and permitted corpus before scoring. Study observations and external literature are never collapsed into the same evidence class: the former is observed study evidence; the latter is contextual support, analogy, or an alternative explanation.
 
+The application does not commit or silently replicate publisher PDFs. A curated publication record declares a schema version, verified full-text provider, access class, licence, PMCID and PDF locator. When the user opens a paper, a same-origin allow-listed endpoint streams the provider-hosted PDF into the evidence inspector. Records without verified display rights remain citation-only and are labelled as such.
+
 The deployed literature adapter returns an execution envelope alongside its results. Every declared stage is marked `executed`, `fallback`, or `skipped`, with candidate count, latency and explanation. The UI therefore distinguishes a genuinely executed Atlas Automated Embedding lane from a deployment where the Preview feature or its index is unavailable. This is operational provenance, not simulated agent activity.
 
 ## Agent graph

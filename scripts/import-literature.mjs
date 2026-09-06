@@ -17,6 +17,7 @@ try {
   if (!semanticReleaseId) throw new Error('The compiled semantic runtime does not declare release.releaseId');
   const chunkRows = source.documents.map((publication) => ({
     id: `${publication.id}-relevance`,
+    schemaVersion: publication.schemaVersion,
     publicationId: publication.id,
     text: `${publication.title}. ${publication.relevance}`,
     concepts: publication.concepts,
@@ -41,6 +42,7 @@ try {
     for (const signalId of publication.matchedSignalIds) {
       await edges.replaceOne({ id: `finding:${signalId}:publication:${publication.id}` }, {
         id: `finding:${signalId}:publication:${publication.id}`,
+        schemaVersion: publication.schemaVersion,
         releaseId: semanticReleaseId,
         from: `Finding:${signalId}`,
         to: `Publication:${publication.id}`,
@@ -51,6 +53,7 @@ try {
     }
     await edges.replaceOne({ id: `publication:${publication.id}:chunk:${chunk.id}` }, {
       id: `publication:${publication.id}:chunk:${chunk.id}`,
+      schemaVersion: publication.schemaVersion,
       releaseId: semanticReleaseId,
       from: `Publication:${publication.id}`,
       to: `DocumentChunk:${chunk.id}`,

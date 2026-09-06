@@ -59,7 +59,7 @@ export function rankLiterature(
     const overlap = [...queryTokens].filter((item) => documentTokens.has(item)).length / Math.max(queryTokens.size, 1);
     return {
       document,
-      rawScore: (fused.get(document.id) || 0) + roleWeight[document.evidenceRole] + overlap * 0.012,
+      rawScore: (fused.get(document.id) || 0) + roleWeight[document.evidenceRole] + overlap * 0.012 + (document.fullText ? 0.004 : 0),
       lanes: [...(laneMembership.get(document.id) || new Set<RetrievalLane>(['containment']))],
     };
   }).sort((left, right) => right.rawScore - left.rawScore || left.document.id.localeCompare(right.document.id));
