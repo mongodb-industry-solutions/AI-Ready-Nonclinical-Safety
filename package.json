@@ -1,14 +1,21 @@
 {
   "name": "ai-ready-nonclinical-safety",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "An AI-ready nonclinical safety intelligence reference application built on MongoDB, Kehrnel CDISC and Magenta.",
+  "description": "A self-contained AI-ready nonclinical safety intelligence application built on MongoDB and Magenta.",
   "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "import:study": "node --env-file=.env.local scripts/import-study.mjs",
+    "compile:semantics": "node scripts/compile-semantic-runtime.mjs",
+    "import:semantics": "node --env-file=.env.local scripts/import-semantics.mjs",
+    "migrate:cdisc-v2": "node --env-file=.env.local scripts/migrate-cdisc-v2.mjs",
+    "import:literature": "node --env-file=.env.local scripts/import-literature.mjs",
+    "rebuild:portfolio": "node --env-file=.env.local scripts/rebuild-portfolio-projections.mjs",
+    "setup:indexes": "node --env-file=.env.local scripts/setup-atlas-indexes.mjs",
     "lint": "eslint . --ext .ts,.tsx",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -16,11 +23,13 @@
   "dependencies": {
     "@xyflow/react": "^12.8.4",
     "clsx": "^2.1.1",
+    "demo-sherpa": "file:vendor/demo-sherpa-0.1.2.tgz",
     "lucide-react": "^0.468.0",
     "mongodb": "^6.13.0",
     "next": "^15.5.18",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.3",
     "recharts": "^2.15.1",
     "zod": "^3.24.2"
   },

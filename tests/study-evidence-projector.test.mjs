@@ -1,0 +1,187 @@
+import { describe, expect, it } from 'vitest';
+import { OPERATIONAL_EVIDENCE_PROJECTION_VERSION, projectOperationalEvidence, projectStudyEvidence, STUDY_EVIDENCE_PROJECTION_VERSION } from '../scripts/lib/study-evidence-projector.mjs';
+
+const record = (domain, sourceId, data, facets = {}) => ({
+  _id: sourceId,
+  canonical: {
+    standard: { family: 'SEND', implementationGuide: 'SENDIG', version: '3.1.1' },
+    domain,
+    rowOrdinal: 1,
+    recordKey: { STUDYID: 'TEST-1', DOMAIN: domain, [`${domain}SEQ`]: 1 },
+    data,
+  },
+  _control: { tenantId: 'public-demo', studyId: 'TEST-1', snapshotId: 'published-v1', publicationState: 'published', modelSchemaVersion: '2.0.0', evidencePackageId: 'sha256:package' },
+  _index: { facets, semanticText: `${domain} test evidence`, projectionVersion: '2.0.0' },
+  _provenance: { recordHash: `sha256:${sourceId}`, sourceArtifactId: `artifact:${domain}`, sourceDatasetId: domain, sourceRow: 1 },
+});
+
+const records = [
+  record('DM', 'dm-control', { USUBJID: 'S-1', SETCD: 'C' }, { subjectId: 'S-1', treatmentGroup: 'C' }),
+  record('DM', 'dm-dose', { USUBJID: 'S-2', SETCD: 'D' }, { subjectId: 'S-2', treatmentGroup: 'D' }),
+  record('TX', 'tx-dose', { SETCD: 'D', TXPARMCD: 'TRTDOS', TXVAL: '8' }, { treatmentGroup: 'D' }),
+  record('TX', 'tx-dose-unit', { SETCD: 'D', TXPARMCD: 'TRTDOSU', TXVAL: 'mg/kg' }, { treatmentGroup: 'D' }),
+  record('TX', 'tx-control', { SETCD: 'C', TXPARMCD: 'TRTDOS', TXVAL: '0' }, { treatmentGroup: 'C' }),
+  record('TX', 'tx-control-unit', { SETCD: 'C', TXPARMCD: 'TRTDOSU', TXVAL: 'mg/kg' }, { treatmentGroup: 'C' }),
+  record('MI', 'mi-thymus', { USUBJID: 'S-2', MISPEC: 'THYMUS', MISTRESC: 'Decreased number, lymphocytes, cortex', MISEV: 'MILD' }, { subjectId: 'S-2', organ: 'THYMUS', finding: 'Decreased number, lymphocytes, cortex' }),
+  record('LB', 'lb-control', { USUBJID: 'S-1', LBTESTCD: 'LYM', LBTEST: 'Lymphocytes', LBDY: 29, LBSTRESN: 7, LBSTRESU: '10^9/L' }, { subjectId: 'S-1', testCode: 'LYM', test: 'Lymphocytes', studyDay: 29, resultNumeric: 7, resultUnit: '10^9/L' }),
+  record('LB', 'lb-dose', { USUBJID: 'S-2', LBTESTCD: 'LYM', LBTEST: 'Lymphocytes', LBDY: 29, LBSTRESN: 3, LBSTRESU: '10^9/L' }, { subjectId: 'S-2', testCode: 'LYM', test: 'Lymphocytes', studyDay: 29, resultNumeric: 3, resultUnit: '10^9/L' }),
+];
+
+const packageDocument = {
+  modelSchemaVersion: '2.0.0',
+  manifest: {
+    studyId: 'TEST-1',
+    snapshotId: 'published-v1',
+    packageId: 'sha256:package',
+    standardsPackageId: 'test-send',
+    profile: 'send',
+    publicationState: 'published',
+    contentDigest: { algorithm: 'sha256', value: 'package' },
+    counts: { records: records.length },
+  },
+  evidence: {
+    snapshot: { publishedAt: '2026-09-05T00:00:00Z' },
+    records,
+    datasets: ['DM', 'TX', 'MI', 'LB'].map((domain) => ({
+      domain,
+      recordCount: records.filter((item) => item.canonical.domain === domain).length,
+      standard: { family: 'SEND', implementationGuide: 'SENDIG', implementationGuideVersion: '3.1.1' },
+    })),
+    sourceArtifacts: [{
+      sourceName: 'study.xpt',
+      digest: { algorithm: 'sha256', value: 'artifact' },
+      metadata: { sourceRepository: 'https://example.test/send', sourceRevision: 'abc123' },
+    }],
+  },
+};
+
+describe('canonical SEND study evidence projector', () => {
+  it('derives dose, signal, lab, and record lineage from one package', () => {
+    const projection = projectStudyEvidence(packageDocument);
+    expect(projection.doseGroups.map((group) => group.dose)).toEqual([0, 8]);
+    expect(projection.signals).toHaveLength(1);
+    expect(projection.signals[0]).toMatchObject({
+      id: 'thymus-lymphocytes',
+      incidence: [0, 1],
+      affectedAnimals: 1,
+      severity: { mild: 1 },
+      sourceRecordIds: ['mi-thymus'],
+    });
+    expect(projection.labSeries.LYM.points).toEqual([{ day: 29, 0: 7, 8: 3 }]);
+    expect(projection.provenance.projectionVersion).toBe(STUDY_EVIDENCE_PROJECTION_VERSION);
+    expect(projection.provenance.reconciliation.status).toBe('reconciled');
+    expect(projection.provenance.reconciliation.checks).toEqual({
+      domainCountsMatch: true,
+      recordCountMatches: true,
+      subjectCountMatches: true,
+    });
+  });
+
+  it('produces the same projection digest for the same immutable package', () => {
+    expect(projectStudyEvidence(packageDocument).provenance.projectionDigest)
+      .toEqual(projectStudyEvidence(packageDocument).provenance.projectionDigest);
+  });
+
+  it('accepts the SEND field conventions emitted by the Kehrnel safety-signal generator', () => {
+    const syntheticRecords = records.map((item) => structuredClone(item));
+    for (const item of syntheticRecords) {
+      if (item.canonical.domain === 'DM') {
+        item.canonical.data.SPGRPCD = item.canonical.data.SETCD;
+        delete item.canonical.data.SETCD;
+        delete item._index.facets.treatmentGroup;
+      }
+      if (item.canonical.domain === 'TX' && item.canonical.data.TXPARMCD === 'TRTDOS') {
+        item.canonical.data.TXVALN = Number(item.canonical.data.TXVAL);
+        item.canonical.data.TXVALU = 'mg/kg/day';
+        item.canonical.data.TXVAL = item.canonical.data.TXVALN === 0 ? 'Vehicle control' : 'High dose';
+      }
+      if (item.canonical.domain === 'TX' && item.canonical.data.TXPARMCD === 'TRTDOSU') item.canonical.data.TXVAL = '';
+      if (item.canonical.domain === 'MI') {
+        item.canonical.data.MISTRESC = 'DECREASED LYMPHOCYTES, CORTEX';
+        item._index.facets.finding = '';
+      }
+    }
+    const syntheticPackage = structuredClone(packageDocument);
+    syntheticPackage.manifest.studyId = 'SYNTH-TEST';
+    syntheticPackage.manifest.standardsPackageId = 'sendig-3.0';
+    syntheticPackage.evidence.records = syntheticRecords;
+
+    const projection = projectStudyEvidence(syntheticPackage);
+    expect(projection.doseGroups).toMatchObject([
+      { code: 'C', dose: 0, unit: 'mg/kg/day' },
+      { code: 'D', dose: 8, unit: 'mg/kg/day' },
+    ]);
+    expect(projection.signals[0]).toMatchObject({ id: 'thymus-lymphocytes', incidence: [0, 1] });
+    expect(projection.study.evidenceClass).toBe('sponsor-observed');
+  });
+
+  it('derives bounded review signals and TS metadata for an independent public SEND package', () => {
+    const publicRecords = records.map((item) => structuredClone(item));
+    publicRecords.push(
+      record('MI', 'mi-kidney', { USUBJID: 'S-2', MISPEC: 'KIDNEY', MISTRESC: 'Tubular degeneration', MISEV: 'MODERATE' }, { subjectId: 'S-2', organ: 'KIDNEY', finding: 'Tubular degeneration' }),
+      record('MI', 'mi-normal', { USUBJID: 'S-1', MISPEC: 'KIDNEY', MISTRESC: 'NORMAL' }, { subjectId: 'S-1', organ: 'KIDNEY', finding: 'NORMAL' }),
+      record('MI', 'mi-procedure', { USUBJID: 'S-1', MISPEC: 'KIDNEY', MISTRESC: 'Microscopic Examination' }, { subjectId: 'S-1', organ: 'KIDNEY', finding: 'Microscopic Examination' }),
+      record('TS', 'ts-species', { TSPARMCD: 'SPECIES', TSVAL: 'RAT' }),
+      record('TS', 'ts-strain', { TSPARMCD: 'STRAIN', TSVAL: 'FISCHER 344' }),
+      record('TS', 'ts-treatment', { TSPARMCD: 'TRT', TSVAL: 'Example compound' }),
+    );
+    const publicPackage = structuredClone(packageDocument);
+    publicPackage.manifest.studyId = 'Nimort-01';
+    publicPackage.manifest.standardsPackageId = 'phuse-nimble-send';
+    publicPackage.manifest.counts.records = publicRecords.length;
+    publicPackage.evidence.records = publicRecords;
+    publicPackage.evidence.datasets = ['DM', 'TX', 'MI', 'LB', 'TS'].map((domain) => ({
+      domain,
+      recordCount: publicRecords.filter((item) => item.canonical.domain === domain).length,
+      standard: { family: 'SEND', implementationGuide: 'SENDIG', implementationGuideVersion: '3.0' },
+    }));
+
+    const projection = projectStudyEvidence(publicPackage);
+    expect(projection.study).toMatchObject({
+      title: 'PhUSE Nimble SEND Study',
+      evidenceClass: 'observed-public',
+      species: 'RAT',
+      strain: 'FISCHER 344',
+      compoundName: 'Example compound',
+    });
+    expect(projection.signals).toEqual(expect.arrayContaining([
+      expect.objectContaining({ organ: 'KIDNEY', finding: 'Tubular degeneration', incidence: [0, 1], pattern: 'treated-only' }),
+    ]));
+    expect(projection.signals.some((signal) => signal.finding === 'NORMAL')).toBe(false);
+    expect(projection.signals.some((signal) => signal.finding === 'Microscopic Examination')).toBe(false);
+    expect(new Set(projection.signals.map((signal) => signal.projectionRuleId))).toEqual(new Set(['signal.observed-microscopy-grouping.v1']));
+  });
+
+  it('builds reconciled operational projections with explicit source-declared and inferred relationships', () => {
+    const operationalPackage = structuredClone(packageDocument);
+    operationalPackage.evidence.records.find((item) => item._id === 'mi-thymus').canonical.data.MISEQ = 1;
+    operationalPackage.evidence.records.push(
+      record('MA', 'ma-thymus', { USUBJID: 'S-2', MASEQ: 2, MASPEC: 'THYMUS', MATESTCD: 'GROSPATH', MATEST: 'Gross Pathological Examination', MASTRESC: 'SMALL', MADY: 29 }, { subjectId: 'S-2', organ: 'THYMUS', finding: 'SMALL', studyDay: 29, testCode: 'GROSPATH' }),
+      record('RELREC', 'rel-mi', { USUBJID: 'S-2', RELID: 'R1', RDOMAIN: 'MI', IDVAR: 'MISEQ', IDVARVAL: '1' }, { subjectId: 'S-2' }),
+      record('RELREC', 'rel-ma', { USUBJID: 'S-2', RELID: 'R1', RDOMAIN: 'MA', IDVAR: 'MASEQ', IDVARVAL: '2' }, { subjectId: 'S-2' }),
+    );
+    operationalPackage.manifest.counts.records = operationalPackage.evidence.records.length;
+    operationalPackage.evidence.datasets = ['DM', 'TX', 'MI', 'LB', 'MA', 'RELREC'].map((domain) => ({
+      domain,
+      recordCount: operationalPackage.evidence.records.filter((item) => item.canonical.domain === domain).length,
+      standard: { family: 'SEND', implementationGuide: 'SENDIG', implementationGuideVersion: '3.0' },
+    }));
+
+    const first = projectOperationalEvidence(operationalPackage, { semanticReleaseId: 'org.contextobjects.nonclinical-safety@0.4.0' });
+    const second = projectOperationalEvidence(operationalPackage, { semanticReleaseId: 'org.contextobjects.nonclinical-safety@0.4.0' });
+    expect(first).toEqual(second);
+    expect(first.projectionVersion).toBe(OPERATIONAL_EVIDENCE_PROJECTION_VERSION);
+    expect(first.reconciliation).toMatchObject({ status: 'reconciled', subjectCount: 2, checks: { allReferencesResolve: true, oneTimelinePerSubject: true } });
+    expect(first.endpointSummaries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ endpointType: 'categorical', domain: 'MI', organ: 'THYMUS' }),
+      expect.objectContaining({ endpointType: 'numeric', domain: 'LB', testCode: 'LYM' }),
+    ]));
+    expect(first.subjectTimelines).toHaveLength(2);
+    expect(first.subjectTimelines.find((item) => item.subjectId === 'S-2')?.domainCounts).toEqual({ LB: 1, MA: 1, MI: 1 });
+    expect(first.evidenceRelationships).toEqual(expect.arrayContaining([
+      expect.objectContaining({ authority: 'source-declared', relationId: 'R1', predicate: 'source:relatedRecord' }),
+      expect.objectContaining({ authority: 'governed-inference', ruleId: 'relationship.subject-treatment-group.v1' }),
+    ]));
+    expect(first.endpointSummaries.every((item) => item.semanticReleaseId === 'org.contextobjects.nonclinical-safety@0.4.0' && item.projectionDigest.startsWith('sha256:'))).toBe(true);
+  });
+});

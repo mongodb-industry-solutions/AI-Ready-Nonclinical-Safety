@@ -1,11 +1,14 @@
 import type { DoseGroup, SafetySignal } from '@/lib/contracts';
 
 export function treatedIncidence(signal: SafetySignal, groups: DoseGroup[]) {
-  const pairs = groups.map((group, index) => ({
-    dose: group.dose,
-    affected: signal.incidence[index] ?? 0,
-    total: group.animalCount,
-  }));
+  const byDose = new Map<number, { dose: number; affected: number; total: number }>();
+  groups.forEach((group, index) => {
+    const current = byDose.get(group.dose) ?? { dose: group.dose, affected: 0, total: 0 };
+    current.affected += signal.incidence[index] ?? 0;
+    current.total += group.animalCount;
+    byDose.set(group.dose, current);
+  });
+  const pairs = [...byDose.values()].sort((left, right) => left.dose - right.dose);
   const control = pairs.find((row) => row.dose === 0);
   const treated = pairs.filter((row) => row.dose > 0);
   return {

@@ -1,8 +1,24 @@
 services:
   safety-intelligence:
     build: .
+    depends_on:
+      safety-agent:
+        condition: service_started
     ports:
       - "3000:3000"
     env_file:
       - path: .env.local
         required: false
+    environment:
+      INTERNAL_AGENT_URL: http://safety-agent:8082
+
+  safety-agent:
+    build: ./services/agent
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      GATEWAY_PORT: "8082"
+      RUNNER_MODE: tool
+    expose:
+      - "8082"

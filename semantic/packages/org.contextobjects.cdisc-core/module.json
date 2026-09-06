@@ -1,0 +1,825 @@
+{
+  "apiVersion": "contextobjects.dev/semantic-module/v1",
+  "kind": "SemanticModule",
+  "packageId": "org.contextobjects.cdisc-core",
+  "version": "1.0.0",
+  "title": "CDISC Core Semantic Model",
+  "description": "Standard-neutral CDISC study, subject, treatment, observation, measurement, relationship, and artifact semantics.",
+  "objects": [
+    {
+      "id": "Compound",
+      "label": "Compound",
+      "kind": "business",
+      "description": "Investigational material anchor with identifiers and normalized chemical structure references.",
+      "sourceDomains": [
+        "TS"
+      ],
+      "retrieval": [
+        "exact",
+        "text",
+        "chemical-fingerprint"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "Study",
+      "label": "Study",
+      "kind": "business",
+      "description": "Immutable nonclinical study snapshot and protocol context.",
+      "sourceDomains": [
+        "TS"
+      ],
+      "retrieval": [
+        "exact",
+        "text"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 230,
+        "y": 0
+      }
+    },
+    {
+      "id": "TreatmentGroup",
+      "label": "Treatment group",
+      "kind": "business",
+      "description": "Cohort dose assignment and exposure context.",
+      "sourceDomains": [
+        "TX"
+      ],
+      "retrieval": [
+        "exact",
+        "range"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 460,
+        "y": 0
+      }
+    },
+    {
+      "id": "Subject",
+      "label": "Animal subject",
+      "kind": "business",
+      "description": "Governed study subject identity and group assignment.",
+      "sourceDomains": [
+        "DM"
+      ],
+      "retrieval": [
+        "exact",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 690,
+        "y": 0
+      }
+    },
+    {
+      "id": "Finding",
+      "label": "Microscopic finding",
+      "kind": "evidence",
+      "description": "Tissue finding with organ, morphology, severity, subject, and lineage.",
+      "sourceDomains": [
+        "MI"
+      ],
+      "terminology": [
+        "SEND controlled terminology",
+        "solution concept dictionary"
+      ],
+      "retrieval": [
+        "exact",
+        "text",
+        "vector",
+        "graph",
+        "rerank"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 230,
+        "y": 190
+      }
+    },
+    {
+      "id": "LabMeasurement",
+      "label": "Laboratory measurement",
+      "kind": "evidence",
+      "description": "Longitudinal analyte result with unit, time, group, and subject context.",
+      "sourceDomains": [
+        "LB"
+      ],
+      "terminology": [
+        "SEND controlled terminology"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "text",
+        "vector"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 1150,
+        "y": 190
+      }
+    },
+    {
+      "id": "OrganMeasurement",
+      "label": "Organ measurement",
+      "kind": "evidence",
+      "description": "Absolute or normalized organ measurement with specimen, method, unit, subject, phase, and source lineage.",
+      "sourceDomains": [
+        "OM"
+      ],
+      "terminology": [
+        "SEND controlled terminology"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 690,
+        "y": 190
+      }
+    },
+    {
+      "id": "BodyWeightMeasurement",
+      "label": "Body-weight measurement",
+      "kind": "evidence",
+      "description": "Longitudinal body weight or body-weight gain measurement for one subject and study time.",
+      "sourceDomains": [
+        "BW",
+        "BG"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 920,
+        "y": 190
+      }
+    },
+    {
+      "id": "ClinicalObservation",
+      "label": "Clinical observation",
+      "kind": "evidence",
+      "description": "In-life observation with finding, severity or status, body location, subject, and study time.",
+      "sourceDomains": [
+        "CL"
+      ],
+      "terminology": [
+        "SEND controlled terminology"
+      ],
+      "retrieval": [
+        "exact",
+        "text",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 0,
+        "y": 380
+      }
+    },
+    {
+      "id": "MacroscopicFinding",
+      "label": "Macroscopic finding",
+      "kind": "evidence",
+      "description": "Gross pathology observation with specimen, morphology, subject, phase, and lineage.",
+      "sourceDomains": [
+        "MA"
+      ],
+      "terminology": [
+        "SEND controlled terminology"
+      ],
+      "retrieval": [
+        "exact",
+        "text",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 460,
+        "y": 190
+      }
+    },
+    {
+      "id": "ExposureAdministration",
+      "label": "Exposure administration",
+      "kind": "evidence",
+      "description": "Administered treatment amount, route, formulation context, subject or pool, and study time.",
+      "sourceDomains": [
+        "EX"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 460,
+        "y": 380
+      }
+    },
+    {
+      "id": "PkConcentration",
+      "label": "Toxicokinetic concentration",
+      "kind": "evidence",
+      "description": "Measured analyte concentration with specimen, time, subject or pool, unit, and quantification context.",
+      "sourceDomains": [
+        "PC"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 690,
+        "y": 380
+      }
+    },
+    {
+      "id": "PkParameter",
+      "label": "Toxicokinetic parameter",
+      "kind": "evidence",
+      "description": "Derived exposure parameter such as AUC or Cmax with group, sex, period, and unit context.",
+      "sourceDomains": [
+        "PP"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 920,
+        "y": 380
+      }
+    },
+    {
+      "id": "StudyPhase",
+      "label": "Study phase",
+      "kind": "business",
+      "description": "Trial element, subject element, disposition, terminal sacrifice, or recovery-period context.",
+      "sourceDomains": [
+        "SE",
+        "DS",
+        "TA",
+        "TE"
+      ],
+      "terminology": [
+        "SEND controlled terminology"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 920,
+        "y": 0
+      }
+    },
+    {
+      "id": "FoodConsumption",
+      "label": "Food consumption",
+      "kind": "evidence",
+      "description": "Longitudinal food-consumption measurement for a subject or group.",
+      "sourceDomains": [
+        "FW"
+      ],
+      "retrieval": [
+        "exact",
+        "range",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 230,
+        "y": 380
+      }
+    },
+    {
+      "id": "EvidenceRelationship",
+      "label": "Evidence relationship",
+      "kind": "governance",
+      "description": "Typed source-declared or governed inferred relationship between canonical evidence records.",
+      "sourceDomains": [
+        "RELREC"
+      ],
+      "retrieval": [
+        "exact",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "portfolio-lead",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 1150,
+        "y": 380
+      }
+    },
+    {
+      "id": "SourceArtifact",
+      "label": "Source artifact",
+      "kind": "governance",
+      "description": "Checksum-verified artifact from which evidence was derived.",
+      "sourceDomains": [
+        "XPT",
+        "Define-XML"
+      ],
+      "retrieval": [
+        "exact",
+        "graph"
+      ],
+      "visibleTo": [
+        "data-steward",
+        "external-reviewer",
+        "study-director",
+        "toxicologist"
+      ],
+      "position": {
+        "x": 1150,
+        "y": 570
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "compound-safety-evaluated-in-study",
+      "from": "Compound",
+      "to": "Study",
+      "label": "evaluated in",
+      "predicate": "safety:evaluatedIn"
+    },
+    {
+      "id": "study-safety-defines-group-treatment-group",
+      "from": "Study",
+      "to": "TreatmentGroup",
+      "label": "defines group",
+      "predicate": "safety:definesGroup"
+    },
+    {
+      "id": "treatment-group-safety-assigns-subject-subject",
+      "from": "TreatmentGroup",
+      "to": "Subject",
+      "label": "assigns subject",
+      "predicate": "safety:assignsSubject"
+    },
+    {
+      "id": "subject-safety-has-finding-finding",
+      "from": "Subject",
+      "to": "Finding",
+      "label": "has finding",
+      "predicate": "safety:hasFinding"
+    },
+    {
+      "id": "subject-safety-has-lab-result-lab-measurement",
+      "from": "Subject",
+      "to": "LabMeasurement",
+      "label": "has lab result",
+      "predicate": "safety:hasLabResult"
+    },
+    {
+      "id": "subject-safety-has-organ-measurement-organ-measurement",
+      "from": "Subject",
+      "to": "OrganMeasurement",
+      "label": "has organ measurement",
+      "predicate": "safety:hasOrganMeasurement"
+    },
+    {
+      "id": "subject-safety-has-body-weight-body-weight-measurement",
+      "from": "Subject",
+      "to": "BodyWeightMeasurement",
+      "label": "has body weight",
+      "predicate": "safety:hasBodyWeight"
+    },
+    {
+      "id": "subject-safety-has-clinical-observation-clinical-observation",
+      "from": "Subject",
+      "to": "ClinicalObservation",
+      "label": "has clinical observation",
+      "predicate": "safety:hasClinicalObservation"
+    },
+    {
+      "id": "subject-safety-has-macroscopic-finding-macroscopic-finding",
+      "from": "Subject",
+      "to": "MacroscopicFinding",
+      "label": "has macroscopic finding",
+      "predicate": "safety:hasMacroscopicFinding"
+    },
+    {
+      "id": "subject-safety-received-administration-exposure-administration",
+      "from": "Subject",
+      "to": "ExposureAdministration",
+      "label": "received administration",
+      "predicate": "safety:receivedAdministration"
+    },
+    {
+      "id": "subject-safety-has-pk-concentration-pk-concentration",
+      "from": "Subject",
+      "to": "PkConcentration",
+      "label": "has pk concentration",
+      "predicate": "safety:hasPkConcentration"
+    },
+    {
+      "id": "treatment-group-safety-has-pk-parameter-pk-parameter",
+      "from": "TreatmentGroup",
+      "to": "PkParameter",
+      "label": "has pk parameter",
+      "predicate": "safety:hasPkParameter"
+    },
+    {
+      "id": "subject-safety-participates-in-study-phase",
+      "from": "Subject",
+      "to": "StudyPhase",
+      "label": "participates in",
+      "predicate": "safety:participatesIn"
+    },
+    {
+      "id": "subject-safety-has-food-consumption-food-consumption",
+      "from": "Subject",
+      "to": "FoodConsumption",
+      "label": "has food consumption",
+      "predicate": "safety:hasFoodConsumption"
+    },
+    {
+      "id": "evidence-relationship-safety-connects-evidence-finding",
+      "from": "EvidenceRelationship",
+      "to": "Finding",
+      "label": "connects evidence",
+      "predicate": "safety:connectsEvidence"
+    },
+    {
+      "id": "finding-prov-was-derived-from-source-artifact",
+      "from": "Finding",
+      "to": "SourceArtifact",
+      "label": "was derived from",
+      "predicate": "prov:wasDerivedFrom"
+    }
+  ],
+  "valueSets": [
+    {
+      "id": "finding-morphology",
+      "label": "Microscopic finding morphology",
+      "binding": "Finding.finding",
+      "authority": "source-asserted + steward-reviewed",
+      "version": "2026.09",
+      "values": [
+        "Decreased lymphocytes",
+        "Mononuclear cell infiltration",
+        "Inflammatory finding",
+        "Increased fibroblasts"
+      ]
+    },
+    {
+      "id": "anatomic-site",
+      "label": "Nonclinical anatomic site",
+      "binding": "Finding.organ",
+      "authority": "SEND terminology projection",
+      "version": "2026.09",
+      "values": [
+        "BRAIN",
+        "GLAND, ADRENAL",
+        "GLAND, PITUITARY",
+        "GLAND, THYROID",
+        "HEART",
+        "KIDNEY",
+        "LIVER",
+        "LUNG",
+        "OVARY",
+        "SPLEEN",
+        "TESTIS",
+        "THYMUS"
+      ]
+    },
+    {
+      "id": "finding-severity",
+      "label": "Finding severity",
+      "binding": "Finding.severity",
+      "authority": "SEND controlled terminology",
+      "version": "2026.09",
+      "values": [
+        "MINIMAL",
+        "MILD",
+        "MODERATE",
+        "MARKED",
+        "SEVERE",
+        "UNGRADABLE"
+      ]
+    },
+    {
+      "id": "study-phase",
+      "label": "Study phase",
+      "binding": "StudyPhase.phase",
+      "authority": "SEND SE/TA/TE interpretation",
+      "version": "2026.09",
+      "values": [
+        "MAIN",
+        "RECOVERY",
+        "TERMINAL",
+        "UNSPECIFIED"
+      ]
+    },
+    {
+      "id": "target-organ-conclusion",
+      "label": "Target-organ conclusion",
+      "binding": "TargetOrganAssessment.targetOrganConclusion",
+      "authority": "governed expert review",
+      "version": "2026.09",
+      "values": [
+        "TARGET ORGAN",
+        "NOT TARGET ORGAN",
+        "INDETERMINATE"
+      ]
+    },
+    {
+      "id": "adversity-decision",
+      "label": "Adversity decision",
+      "binding": "TargetOrganAssessment.adversityDecision",
+      "authority": "governed expert review",
+      "version": "2026.09",
+      "values": [
+        "ADVERSE",
+        "NON-ADVERSE",
+        "EQUIVOCAL",
+        "NOT ASSESSED"
+      ]
+    },
+    {
+      "id": "reversibility-decision",
+      "label": "Reversibility decision",
+      "binding": "TargetOrganAssessment.reversibility",
+      "authority": "governed expert review",
+      "version": "2026.09",
+      "values": [
+        "RECOVERED",
+        "PARTIALLY RECOVERED",
+        "PERSISTENT",
+        "NOT ASSESSED"
+      ]
+    }
+  ],
+  "taxonomy": {
+    "concepts": [
+      {
+        "id": "evidence",
+        "label": "Evidence",
+        "kind": "taxonomy",
+        "semanticObjects": [
+          "Finding",
+          "LabMeasurement",
+          "Publication",
+          "DocumentChunk"
+        ]
+      },
+      {
+        "id": "observed-study-evidence",
+        "label": "Observed study evidence",
+        "kind": "concept",
+        "broader": "evidence",
+        "semanticObjects": [
+          "Finding",
+          "LabMeasurement"
+        ]
+      },
+      {
+        "id": "external-contextual-evidence",
+        "label": "External contextual evidence",
+        "kind": "concept",
+        "broader": "evidence",
+        "semanticObjects": [
+          "Publication",
+          "DocumentChunk"
+        ]
+      },
+      {
+        "id": "microscopic-finding",
+        "label": "Microscopic finding",
+        "kind": "concept",
+        "broader": "observed-study-evidence",
+        "synonyms": [
+          "histopathology finding"
+        ],
+        "valueSet": "finding-morphology",
+        "externalMappings": [
+          "SEND MI",
+          "MeSH:Pathology"
+        ],
+        "semanticObjects": [
+          "Finding"
+        ]
+      },
+      {
+        "id": "anatomic-site",
+        "label": "Anatomic site",
+        "kind": "terminology",
+        "valueSet": "anatomic-site",
+        "externalMappings": [
+          "SEND controlled terminology",
+          "MeSH Anatomy"
+        ],
+        "semanticObjects": [
+          "Finding",
+          "Publication"
+        ]
+      },
+      {
+        "id": "scientific-publication",
+        "label": "Scientific publication",
+        "kind": "concept",
+        "broader": "external-contextual-evidence",
+        "externalMappings": [
+          "schema:ScholarlyArticle",
+          "PubMed Publication"
+        ],
+        "semanticObjects": [
+          "Publication"
+        ]
+      },
+      {
+        "id": "evidence-passage",
+        "label": "Evidence passage",
+        "kind": "concept",
+        "broader": "external-contextual-evidence",
+        "semanticObjects": [
+          "DocumentChunk"
+        ]
+      },
+      {
+        "id": "review-assertion",
+        "label": "Review assertion",
+        "kind": "concept",
+        "semanticObjects": [
+          "EvidenceAssertion",
+          "ReviewDecision"
+        ]
+      },
+      {
+        "id": "longitudinal-measurement",
+        "label": "Longitudinal measurement",
+        "kind": "concept",
+        "broader": "observed-study-evidence",
+        "semanticObjects": [
+          "LabMeasurement",
+          "BodyWeightMeasurement",
+          "FoodConsumption",
+          "PkConcentration"
+        ]
+      },
+      {
+        "id": "target-organ-evidence",
+        "label": "Target-organ evidence",
+        "kind": "concept",
+        "broader": "observed-study-evidence",
+        "semanticObjects": [
+          "Finding",
+          "MacroscopicFinding",
+          "OrganMeasurement",
+          "EndpointSummary"
+        ]
+      },
+      {
+        "id": "systemic-exposure",
+        "label": "Systemic exposure",
+        "kind": "concept",
+        "broader": "observed-study-evidence",
+        "semanticObjects": [
+          "ExposureAdministration",
+          "PkConcentration",
+          "PkParameter"
+        ]
+      },
+      {
+        "id": "recovery-evidence",
+        "label": "Recovery evidence",
+        "kind": "concept",
+        "broader": "observed-study-evidence",
+        "valueSet": "study-phase",
+        "semanticObjects": [
+          "StudyPhase",
+          "EndpointSummary"
+        ]
+      },
+      {
+        "id": "adversity-assessment",
+        "label": "Adversity assessment",
+        "kind": "concept",
+        "valueSet": "adversity-decision",
+        "semanticObjects": [
+          "TargetOrganAssessment",
+          "ReviewDecision"
+        ]
+      }
+    ]
+  },
+  "archetypes": []
+}
