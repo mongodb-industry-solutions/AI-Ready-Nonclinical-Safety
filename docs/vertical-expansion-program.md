@@ -150,7 +150,7 @@ Status at semantic release 0.4.1:
 |---|---|---|
 | 0 · reconnaissance | Complete | Five-study coverage measured from complete public SEND packages |
 | 1 · supply path | Complete on feature branches | All-domain checksum-pinned examples and a curated 63,836-record active corpus |
-| 2 · operational projections | Complete baseline | Five immutable active snapshots, reconciled projections, portfolio corpus, and workload indexes |
+| 2 · operational projections | Complete baseline | Three curated immutable active snapshots, reconciled projections, portfolio corpus, and workload indexes |
 | 3 · investigation room | Complete baseline | Biological coherence, source-range abnormality resolution, cross-study widgets, source navigation, and measured query traces |
 | 4 · agent and semantics | Implemented with runtime boundary | Compiled 0.4.1 resolver; exact, graph, semantic lexical/vector, literature, fusion, and rerank telemetry share one envelope; deterministic path always available; Magenta activates when configured |
 | 5 · assessment and evaluation | Partial | Cited target-organ assessment implemented; expert evaluation and NOAEL remain |
