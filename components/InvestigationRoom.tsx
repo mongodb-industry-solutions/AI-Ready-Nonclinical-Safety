@@ -139,11 +139,9 @@ export default function InvestigationRoom({ evidence, signal, runtime, literatur
     </header>
     <div className={`room-body room-body-feed ${preview ? 'inspector-open' : ''} ${documentPreviewOpen ? 'inspector-document' : ''}`}>
       <aside className="room-context">
-        <span className="panel-kicker">Investigation navigator</span><h2>Evidence path</h2><p className="context-guidance">Select a node to inspect that layer of the governed evidence chain.</p>
-        <div className="context-score"><strong>{signal.affectedAnimals}/{signal.totalAnimals}</strong><span>affected animals</span><em>{signal.pattern}</em></div>
-        <div className="context-chain">{contextNodes.map((item, index) => <button key={item.id} className={contextStep === item.id ? 'active' : ''} aria-current={contextStep === item.id ? 'step' : undefined} onClick={() => navigateContext(item.id)}><i>{index + 1}</i><span><b>{item.label}</b><small>{item.detail}</small></span></button>)}</div>
-        <div className="semantic-policy"><b>Semantic policy</b>{runtime.governance.rules.slice(0, 3).map((rule) => <p key={rule}><CheckCircle2 size={11} />{rule}</p>)}</div>
-        <div className="live-contract"><Activity size={13} /><span><b>Change Stream ready</b><small>Snapshot + cursor + typed events</small></span></div>
+        <div className="context-rail-heading"><span className="panel-kicker">Evidence path</span><p>Select a layer to inspect its records.</p></div>
+        <div className="context-score"><span><strong>{signal.affectedAnimals}/{signal.totalAnimals}</strong><small>affected</small></span><em>{signal.pattern}</em></div>
+        <div className="context-chain">{contextNodes.map((item, index) => <button key={item.id} className={contextStep === item.id ? 'active' : ''} aria-current={contextStep === item.id ? 'step' : undefined} title={`${item.label} — ${item.detail}`} onClick={() => navigateContext(item.id)}><i>{index + 1}</i><span><b>{item.label}</b><small>{item.detail}</small></span></button>)}</div>
       </aside>
       <main className="room-stage">
         <nav className="room-tabs"><button className={activeCanvas === 'assistant' ? 'active' : ''} onClick={() => navigateCanvas('assistant')}><Bot size={14} /> Investigator</button><button className={activeCanvas === 'workspace' ? 'active' : ''} onClick={() => navigateCanvas('workspace')}><Activity size={14} /> Evidence workspace</button><button className={activeCanvas === 'records' ? 'active' : ''} onClick={() => navigateCanvas('records')}><Database size={14} /> Source records</button><button className={activeCanvas === 'literature' ? 'active' : ''} onClick={() => navigateCanvas('literature')}><BookOpen size={14} /> Literature <em>{literature.length}</em></button><button className={activeCanvas === 'semantics' ? 'active' : ''} onClick={() => navigateCanvas('semantics')}><Network size={14} /> Semantic plan</button></nav>
