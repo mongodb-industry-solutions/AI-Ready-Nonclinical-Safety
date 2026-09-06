@@ -14,18 +14,16 @@ autonomous toxicology decision maker.
 
 ## Implemented vertical baseline
 
-The connected runtime now activates five complete public SEND snapshots through
-an immutable pointer model. Their aggregate active corpus is 109,748 canonical
-records, 625 subjects, 11,640 endpoint summaries, 1,113 measurement series, 625
-subject timelines, and 98,444 typed evidence relationships:
+The connected runtime now activates three deliberately differentiated complete
+public SEND snapshots through an immutable pointer model. Their aggregate active
+corpus is 63,836 canonical records, 374 subjects, 6,673 endpoint summaries, 786
+measurement series, 374 subject timelines, and 60,045 typed evidence relationships:
 
 | Study | Canonical records | SEND domains | Endpoint summaries | Measurement series | Subjects |
 |---|---:|---:|---:|---:|---:|
 | PDS2014 | 42,041 | 25 | 4,584 | 532 | 124 |
-| GLP003 | 35,892 | 25 | 3,363 | 242 | 241 |
 | PC201708 | 18,749 | 28 | 1,711 | 238 | 150 |
 | Nimort-01 | 3,046 | 18 | 378 | 16 | 100 |
-| PhUSE FFU | 10,020 | 25 | 1,604 | 85 | 10 |
 
 The Investigation Room executes the biological-coherence resolver against those
 persisted projections, shows the real MongoDB predicates, index use, counts, and
@@ -53,8 +51,10 @@ the current examples ingest:
 The Kehrnel solution-evidence exporter is domain-neutral and exports every dataset
 and record present in each published snapshot. The solution preserves all domains
 canonically, then derives bounded business views across pathology, measurements,
-phase, exposure, and typed relationships. Instem is represented by GLP003 and
-PointCross by PC201708 in the active solution corpus.
+phase, exposure, and typed relationships. PDS2014, PointCross PC201708, and
+Nimort-01 form the retained active solution corpus. Instem GLP003 and FFU remain
+checksum-pinned, reloadable Kehrnel examples and are not permanently materialized
+on the shared demonstration cluster.
 
 ## Architectural ownership
 
@@ -149,7 +149,7 @@ Status at semantic release 0.4.1:
 | Gate | Status | Evidence |
 |---|---|---|
 | 0 · reconnaissance | Complete | Five-study coverage measured from complete public SEND packages |
-| 1 · supply path | Complete on feature branches | All-domain checksum-pinned examples and 109,748-record active corpus |
+| 1 · supply path | Complete on feature branches | All-domain checksum-pinned examples and a curated 63,836-record active corpus |
 | 2 · operational projections | Complete baseline | Five immutable active snapshots, reconciled projections, portfolio corpus, and workload indexes |
 | 3 · investigation room | Complete baseline | Biological coherence, source-range abnormality resolution, cross-study widgets, source navigation, and measured query traces |
 | 4 · agent and semantics | Implemented with runtime boundary | Compiled 0.4.1 resolver; exact, graph, semantic lexical/vector, literature, fusion, and rerank telemetry share one envelope; deterministic path always available; Magenta activates when configured |

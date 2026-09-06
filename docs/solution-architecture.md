@@ -48,7 +48,7 @@ flowchart LR
 
 Healthcare Data Lab, Kehrnel, and Context Studio produce versioned inputs. They are intentionally absent from the production request path. The running application owns its MongoDB database, API, Magenta service, policies, and user experience.
 
-The deployed public corpus currently contains five complete SEND snapshots: PDS2014, GLP003, PC201708, Nimort-01, and the PhUSE FFU study. Together their active snapshots contain 109,748 canonical records for 625 animals, 11,640 endpoint summaries, 1,113 measurement series, 625 subject timelines, and 98,444 typed relationships. `study_snapshot_pointers` activates one immutable snapshot per study only after its canonical and operational reconciliation succeeds; older snapshots remain retained and are never silently overwritten.
+The deployed public corpus currently contains three complete SEND snapshots: PDS2014, PC201708, and Nimort-01. Together their active snapshots contain 63,836 canonical records for 374 animals, 6,673 endpoint summaries, 786 measurement series, 374 subject timelines, and 60,045 typed relationships. `study_snapshot_pointers` activates one immutable snapshot per study only after its canonical and operational reconciliation succeeds. On the shared demonstration cluster, superseded snapshots are explicitly pruned only after reconciliation; the immutable checksum-pinned Kehrnel packages remain the reproducible reimport boundary.
 
 ## Where CDISC is used
 
