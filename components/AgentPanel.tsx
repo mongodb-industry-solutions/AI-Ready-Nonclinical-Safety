@@ -64,7 +64,8 @@ function semanticObjectForHit(hit: SemanticGroundingResult['hits'][number], runt
 }
 
 export default function AgentPanel({ study, signal, profileId = 'toxicologist', enabled = true, id, evidence, runtime, expanded = false, onToggleExpanded, onShowSource, onOpenCoherence, onOpenLiterature, onOpenPortfolio, onOpenSemantic, onInspectLiterature, onInspectWidget }: AgentPanelProps) {
-  const [question, setQuestion] = useState(prompts[0]);
+  const [question, setQuestion] = useState('');
+  const [pendingQuestion, setPendingQuestion] = useState<string>();
   const [result, setResult] = useState<InvestigationResult | null>(null);
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const sessionId = useRef('');
@@ -94,33 +95,41 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
     sessionId.current = `safety-${crypto.randomUUID()}`;
     setTurns([]);
     setResult(null);
+    setQuestion('');
+    setPendingQuestion(undefined);
     setSemanticSearch(null);
     setSelectedMeaningId(undefined);
   }, [study.id, study.snapshotId, signal.id, profileId]);
 
   async function ask(nextQuestion = question) {
-    if (!enabled) return;
+    const submittedQuestion = nextQuestion.trim();
+    if (!enabled || busy || !submittedQuestion) return;
     setBusy(true);
     setError(null);
-    setQuestion(nextQuestion);
+    setPendingQuestion(submittedQuestion);
+    setQuestion('');
     try {
       if (!sessionId.current) sessionId.current = `safety-${crypto.randomUUID()}`;
-      const response = await fetch('/api/investigations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ studyId: study.id, signalId: signal.id, profileId, question: nextQuestion, sessionId: sessionId.current }) });
+      const response = await fetch('/api/investigations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ studyId: study.id, signalId: signal.id, profileId, question: submittedQuestion, sessionId: sessionId.current }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'The investigation could not be authorized');
       const investigation = payload as InvestigationResult;
       sessionId.current = investigation.session.id;
       setResult(investigation);
-      setTurns((current) => [...current, { id: `${investigation.session.id}:${investigation.session.turn}`, question: nextQuestion, result: investigation }]);
+      setTurns((current) => [...current, { id: `${investigation.session.id}:${investigation.session.turn}`, question: submittedQuestion, result: investigation }]);
       setSemanticSearch(investigation.semanticGrounding || null);
       setSelectedMeaningId(investigation.semanticGrounding?.hits[0]?.resourceId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The investigation could not be authorized');
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+      setPendingQuestion(undefined);
+    }
   }
 
   function askWithMeaning(hit: SemanticGroundingResult['hits'][number]) {
-    void ask(`${question} Resolve the question using the governed ${hit.resourceType} “${hit.label}” (${hit.resourceId}) and state if that interpretation changes the conclusion.`);
+    const investigationQuestion = question.trim() || turns.at(-1)?.question || prompts[0];
+    void ask(`${investigationQuestion} Resolve the question using the governed ${hit.resourceType} “${hit.label}” (${hit.resourceId}) and state if that interpretation changes the conclusion.`);
   }
 
   function openCitation(domain: string, sourceRef: string) {
@@ -133,7 +142,7 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
   }
 
   const previousTurns = busy ? turns : turns.slice(0, -1);
-  const activeQuestion = busy ? question : turns.at(-1)?.question;
+  const activeQuestion = busy ? pendingQuestion : turns.at(-1)?.question;
 
   return <aside className={`agent-panel ${expanded ? 'agent-panel-expanded' : ''}`} id={id}>
     <div className="agent-heading"><span className="agent-orb"><Sparkles size={17} /></span><div><strong>AI Safety Investigator</strong><small><ShieldCheck size={11} /> Read-only · snapshot-bound</small></div>{onToggleExpanded && <button className="agent-expand" onClick={onToggleExpanded} aria-label={expanded ? 'Return investigator to split view' : 'Expand investigator to full workspace'}>{expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}<span>{expanded ? 'Split view' : 'AI workspace'}</span></button>}<button className={`agent-info-toggle ${showRuntimeInfo ? 'active' : ''}`} type="button" aria-expanded={showRuntimeInfo} aria-controls={`${id || 'investigator'}-runtime-info`} onClick={() => setShowRuntimeInfo((current) => !current)}><Info size={13} /><span>How it works</span></button><span className={`agent-live ${result?.provider === 'magenta' ? 'agent-live-magenta' : result ? 'agent-live-deterministic' : ''}`} title={result ? (result.provider === 'magenta' ? 'Answered by the Magenta agent runtime' : 'Answered by the bundled deterministic investigator') : 'Run an investigation to see which execution path answers'}>{result ? (result.provider === 'magenta' ? 'MAGENTA' : 'DETERMINISTIC') : 'READY'}</span></div>
