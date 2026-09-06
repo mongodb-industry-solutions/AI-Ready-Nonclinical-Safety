@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Activity, BookOpen, Bot, Braces, CheckCircle2, ChevronRight, Database, GitBranch, GitCompareArrows, Maximize2, Minimize2, SearchCode, Send, ShieldCheck, Sparkles } from 'lucide-react';
+import { Activity, BadgeCheck, BookOpen, Bot, BrainCircuit, Braces, CheckCircle2, ChevronRight, Database, GitBranch, GitCompareArrows, Info, Maximize2, Minimize2, Network, SearchCode, Send, ShieldCheck, Sparkles, Wrench, X } from 'lucide-react';
 import type { InvestigationResult, LiteratureQueryExecution, RankedLiteratureDocument, SafetySignal, SemanticGroundingResult, SemanticProfileId, SemanticRuntimeView, StudyEvidence, StudySummary } from '@/lib/contracts';
 import DoseResponseChart from '@/components/DoseResponseChart';
 import EvidenceGraph from '@/components/EvidenceGraph';
@@ -72,6 +72,7 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
   const [selectedMeaningId, setSelectedMeaningId] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showRuntimeInfo, setShowRuntimeInfo] = useState(false);
   const lab = signal.correlatedLab && evidence ? evidence.labSeries?.[signal.correlatedLab] : undefined;
   const findingConcepts = useMemo(() => runtime?.taxonomy.concepts.filter((concept) => concept.semanticObjects.includes('Finding')) || [], [runtime]);
   const findingValueSets = useMemo(() => runtime?.valueSets.filter((valueSet) => valueSet.binding.startsWith('Finding.')) || [], [runtime]);
@@ -135,7 +136,18 @@ export default function AgentPanel({ study, signal, profileId = 'toxicologist', 
   const activeQuestion = busy ? question : turns.at(-1)?.question;
 
   return <aside className={`agent-panel ${expanded ? 'agent-panel-expanded' : ''}`} id={id}>
-    <div className="agent-heading"><span className="agent-orb"><Sparkles size={17} /></span><div><strong>AI Safety Investigator</strong><small><ShieldCheck size={11} /> Read-only · snapshot-bound</small></div>{onToggleExpanded && <button className="agent-expand" onClick={onToggleExpanded} aria-label={expanded ? 'Return investigator to split view' : 'Expand investigator to full workspace'}>{expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}<span>{expanded ? 'Split view' : 'AI workspace'}</span></button>}<span className={`agent-live ${result?.provider === 'magenta' ? 'agent-live-magenta' : result ? 'agent-live-deterministic' : ''}`} title={result ? (result.provider === 'magenta' ? 'Answered by the Magenta agent runtime' : 'Answered by the bundled deterministic investigator') : 'Run an investigation to see which execution path answers'}>{result ? (result.provider === 'magenta' ? 'MAGENTA' : 'DETERMINISTIC') : 'READY'}</span></div>
+    <div className="agent-heading"><span className="agent-orb"><Sparkles size={17} /></span><div><strong>AI Safety Investigator</strong><small><ShieldCheck size={11} /> Read-only · snapshot-bound</small></div>{onToggleExpanded && <button className="agent-expand" onClick={onToggleExpanded} aria-label={expanded ? 'Return investigator to split view' : 'Expand investigator to full workspace'}>{expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}<span>{expanded ? 'Split view' : 'AI workspace'}</span></button>}<button className={`agent-info-toggle ${showRuntimeInfo ? 'active' : ''}`} type="button" aria-expanded={showRuntimeInfo} aria-controls={`${id || 'investigator'}-runtime-info`} onClick={() => setShowRuntimeInfo((current) => !current)}><Info size={13} /><span>How it works</span></button><span className={`agent-live ${result?.provider === 'magenta' ? 'agent-live-magenta' : result ? 'agent-live-deterministic' : ''}`} title={result ? (result.provider === 'magenta' ? 'Answered by the Magenta agent runtime' : 'Answered by the bundled deterministic investigator') : 'Run an investigation to see which execution path answers'}>{result ? (result.provider === 'magenta' ? 'MAGENTA' : 'DETERMINISTIC') : 'READY'}</span></div>
+    {showRuntimeInfo && <section className="agent-runtime-info" id={`${id || 'investigator'}-runtime-info`} aria-label="How the Magenta investigator works">
+      <header><div><span className="panel-kicker">Governed copilot architecture</span><h3>What each layer contributes</h3></div><button type="button" onClick={() => setShowRuntimeInfo(false)} aria-label="Close Magenta architecture explanation"><X size={14} /></button></header>
+      <div className="agent-runtime-flow" aria-label="Investigation flow"><span>Question + memory</span><ChevronRight size={13} /><span>Semantic resolution</span><ChevronRight size={13} /><span>Registered tools</span><ChevronRight size={13} /><span>Deterministic evidence</span><ChevronRight size={13} /><span>Magenta presentation</span></div>
+      <div className="agent-runtime-grid">
+        <article><BrainCircuit size={16} /><div><b>Memory</b><p>Retains the investigation’s intent, prior questions and user preferences. It provides continuity, but is never accepted as factual evidence.</p></div></article>
+        <article><Wrench size={16} /><div><b>Tooling</b><p>Executes bounded study, signal, semantic, literature, graph and lineage queries. These deterministic results supply the facts and citations.</p></div></article>
+        <article><BadgeCheck size={16} /><div><b>Registration</b><p>Exposes only named, schema-validated tools and visual renderers. The active profile and semantic capability decide what Magenta may call.</p></div></article>
+        <article><Network size={16} /><div><b>Semantic map + graph</b><p>Determine what terms mean, how archetypes contain related evidence, where data is stored and which resolver becomes the operational query plan.</p></div></article>
+      </div>
+      <footer><ShieldCheck size={13} /><span><b>Separation of responsibility:</b> Magenta decides how to investigate and present; deterministic resolvers decide which evidence values are returned.</span>{runtime && <code>{runtime.release.releaseId} · {runtime.activeProfile.id}</code>}</footer>
+    </section>}
     <div className="agent-scope"><span>STUDY</span><b>{study.id}</b><span>SNAPSHOT</span><b>{study.snapshotId}</b><span>MEMORY</span><b>{turns.length ? `${turns.length} bound turn${turns.length === 1 ? '' : 's'} · ${result?.session.memory || 'session'}` : 'New scope-bound session'}</b></div>
     <div className="agent-conversation">
       <div className="agent-dialogue">
